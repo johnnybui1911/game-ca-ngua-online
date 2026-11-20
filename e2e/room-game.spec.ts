@@ -5,9 +5,15 @@ import { GAME_TIMEOUT, createRoom, newPlayer, startAutoPlayer, type Player } fro
 
 test.setTimeout(GAME_TIMEOUT + 60_000);
 
+/**
+ * Headless browsers rasterise WebGL on the CPU, at a cost proportional to the
+ * pixel count; a small viewport keeps full games fast without unmounting the scene.
+ */
+const VIEWPORT = { width: 360, height: 520 };
+
 async function startTwoPlayerGame(browser: Parameters<typeof newPlayer>[0], names: [string, string]) {
-  const a = await newPlayer(browser, names[0]);
-  const b = await newPlayer(browser, names[1]);
+  const a = await newPlayer(browser, names[0], VIEWPORT);
+  const b = await newPlayer(browser, names[1], VIEWPORT);
   const code = await createRoom(a, { name: 'Ván hai người', visibility: 'private', seats: 2 });
   await a.page.goto(`/r/${code}`);
   await b.page.goto(`/r/${code}`);
@@ -20,7 +26,7 @@ async function startTwoPlayerGame(browser: Parameters<typeof newPlayer>[0], name
 }
 
 test('one human and three CPUs play a full game to the win dialog', async ({ browser }) => {
-  const host = await newPlayer(browser, 'Người Chơi Một');
+  const host = await newPlayer(browser, 'Người Chơi Một', VIEWPORT);
   const code = await createRoom(host, { name: 'Một người ba máy', seats: 4 });
   await host.page.goto(`/r/${code}`);
   for (const seat of [1, 2, 3]) await host.page.getByTestId(`add-cpu-${seat}`).click();

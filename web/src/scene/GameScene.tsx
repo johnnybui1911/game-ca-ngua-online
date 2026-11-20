@@ -7,12 +7,24 @@ import SceneContent from './SceneContent';
 
 const UNAVAILABLE = 'Trình duyệt không hỗ trợ WebGL nên không thể hiển thị bàn cờ 3D. Hãy thử trình duyệt hoặc thiết bị khác.';
 
-function webglAvailable(): boolean {
+type WebglSupport = 'none' | 'software' | 'gpu';
+
+/**
+ * Software rasterisers (no GPU, remote desktops, headless browsers) render the
+ * full-quality scene at a few frames per second and starve the page, so they
+ * get a cheaper renderer: no shadows, no antialiasing, pixel ratio 1.
+ */
+function detectWebgl(): WebglSupport {
   try {
     const c = document.createElement('canvas');
-    return Boolean(c.getContext('webgl2') ?? c.getContext('webgl'));
+    const gl = c.getContext('webgl2') ?? c.getContext('webgl');
+    if (!gl) return 'none';
+    const info = gl.getExtension('WEBGL_debug_renderer_info');
+    const renderer = String(gl.getParameter(info ? info.UNMASKED_RENDERER_WEBGL : gl.RENDERER));
+    gl.getExtension('WEBGL_lose_context')?.loseContext();
+    return /swiftshader|llvmpipe|softpipe|software/i.test(renderer) ? 'software' : 'gpu';
   } catch {
-    return false;
+    return 'none';
   }
 }
 
@@ -49,7 +61,8 @@ class CanvasBoundary extends Component<{ children: ReactNode }, { failed: boolea
 
 /** Mount point of the 3D board. Default export so the match page can load it lazily. */
 export default function GameScene(props: GameSceneProps) {
-  const [supported] = useState(webglAvailable);
+  const [support] = useState(detectWebgl);
+  const software = support === 'software';
   return (
     <div
       data-testid="game-scene"
@@ -62,13 +75,13 @@ export default function GameScene(props: GameSceneProps) {
         background: 'radial-gradient(ellipse at 50% 38%, #5a3b27 0%, #33211a 55%, #1d130f 100%)',
       }}
     >
-      {supported ? (
+      {support !== 'none' ? (
         <CanvasBoundary>
           <Canvas
-            dpr={[1, 2]}
-            shadows={{ type: PCFShadowMap }}
+            dpr={software ? 1 : [1, 2]}
+            shadows={software ? false : { type: PCFShadowMap }}
             camera={{ fov: 40, near: 0.5, far: 200, position: [0, 15, 12] }}
-            gl={{ antialias: true, alpha: true, powerPreference: 'high-performance', toneMapping: NeutralToneMapping }}
+            gl={{ antialias: !software, alpha: true, powerPreference: 'high-performance', toneMapping: NeutralToneMapping }}
             style={{ position: 'absolute', inset: 0 }}
           >
             <SceneContent {...props} />
