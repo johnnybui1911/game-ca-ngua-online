@@ -20,6 +20,8 @@ type Toast = NewToast & { id: number };
 
 const NOTICE_MS = 6000;
 const INVITE_MS = 60_000;
+/** Newest toasts kept; a flood of invites cannot bury the page. */
+const MAX_TOASTS = 3;
 
 /** Keeps one lobby socket open while signed in and renders invite toasts on every page. */
 export function LobbyProvider({ children }: { children: ReactNode }) {
@@ -36,7 +38,7 @@ export function LobbyProvider({ children }: { children: ReactNode }) {
   const push = useCallback(
     (toast: NewToast, ttl: number) => {
       const id = nextId.current++;
-      setToasts((all) => [...all, { ...toast, id }]);
+      setToasts((all) => [...all, { ...toast, id }].slice(-MAX_TOASTS));
       setTimeout(() => dismiss(id), ttl);
     },
     [dismiss],

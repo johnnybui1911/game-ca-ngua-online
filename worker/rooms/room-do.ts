@@ -11,17 +11,26 @@ import {
   type RoomVisibility,
 } from '../../shared/protocol';
 import type { Env } from '../env';
-import { MAX_MESSAGE_BYTES, USER_HEADER, timingsFor, type Timings } from './constants';
+import { TokenBucket } from './token-bucket';
+import {
+  MAX_MESSAGE_BYTES,
+  MAX_SOCKETS_PER_USER,
+  SOCKET_BURST,
+  SOCKET_REFILL_PER_SEC,
+  USER_HEADER,
+  timingsFor,
+  type Timings,
+} from './constants';
 import {
   currentSeatIndex,
   drawDie,
-  dueDelay,
   firstEmptySeat,
   humanUsers,
   nextCpuName,
   nextWake,
   occupiedCount,
-  pickHost,
+  planTurn,
+  reconcileConnections,
   seatIndexOfUser,
   toSnapshot,
   toSummary,
@@ -31,7 +40,9 @@ import {
 /** Close codes the client interprets; they never reconnect after receiving one of these. */
 export const CLOSE_LEFT = 4001;
 export const CLOSE_REFUSED = 4002;
+export const CLOSE_TOO_MANY = 4003;
 export const CLOSE_ROOM_CLOSED = 4004;
+export const CLOSE_RATE_LIMITED = 4005;
 
 export interface CreateRoomInit {
   code: string;
@@ -44,6 +55,8 @@ export interface CreateRoomInit {
 interface SocketUser {
   userId: string;
   displayName: string;
+  /** Connection time, to find a user's oldest socket. */
+  at: number;
 }
 
 class RoomError extends Error {
@@ -90,6 +103,8 @@ function parseClientMessage(text: string): RoomClientMessage {
 export class RoomDO extends DurableObject<Env> {
   private room: RoomState | null = null;
   private lastPushed = '';
+  /** In memory only: a socket woken from hibernation starts with a full bucket. */
+  private readonly buckets = new WeakMap<WebSocket, TokenBucket>();
   private readonly timings: Timings;
 
   constructor(ctx: DurableObjectState, env: Env) {
@@ -118,6 +133,7 @@ export class RoomDO extends DurableObject<Env> {
       game: null,
       seq: 0,
       dueAt: null,
+      actionDueAt: null,
       disconnectedSince: { [init.host.id]: now },
       noHumanConnectedSince: now,
     };
@@ -145,21 +161,36 @@ export class RoomDO extends DurableObject<Env> {
     if (!header) return new Response('Unauthorized', { status: 401 });
     const user = JSON.parse(decodeURIComponent(header)) as PublicUser;
 
+    const before = JSON.stringify(this.room);
+    const refusal = this.admit(this.room, user);
     const pair = new WebSocketPair();
     const client = pair[0];
     const server = pair[1];
-    this.ctx.acceptWebSocket(server);
-    const attachment: SocketUser = { userId: user.id, displayName: user.displayName };
-    server.serializeAttachment(attachment);
-
-    const refusal = this.admit(this.room, user);
     if (refusal) {
+      // A refused socket is never registered with the object, so its close cannot trigger a commit.
+      server.accept();
       this.send(server, { t: 'error', code: refusal.code, message: refusal.message });
       server.close(CLOSE_REFUSED, refusal.code);
-    } else {
-      await this.commit([]);
+      return new Response(null, { status: 101, webSocket: client });
     }
+    this.ctx.acceptWebSocket(server);
+    const attachment: SocketUser = { userId: user.id, displayName: user.displayName, at: Date.now() };
+    server.serializeAttachment(attachment);
+    this.trimSockets(user.id);
+    if (!(await this.onConnectionChange(before))) this.sendState(server, [], this.connectedUsers());
     return new Response(null, { status: 101, webSocket: client });
+  }
+
+  /** Closes a user's oldest sockets beyond the per-user cap. */
+  private trimSockets(userId: string): void {
+    const mine = this.openSockets()
+      .map((ws) => ({ ws, user: ws.deserializeAttachment() as SocketUser | null }))
+      .filter((e) => e.user?.userId === userId)
+      .sort((x, y) => (x.user?.at ?? 0) - (y.user?.at ?? 0));
+    for (const { ws } of mine.slice(0, Math.max(0, mine.length - MAX_SOCKETS_PER_USER))) {
+      this.send(ws, { t: 'error', code: 'too_many_connections', message: 'Bạn mở phòng này ở quá nhiều tab.' });
+      ws.close(CLOSE_TOO_MANY, 'too many connections');
+    }
   }
 
   /** Seats a connecting user or says why not. Mutates only when it admits. */
@@ -177,6 +208,16 @@ export class RoomDO extends DurableObject<Env> {
 
   override async webSocketMessage(ws: WebSocket, message: string | ArrayBuffer): Promise<void> {
     if (!this.room) return;
+    let bucket = this.buckets.get(ws);
+    if (!bucket) {
+      bucket = new TokenBucket(SOCKET_BURST, SOCKET_REFILL_PER_SEC, Date.now());
+      this.buckets.set(ws, bucket);
+    }
+    if (!bucket.take(Date.now())) {
+      this.send(ws, { t: 'error', code: 'rate_limited', message: 'Bạn gửi quá nhanh, kết nối đã bị đóng.' });
+      ws.close(CLOSE_RATE_LIMITED, 'rate limited');
+      return;
+    }
     const size = typeof message === 'string' ? new TextEncoder().encode(message).length : message.byteLength;
     if (size > MAX_MESSAGE_BYTES) {
       ws.close(1009, 'Message too big');
@@ -208,7 +249,7 @@ export class RoomDO extends DurableObject<Env> {
 
   private async onSocketGone(ws: WebSocket): Promise<void> {
     if (!this.room) return;
-    await this.commit([], ws);
+    await this.onConnectionChange(JSON.stringify(this.room), ws);
   }
 
   private openSockets(except?: WebSocket): WebSocket[] {
@@ -269,7 +310,7 @@ export class RoomDO extends DurableObject<Env> {
         const colors = room.seats.filter((s) => s.occupant !== null).map((s) => s.color);
         room.game = createGame(colors);
         room.status = 'playing';
-        this.planDue(now);
+        planTurn(room, this.connectedUsers(), now, this.timings);
         await this.commit([]);
         return;
       }
@@ -290,6 +331,7 @@ export class RoomDO extends DurableObject<Env> {
         room.status = 'waiting';
         room.game = null;
         room.dueAt = null;
+        room.actionDueAt = null;
         // A fresh start for everyone: time spent disconnected during the game does not count against a seat.
         for (const id of Object.keys(room.disconnectedSince)) room.disconnectedSince[id] = now;
         await this.commit([]);
@@ -323,18 +365,11 @@ export class RoomDO extends DurableObject<Env> {
     if (result.state.phase === 'finished') {
       room.status = 'finished';
       room.dueAt = null;
+      room.actionDueAt = null;
     } else {
-      this.planDue(Date.now());
+      planTurn(room, this.connectedUsers(), Date.now(), this.timings);
     }
     await this.commit(result.events);
-  }
-
-  /** `dueAt` for the colour now on turn, counted from `now`. */
-  private planDue(now: number): void {
-    const room = this.room;
-    if (!room) return;
-    const delay = room.status === 'playing' ? dueDelay(room, this.connectedUsers(), this.timings) : null;
-    room.dueAt = delay === null ? null : now + delay;
   }
 
   private async leave(userId: string): Promise<void> {
@@ -353,6 +388,7 @@ export class RoomDO extends DurableObject<Env> {
     }
     if (room.status === 'playing' && currentSeatIndex(room) === i) {
       room.dueAt = Math.min(room.dueAt ?? Infinity, Date.now() + this.timings.cpuDelayMs);
+      room.actionDueAt = null;
     }
     await this.commit([]);
   }
@@ -367,13 +403,12 @@ export class RoomDO extends DurableObject<Env> {
   private async commit(events: GameEvent[], closing?: WebSocket): Promise<void> {
     const room = this.room;
     if (!room) return;
-    const now = Date.now();
-    this.reconcileConnections(room, this.connectedUsers(closing), now);
+    const connected = this.connectedUsers(closing);
+    reconcileConnections(room, connected, Date.now(), this.timings);
     if (this.closeIfAbandoned(room)) return;
     room.seq += 1;
     await this.persistAndSchedule();
-    const snapshot = toSnapshot(room, this.connectedUsers(closing));
-    const payload = JSON.stringify({ t: 'state', room: snapshot, events } satisfies RoomServerMessage);
+    const payload = this.stateMessage(events, connected);
     for (const ws of this.openSockets(closing)) {
       try {
         ws.send(payload);
@@ -384,30 +419,35 @@ export class RoomDO extends DurableObject<Env> {
     this.pushLobby();
   }
 
-  /** Brings disconnect timers and the host in line with who has an open socket right now. */
-  private reconcileConnections(room: RoomState, connected: ReadonlySet<string>, now: number): void {
-    const was = new Set(Object.keys(room.disconnectedSince));
-    for (const user of humanUsers(room)) {
-      if (connected.has(user.id)) delete room.disconnectedSince[user.id];
-      else room.disconnectedSince[user.id] ??= now;
-    }
-    for (const id of Object.keys(room.disconnectedSince)) {
-      if (seatIndexOfUser(room, id) < 0) delete room.disconnectedSince[id];
-    }
-    const anyConnected = humanUsers(room).some((u) => connected.has(u.id));
-    room.noHumanConnectedSince = anyConnected ? null : (room.noHumanConnectedSince ?? now);
+  /**
+   * A socket opened or closed. Commits (and so bumps `seq`, writes and broadcasts) only when this
+   * changed the room as `before` recorded it; returns whether it did.
+   */
+  private async onConnectionChange(before: string, closing?: WebSocket): Promise<boolean> {
+    const room = this.room;
+    if (!room) return false;
+    reconcileConnections(room, this.connectedUsers(closing), Date.now(), this.timings);
+    if (JSON.stringify(room) === before) return false;
+    await this.commit([], closing);
+    return true;
+  }
 
-    const turnSeat = room.seats[currentSeatIndex(room)]?.occupant;
-    if (room.status === 'playing' && turnSeat?.kind === 'human') {
-      const id = turnSeat.user.id;
-      if (connected.has(id) && was.has(id)) room.dueAt = now + this.timings.turnMs;
-      if (!connected.has(id) && !was.has(id)) {
-        room.dueAt = Math.min(room.dueAt ?? Infinity, now + Math.max(this.timings.cpuDelayMs, this.timings.playingDisconnectMs));
-      }
-    }
-    if (!humanUsers(room).some((u) => u.id === room.hostId)) {
-      const host = pickHost(room);
-      if (host !== null) room.hostId = host;
+  private stateMessage(events: GameEvent[], connected: ReadonlySet<string>): string {
+    const room = this.room;
+    if (!room) return '';
+    return JSON.stringify({
+      t: 'state',
+      room: toSnapshot(room, connected),
+      events,
+      serverNow: Date.now(),
+    } satisfies RoomServerMessage);
+  }
+
+  private sendState(ws: WebSocket, events: GameEvent[], connected: ReadonlySet<string>): void {
+    try {
+      ws.send(this.stateMessage(events, connected));
+    } catch {
+      // closing socket
     }
   }
 
@@ -432,12 +472,21 @@ export class RoomDO extends DurableObject<Env> {
     }
     await this.ctx.storage.deleteAlarm();
     await this.ctx.storage.deleteAll();
-    this.ctx.waitUntil(
-      this.env.LOBBY.getByName('lobby')
-        .removeRoom(room.code)
-        .catch((err: unknown) => console.error('lobby removeRoom failed', err)),
-    );
+    this.ctx.waitUntil(this.removeFromLobby(room.code));
     this.lastPushed = '';
+  }
+
+  /** Retries with growing pauses; the lobby's own periodic check is the backstop if every attempt fails. */
+  private async removeFromLobby(code: string): Promise<void> {
+    for (let attempt = 0; attempt < 5; attempt++) {
+      try {
+        await this.env.LOBBY.getByName('lobby').removeRoom(code);
+        return;
+      } catch (err) {
+        console.error('lobby removeRoom failed', err);
+        await new Promise((resolve) => setTimeout(resolve, 500 * 4 ** attempt));
+      }
+    }
   }
 
   private async persistAndSchedule(): Promise<void> {
@@ -475,8 +524,9 @@ export class RoomDO extends DurableObject<Env> {
     const room = this.room;
     if (!room) return;
     const now = Date.now();
+    const before = JSON.stringify(room);
     const connected = this.connectedUsers();
-    this.reconcileConnections(room, connected, now);
+    reconcileConnections(room, connected, now, this.timings);
 
     if (room.noHumanConnectedSince !== null && now >= room.noHumanConnectedSince + this.timings.idleCloseMs) {
       await this.closeRoom();
@@ -484,18 +534,19 @@ export class RoomDO extends DurableObject<Env> {
     }
 
     let events: GameEvent[] = [];
-    let changed = false;
 
     if (room.status === 'waiting') {
+      let vacated = false;
       for (const [userId, since] of Object.entries(room.disconnectedSince)) {
         if (now < since + this.timings.waitingDisconnectMs) continue;
         const seat = room.seats[seatIndexOfUser(room, userId)];
         if (seat) seat.occupant = null;
         delete room.disconnectedSince[userId];
-        changed = true;
+        vacated = true;
       }
-      if (changed) this.reconcileConnections(room, connected, now);
-    } else if (room.dueAt !== null && now >= room.dueAt && room.game) {
+      if (vacated) reconcileConnections(room, connected, now, this.timings);
+    } else if (room.status === 'playing' && room.noHumanConnectedSince === null && room.dueAt !== null && now >= room.dueAt && room.game) {
+      // With nobody watching the game stays frozen; it resumes when a human reconnects.
       const game = room.game;
       const result =
         game.phase === 'roll'
@@ -509,14 +560,14 @@ export class RoomDO extends DurableObject<Env> {
         if (result.state.phase === 'finished') {
           room.status = 'finished';
           room.dueAt = null;
+          room.actionDueAt = null;
         } else {
-          this.planDue(now);
+          planTurn(room, connected, now, this.timings);
         }
-        changed = true;
       }
     }
 
-    if (changed) await this.commit(events);
-    else if (this.room) await this.persistAndSchedule();
+    if (JSON.stringify(room) !== before) await this.commit(events);
+    else await this.persistAndSchedule();
   }
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { constantTimeEqual, hashPassword, verifyPassword } from './password';
-import { displayNameFromProfile, sanitizeReturnTo } from './validate';
+import { checkDisplayName, displayNameFromProfile, sanitizeReturnTo, sanitizeText } from './validate';
 
 describe('password hashing', () => {
   it('verifies the right password and rejects others', async () => {
@@ -54,5 +54,21 @@ describe('displayNameFromProfile', () => {
     expect(displayNameFromProfile('x')).toBe('Người chơi');
     expect(displayNameFromProfile(undefined)).toBe('Người chơi');
     expect(displayNameFromProfile('  Lan   Anh ')).toBe('Lan Anh');
+  });
+});
+
+describe('text sanitising', () => {
+  it('strips control, zero-width and bidi-override characters and collapses spaces', () => {
+    expect(sanitizeText('  An\u200B\u202Eevil\u2066 \t Bình\u0007 ')).toBe('Anevil Bình');
+  });
+
+  it('keeps Vietnamese letters and ordinary emoji', () => {
+    expect(sanitizeText('Nguyễn Văn Ả 🐴')).toBe('Nguyễn Văn Ả 🐴');
+  });
+
+  it('applies before the length check, so invisible padding cannot satisfy the minimum', () => {
+    expect(() => checkDisplayName('a\u200B\u200B\u200B')).toThrow();
+    expect(checkDisplayName('A\u200Bn')).toBe('An');
+    expect(displayNameFromProfile('\u202E\u200B')).toBe('Người chơi');
   });
 });

@@ -1,7 +1,7 @@
 export type SocketStatus = 'connecting' | 'open' | 'reconnecting';
 
 /** Close codes the room server uses to say "do not reconnect". */
-export const STOP_CODES: ReadonlySet<number> = new Set([4001, 4002, 4004]);
+export const STOP_CODES: ReadonlySet<number> = new Set([4001, 4002, 4003, 4004, 4005]);
 
 /** Delay before reconnect attempt `attempt` (0-based): exponential from 400 ms, capped at 8 s, with jitter. */
 export function backoffDelay(attempt: number, random: () => number = Math.random): number {

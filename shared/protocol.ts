@@ -127,8 +127,12 @@ export type RoomClientMessage =
   | { t: 'leave' };
 
 export type RoomServerMessage =
-  /** Sent on connect and after every change. `events` describe what led to this snapshot, in order. */
-  | { t: 'state'; room: RoomSnapshot; events: GameEvent[] }
+  /**
+   * Sent on connect and after every change. `events` describe what led to this snapshot, in order.
+   * `serverNow` is the server's clock (epoch ms) when it sent this; `room.turnDeadline` is on that
+   * clock, so a client derives its offset from `serverNow` instead of trusting its own time.
+   */
+  | { t: 'state'; room: RoomSnapshot; events: GameEvent[]; serverNow: number }
   | { t: 'error'; code: string; message: string };
 
 // ----------------------------------------------------------- lobby socket

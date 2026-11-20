@@ -9,6 +9,7 @@ import {
 } from '../../shared/protocol';
 import { requireSameOrigin } from '../auth/routes';
 import { getSessionUser } from '../auth/session';
+import { sanitizeText } from '../auth/validate';
 import type { Env } from '../env';
 import { MAX_ROOM_NAME, USER_HEADER } from './constants';
 import { generateRoomCode, isRoomCode } from './room-code';
@@ -45,7 +46,7 @@ roomRoutes.post('/rooms', requireSameOrigin, async (c) => {
   if (!user) return unauthorized(c);
   const body: unknown = await c.req.json().catch(() => null);
   const input = (body ?? {}) as Partial<CreateRoomRequest>;
-  const name = typeof input.name === 'string' ? input.name.trim() : '';
+  const name = typeof input.name === 'string' ? sanitizeText(input.name) : '';
   if (name.length < 1 || name.length > MAX_ROOM_NAME) {
     return fail(c, 400, 'invalid_name', `Tên phòng cần từ 1 đến ${MAX_ROOM_NAME} ký tự.`);
   }

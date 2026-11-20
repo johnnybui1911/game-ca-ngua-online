@@ -39,7 +39,7 @@ export function RoomPage() {
       {conn.room.status === 'waiting' ? (
         <WaitingView room={conn.room} myId={user.id} send={conn.send} actionError={conn.actionError} />
       ) : (
-        <MatchView room={conn.room} events={conn.events} myId={user.id} send={conn.send} actionError={conn.actionError} />
+        <MatchView room={conn.room} batches={conn.batches} clockOffset={conn.clockOffset} myId={user.id} send={conn.send} actionError={conn.actionError} />
       )}
       {conn.status === 'reconnecting' && (
         <div className="reconnect-banner" role="status" data-testid="reconnecting">

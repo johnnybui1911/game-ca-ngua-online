@@ -23,8 +23,17 @@ export function checkPassword(raw: unknown): string {
   return raw;
 }
 
+/**
+ * Collapses whitespace and drops control, zero-width and bidi-override characters (Unicode
+ * categories Cc and Cf), so a name cannot hide text or reorder what surrounds it.
+ * Runs before any length check so invisible characters cannot pad a name.
+ */
+export function sanitizeText(raw: string): string {
+  return raw.replace(/\s+/g, ' ').replace(/[\p{Cc}\p{Cf}]/gu, '').trim();
+}
+
 export function checkDisplayName(raw: unknown): string {
-  const name = typeof raw === 'string' ? raw.trim().replace(/\s+/g, ' ') : '';
+  const name = typeof raw === 'string' ? sanitizeText(raw) : '';
   const length = [...name].length;
   if (length < MIN_NAME || length > MAX_NAME) {
     throw new HttpError(400, 'invalid_display_name', `Tên hiển thị phải từ ${MIN_NAME} đến ${MAX_NAME} ký tự.`);
@@ -34,7 +43,7 @@ export function checkDisplayName(raw: unknown): string {
 
 /** Turns a provider-supplied name into a valid display name. */
 export function displayNameFromProfile(raw: string | undefined): string {
-  const name = (raw ?? '').trim().replace(/\s+/g, ' ');
+  const name = sanitizeText(raw ?? '');
   const clipped = [...name].slice(0, MAX_NAME).join('').trim();
   return [...clipped].length >= MIN_NAME ? clipped : 'Người chơi';
 }

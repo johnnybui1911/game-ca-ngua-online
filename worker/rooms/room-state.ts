@@ -30,6 +30,11 @@ export interface RoomState {
   seq: number;
   /** Next moment the server plays an action itself (CPU, auto-play for a human); null when none is pending. */
   dueAt: number | null;
+  /**
+   * When the human on turn runs out of time for the current action; fixed when that action
+   * begins and never moved later, so reconnecting cannot buy more time. Null while a CPU is on turn.
+   */
+  actionDueAt: number | null;
   /** userId -> when their last socket closed (or the seat was created without one). */
   disconnectedSince: Record<string, number>;
   /** Since when no seated human has an open socket; null while at least one has. */
@@ -87,12 +92,73 @@ export function dueDelay(state: RoomState, connected: ReadonlySet<string>, timin
     : Math.max(timings.cpuDelayMs, timings.playingDisconnectMs);
 }
 
-/** The one alarm time: the earliest of every pending deadline, derived purely from persisted state. */
+/** Starts the clock for the action now beginning: sets `dueAt` and the fixed `actionDueAt`. */
+export function planTurn(state: RoomState, connected: ReadonlySet<string>, now: number, timings: Timings): void {
+  const delay = dueDelay(state, connected, timings);
+  const occupant = state.seats[currentSeatIndex(state)]?.occupant ?? null;
+  state.dueAt = delay === null ? null : now + delay;
+  state.actionDueAt = occupant?.kind === 'human' ? now + timings.turnMs : null;
+}
+
+/**
+ * Brings disconnect timers, the turn clock and the host in line with who has an open
+ * socket right now. Mutates `state`; calling it again with the same inputs changes nothing.
+ */
+export function reconcileConnections(
+  state: RoomState,
+  connected: ReadonlySet<string>,
+  now: number,
+  timings: Timings,
+): void {
+  const was = new Set(Object.keys(state.disconnectedSince));
+  for (const user of humanUsers(state)) {
+    if (connected.has(user.id)) delete state.disconnectedSince[user.id];
+    else state.disconnectedSince[user.id] ??= now;
+  }
+  for (const id of Object.keys(state.disconnectedSince)) {
+    if (seatIndexOfUser(state, id) < 0) delete state.disconnectedSince[id];
+  }
+  const anyConnected = humanUsers(state).some((u) => connected.has(u.id));
+  state.noHumanConnectedSince = anyConnected ? null : (state.noHumanConnectedSince ?? now);
+
+  const turnSeat = state.seats[currentSeatIndex(state)]?.occupant;
+  if (state.status === 'playing' && turnSeat?.kind === 'human') {
+    const id = turnSeat.user.id;
+    if (connected.has(id) && was.has(id)) {
+      // Back before the clock ran out: the action keeps the deadline it started with.
+      state.dueAt = state.actionDueAt ?? state.dueAt;
+    } else if (!connected.has(id) && !was.has(id)) {
+      const grace = now + Math.max(timings.cpuDelayMs, timings.playingDisconnectMs);
+      state.dueAt = Math.min(state.dueAt ?? Infinity, grace);
+    }
+  }
+
+  const host = humanUsers(state).find((u) => u.id === state.hostId);
+  if (!host) {
+    const next = pickHost(state);
+    if (next !== null) state.hostId = next;
+  } else if (state.status !== 'playing' && !connected.has(host.id)) {
+    // Outside a game nobody else can rematch or start; a host gone past the grace hands the role over.
+    const since = state.disconnectedSince[host.id];
+    const successor = humanUsers(state).find((u) => connected.has(u.id));
+    if (since !== undefined && successor && now >= since + timings.waitingDisconnectMs) state.hostId = successor.id;
+  }
+}
+
+/**
+ * The one alarm time: the earliest of every pending deadline, derived purely from persisted state.
+ * While no human is connected a game is frozen: only the idle close is pending.
+ */
 export function nextWake(state: RoomState, timings: Timings): number | null {
   const times: number[] = [];
-  if (state.status === 'playing' && state.dueAt !== null) times.push(state.dueAt);
+  const attended = state.noHumanConnectedSince === null;
+  if (state.status === 'playing' && state.dueAt !== null && attended) times.push(state.dueAt);
   if (state.status === 'waiting') {
     for (const since of Object.values(state.disconnectedSince)) times.push(since + timings.waitingDisconnectMs);
+  }
+  if (state.status === 'finished' && attended) {
+    const since = state.disconnectedSince[state.hostId];
+    if (since !== undefined) times.push(since + timings.waitingDisconnectMs);
   }
   if (state.noHumanConnectedSince !== null) times.push(state.noHumanConnectedSince + timings.idleCloseMs);
   return times.length === 0 ? null : Math.min(...times);

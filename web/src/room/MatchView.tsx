@@ -1,7 +1,10 @@
-import { lazy, Suspense, useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { HORSES_PER_COLOR, POS_GATE, type Color, type DiceValue, type GameEvent } from '../../../shared/game/types';
+import { HORSES_PER_COLOR, POS_GATE } from '../../../shared/game/types';
 import type { RoomClientMessage, RoomSnapshot, Seat } from '../../../shared/protocol';
+import { unconsumed, type StateBatch } from './batches';
+import { secondsLeft } from './countdown';
+import { lastRollAfter, type LastRoll } from './last-roll';
 import { COLOR_NAMES, COLOR_VARS } from './colors';
 import { describeMove } from './move-text';
 
@@ -9,7 +12,9 @@ const GameScene = lazy(() => import('../scene/GameScene'));
 
 interface Props {
   room: RoomSnapshot;
-  events: GameEvent[];
+  batches: StateBatch[];
+  /** Server clock minus local clock, in ms. */
+  clockOffset: number;
   myId: string;
   send: (msg: RoomClientMessage) => void;
   actionError: string | null;
@@ -21,26 +26,20 @@ function seatName(seat: Seat | undefined): string {
   return occ.kind === 'cpu' ? occ.name : occ.user.displayName;
 }
 
-/** Most recent die shown on screen: from the newest roll event, else the roll still pending a move. */
-function useLastRoll(room: RoomSnapshot, events: GameEvent[]): { color: Color; dice: DiceValue } | null {
-  const [last, setLast] = useState<{ color: Color; dice: DiceValue } | null>(null);
-  const seq = room.seq;
-  const game = room.game;
+/** Most recent die shown on screen, folded over every batch received, in order. */
+function useLastRoll(batches: StateBatch[]): LastRoll | null {
+  const [last, setLast] = useState<LastRoll | null>(null);
+  const consumed = useRef<number | null>(null);
   useEffect(() => {
-    for (let i = events.length - 1; i >= 0; i--) {
-      const ev = events[i];
-      if (ev?.type === 'rolled') {
-        setLast({ color: ev.color, dice: ev.dice });
-        return;
-      }
-    }
-    if (game?.dice != null) setLast({ color: game.turn, dice: game.dice });
-    // A new snapshot is the trigger; its events are read from the same render.
-  }, [seq]);
+    const from = consumed.current;
+    if (unconsumed(batches, from).length === 0) return;
+    consumed.current = batches[batches.length - 1]?.room.seq ?? from;
+    setLast((prev) => lastRollAfter(prev, batches, from));
+  }, [batches]);
   return last;
 }
 
-function useCountdown(deadline: number | null): number | null {
+function useCountdown(deadline: number | null, offset: number): number | null {
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     if (deadline === null) return;
@@ -48,15 +47,15 @@ function useCountdown(deadline: number | null): number | null {
     const id = setInterval(() => setNow(Date.now()), 250);
     return () => clearInterval(id);
   }, [deadline]);
-  return deadline === null ? null : Math.max(0, Math.ceil((deadline - now) / 1000));
+  return deadline === null ? null : secondsLeft(deadline, now, offset);
 }
 
-export function MatchView({ room, events, myId, send, actionError }: Props) {
+export function MatchView({ room, batches, clockOffset, myId, send, actionError }: Props) {
   const navigate = useNavigate();
   const [confirmLeave, setConfirmLeave] = useState(false);
   const game = room.game;
-  const lastRoll = useLastRoll(room, events);
-  const seconds = useCountdown(room.turnDeadline);
+  const lastRoll = useLastRoll(batches);
+  const seconds = useCountdown(room.turnDeadline, clockOffset);
   if (!game) return null;
 
   const mySeat = room.seats.find((s) => s.occupant?.kind === 'human' && s.occupant.user.id === myId);
@@ -90,7 +89,7 @@ export function MatchView({ room, events, myId, send, actionError }: Props) {
         <Suspense fallback={<div className="stage-loading">Đang tải bàn cờ…</div>}>
           <GameScene
             room={room}
-            events={events}
+            batches={batches}
             myColor={myColor}
             onPickHorse={(horse) => {
               if (myTurn && game.phase === 'move' && game.legalHorses.includes(horse)) send({ t: 'move', horse });
