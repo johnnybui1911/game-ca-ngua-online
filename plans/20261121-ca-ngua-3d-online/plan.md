@@ -1,6 +1,6 @@
 # Cờ cá ngựa 3D online
 
-Status: in progress. Tracking issue: https://github.com/johnnybui1911/game-ca-ngua-online/issues/1 (holds the confirmed Done means, out of scope and constraints).
+Status: delivered. Tracking issue: https://github.com/johnnybui1911/game-ca-ngua-online/issues/1 (holds the confirmed Done means, out of scope and constraints).
 
 ## Architecture
 

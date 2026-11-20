@@ -96,3 +96,39 @@ test('accounts, a shared room and a live two-player match work on the deployed s
   await ctxA.close();
   await ctxB.close();
 });
+
+test('a CPU seat takes its turns on the deployed site', async ({ browser }) => {
+  const ctx = await browser.newContext();
+  const page = await ctx.newPage();
+  await signUp(page, email('c'), 'Khói Ba');
+  await expect(page.getByTestId('greeting')).toContainText('Khói Ba');
+  await page.getByTestId('create-visibility-private').check();
+  await page.getByTestId('create-seats').selectOption('2');
+  await page.getByTestId('create-submit').click();
+  await page.getByTestId('add-cpu-1').click();
+  await expect(page.getByTestId('seat-1-name')).toContainText('Máy 1');
+  await page.getByTestId('start-button').click();
+  await expect(page.getByTestId('hud')).toBeVisible();
+
+  // Play until the turn has gone to the CPU and come back at least twice: only the
+  // server's own timer can have played those turns.
+  const banner = page.getByTestId('turn-banner');
+  let cpuTurns = 0;
+  let onCpu = false;
+  const deadline = Date.now() + 150_000;
+  while (Date.now() < deadline && cpuTurns < 2) {
+    const text = (await banner.textContent()) ?? '';
+    if (text.includes('Máy 1')) onCpu = true;
+    else if (onCpu) {
+      onCpu = false;
+      cpuTurns++;
+    }
+    if (!(await act(page))) await page.waitForTimeout(100);
+  }
+  expect(cpuTurns).toBeGreaterThanOrEqual(2);
+
+  await page.getByTestId('leave-room').click();
+  await page.getByTestId('leave-confirm').click();
+  await expect(page).toHaveURL(/\/$/);
+  await ctx.close();
+});
