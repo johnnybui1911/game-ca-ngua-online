@@ -4,7 +4,6 @@ import type { RoomDO } from './rooms/room-do';
 
 export interface Env {
   DB: D1Database;
-  ASSETS: Fetcher;
   ROOMS: DurableObjectNamespace<RoomDO>;
   LOBBY: DurableObjectNamespace<LobbyDO>;
 
