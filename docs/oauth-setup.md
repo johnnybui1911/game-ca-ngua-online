@@ -58,6 +58,6 @@ Trường `providers` trả `true` cho nhà cung cấp đã có đủ hai secret
 
 ## Hành vi cần biết
 
-- Tài khoản Google có email đã xác minh trùng với một tài khoản email/mật khẩu sẵn có sẽ được gắn vào tài khoản đó. Facebook và X luôn tạo tài khoản riêng.
+- Tài khoản Google có email đã xác minh trùng với một tài khoản email/mật khẩu sẵn có sẽ được gắn vào tài khoản đó. Mật khẩu của tài khoản đó bị xoá và mọi phiên đăng nhập đang có bị huỷ ngay khi gắn, vì email/mật khẩu được đăng ký mà chưa xác minh email, nên chỉ chủ email Google mới được dùng tài khoản này về sau (muốn dùng mật khẩu lại thì phải đăng ký lại bằng email khác). Facebook và X luôn tạo tài khoản riêng.
 - X không trả email, nên tài khoản tạo qua X không có email.
 - Đổi tên miền thì phải cập nhật redirect URI ở cả ba nhà cung cấp.

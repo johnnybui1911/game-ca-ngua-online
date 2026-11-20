@@ -79,8 +79,18 @@ export async function resolveOAuthUser(
   if (provider === 'google' && verifiedEmail) {
     const existing = await findUserByEmail(env, verifiedEmail);
     if (existing) {
+      // An unverified password sign-up may have been made by someone other than the email's owner.
+      // Linking hands the account to the verified owner, so the password and every session made
+      // before now stop working, atomically with the link.
+      const statements = [linkStatement(env, provider, profile.id, existing.id)];
+      if (existing.password_hash !== null) {
+        statements.push(
+          env.DB.prepare('UPDATE users SET password_hash = NULL WHERE id = ?').bind(existing.id),
+          env.DB.prepare('DELETE FROM sessions WHERE user_id = ?').bind(existing.id),
+        );
+      }
       try {
-        await linkStatement(env, provider, profile.id, existing.id).run();
+        await env.DB.batch(statements);
       } catch (e) {
         // A concurrent callback linked the same provider account first.
         const winner = await findLinkedUser(env, provider, profile.id);

@@ -171,6 +171,12 @@ test('room creation validates input and is limited to five per minute', async ({
   expect((await post({ name: 'x'.repeat(41), visibility: 'public', seats: 2 })).status()).toBe(400);
   expect((await post({ name: 'ok', visibility: 'public', seats: 5 })).status()).toBe(400);
   expect((await post({ name: 'ok', visibility: 'secret', seats: 2 })).status()).toBe(400);
+  const cross = await p.context.request.post('/api/rooms', {
+    headers: { Origin: 'https://evil.example' },
+    data: { name: 'ok', visibility: 'public', seats: 2 },
+  });
+  expect(cross.status()).toBe(403);
+  expect(await cross.json()).toEqual({ error: { code: 'forbidden_origin', message: 'Yêu cầu không hợp lệ.' } });
   for (let i = 0; i < 5; i++) expect((await post({ name: `Phòng ${i}`, visibility: 'private', seats: 2 })).status()).toBe(201);
   expect((await post({ name: 'Thừa', visibility: 'private', seats: 2 })).status()).toBe(429);
 

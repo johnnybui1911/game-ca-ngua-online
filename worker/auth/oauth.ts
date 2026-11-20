@@ -40,13 +40,25 @@ const SCOPES: Record<OAuthProvider, string> = {
   x: 'users.read tweet.read',
 };
 
+function isLoopbackOrigin(origin: string): boolean {
+  try {
+    const { hostname } = new URL(origin);
+    return hostname === '127.0.0.1' || hostname === 'localhost';
+  } catch {
+    return false;
+  }
+}
+
 export function isProvider(value: string): value is OAuthProvider {
   return (OAUTH_PROVIDERS as string[]).includes(value);
 }
 
-/** `OAUTH_TEST_BASE_URL` comes from the worker's own configuration, never from a request. */
-function endpoints(provider: OAuthProvider, env: Env): ProviderEndpoints {
-  const base = env.OAUTH_TEST_BASE_URL?.replace(/\/+$/, '');
+/**
+ * `OAUTH_TEST_BASE_URL` comes from the worker's own configuration, never from a request,
+ * and is honoured only when the worker itself is served from a loopback host.
+ */
+function endpoints(provider: OAuthProvider, env: Env, origin: string): ProviderEndpoints {
+  const base = isLoopbackOrigin(origin) ? env.OAUTH_TEST_BASE_URL?.replace(/\/+$/, '') : undefined;
   if (!base) return REAL_ENDPOINTS[provider];
   return {
     authorize: `${base}/${provider}/authorize`,
@@ -91,7 +103,7 @@ export async function buildAuthorizeUrl(
 ): Promise<AuthorizeStart | null> {
   const creds = credentials(provider, env);
   if (!creds) return null;
-  const url = new URL(endpoints(provider, env).authorize);
+  const url = new URL(endpoints(provider, env, origin).authorize);
   url.searchParams.set('response_type', 'code');
   url.searchParams.set('client_id', creds.id);
   url.searchParams.set('redirect_uri', redirectUri(origin, provider));
@@ -127,7 +139,7 @@ export async function fetchProfile(
 ): Promise<ProviderProfile> {
   const creds = credentials(provider, env);
   if (!creds) throw new Error('provider not configured');
-  const ep = endpoints(provider, env);
+  const ep = endpoints(provider, env, origin);
 
   const form = new URLSearchParams({
     grant_type: 'authorization_code',

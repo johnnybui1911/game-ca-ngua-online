@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { control, signOut, signUp, uniqueEmail } from './auth-helpers';
+import { PASSWORD, control, signOut, signUp, uniqueEmail } from './auth-helpers';
 
 test.beforeEach(async () => {
   await control('reset');
@@ -48,6 +48,37 @@ test('Google verified email links to the existing email account', async ({ page 
   await expect(page.getByTestId('greeting')).toHaveText('Xin chào, Chủ Tài Khoản');
   const after = await (await page.request.get('/api/auth/me')).json();
   expect(after.user.id).toBe(before.user.id);
+});
+
+test('linking Google hands the account to the Google owner: old password and old sessions stop working', async ({
+  page,
+  browser,
+}) => {
+  const email = uniqueEmail('chiem-quyen');
+  await signUp(page, email, 'Người Đăng Ký Trước');
+  await expect(page.getByTestId('greeting')).toHaveText('Xin chào, Người Đăng Ký Trước');
+  const before = await (await page.request.get('/api/auth/me')).json();
+
+  // A second browser holds a session created by password sign-in, before the link exists.
+  const attacker = await browser.newContext({ baseURL: 'http://127.0.0.1:5173' });
+  const origin = { Origin: 'http://127.0.0.1:5173' };
+  const login = () => attacker.request.post('/api/auth/signin', { headers: origin, data: { email, password: PASSWORD } });
+  expect((await login()).status()).toBe(200);
+  expect(((await (await attacker.request.get('/api/auth/me')).json()) as { user: unknown }).user).not.toBeNull();
+
+  await signOut(page);
+  await control('profile', {
+    provider: 'google',
+    profile: { id: `g-${Date.now()}`, name: 'Chủ Google', email, emailVerified: true },
+  });
+  await page.getByTestId('oauth-google').click();
+  await expect(page.getByTestId('greeting')).toHaveText('Xin chào, Người Đăng Ký Trước');
+  const after = await (await page.request.get('/api/auth/me')).json();
+  expect(after.user.id).toBe(before.user.id);
+
+  expect(((await (await attacker.request.get('/api/auth/me')).json()) as { user: unknown }).user).toBeNull();
+  expect((await login()).status()).toBe(401);
+  await attacker.close();
 });
 
 test('Google with an unverified email does not link', async ({ page }) => {
