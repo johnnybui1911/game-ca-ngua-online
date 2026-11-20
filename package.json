@@ -12,7 +12,8 @@
     "e2e": "node e2e/run.mjs",
     "db:migrate:local": "wrangler d1 migrations apply DB --local",
     "db:migrate:remote": "wrangler d1 migrations apply DB --remote",
-    "deploy": "vite build && wrangler deploy"
+    "deploy": "vite build && wrangler deploy",
+    "e2e:prod": "playwright test -c playwright.prod.config.ts"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.9",
