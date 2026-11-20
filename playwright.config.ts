@@ -12,7 +12,7 @@ const MOCK_PORT = 5199;
 
 export default defineConfig({
   testDir: 'e2e',
-  testMatch: mode === 'none' ? 'auth-unconfigured.spec.ts' : /auth-(?!unconfigured).*\.spec\.ts/,
+  testMatch: mode === 'none' ? 'auth-unconfigured.spec.ts' : /(auth-(?!unconfigured)|room-).*\.spec\.ts/,
   fullyParallel: false,
   workers: 1,
   reporter: [['list']],

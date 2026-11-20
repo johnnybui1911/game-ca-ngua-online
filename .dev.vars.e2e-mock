@@ -6,3 +6,4 @@ FACEBOOK_CLIENT_SECRET=mock-facebook-secret
 X_CLIENT_ID=mock-x-id
 X_CLIENT_SECRET=mock-x-secret
 OAUTH_TEST_BASE_URL=http://127.0.0.1:5199
+ROOM_FAST_TIMERS=1
