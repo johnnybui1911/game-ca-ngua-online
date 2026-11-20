@@ -2,6 +2,9 @@ node_modules/
 dist/
 .wrangler/
 .dev.vars
+.dev.vars.*
+!.dev.vars.e2e-mock
+!.dev.vars.e2e-none
 .env
 .env.*
 *.log
