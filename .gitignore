@@ -1,0 +1,15 @@
+node_modules/
+dist/
+.wrangler/
+.dev.vars
+.env
+.env.*
+*.log
+test-results/
+playwright-report/
+coverage/
+.worktrees/
+
+# Generated agent tooling (reinstalled by `ak kit init`)
+.claude/
+.omp/
