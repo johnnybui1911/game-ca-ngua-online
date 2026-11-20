@@ -26,6 +26,7 @@ Touch nothing else. Do not add routes to the app.
 - Horses: a recognisable horse (knight-like) piece per colour built from procedural geometry, four per colour, distinguishable by colour for colour-blind players through a second cue (for example a small number or pattern on the base).
 - Die: a 3D die with pips that tumbles and settles showing the rolled value on a `rolled` event, near the stable of the colour that rolled.
 - Animation, driven by `events` when `room.seq` changes:
+  - Time budget: the server sends a CPU action every 0.7 s and a full game has well over a thousand actions, so one batch (a die tumble, or a move including its kick) must finish within 0.6 s whatever the distance: scale hop duration to the number of cells.
   - `moved`: the horse hops cell by cell along its real path (track cells, then home steps; leaving the stable is one hop to the entry cell).
   - `kicked`: after the mover lands, the kicked horse flies back to a free slot in its stable.
   - `turn`: the active colour's stable is clearly highlighted.
