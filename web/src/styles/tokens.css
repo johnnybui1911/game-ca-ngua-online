@@ -1,0 +1,46 @@
+/* Shared design tokens: wood and felt tones plus the four horse colours. */
+:root {
+  --wood-900: #2e1b0e;
+  --wood-800: #43280f;
+  --wood-700: #5e3a1c;
+  --wood-500: #8a5a2b;
+  --wood-300: #d7b88a;
+  --wood-100: #f1e3c8;
+  --felt-800: #123f2a;
+  --felt-600: #1f6b46;
+  --paper: #fbf4e6;
+  --ink: #2a1c10;
+  --ink-soft: #6b5640;
+
+  --horse-red: #D9392B;
+  --horse-blue: #2B6FD9;
+  --horse-yellow: #E8B923;
+  --horse-green: #2E9E57;
+
+  --danger: #b3261e;
+  --danger-bg: #fde8e6;
+  --focus: #1b5fd6;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 22px;
+
+  --font-body: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-display: 'Trebuchet MS', 'Segoe UI', system-ui, sans-serif;
+  --text-sm: 0.9rem;
+  --text-md: 1rem;
+  --text-lg: 1.25rem;
+  --text-xl: 1.75rem;
+
+  /* Minimum size for anything tappable. */
+  --touch: 48px;
+
+  --shadow-card: 0 10px 28px rgb(20 10 2 / 45%), inset 0 1px 0 rgb(255 255 255 / 55%);
+}
