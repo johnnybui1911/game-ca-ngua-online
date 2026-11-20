@@ -104,6 +104,8 @@ export default function DevApp() {
   );
 
   const room = useMemo(() => snapshot(step, players), [step, players]);
+  // The harness renders every step, so each batch is the whole queue.
+  const batches = useMemo(() => [{ room, events: step.events }], [room, step.events]);
   const stateText = `turn=${game.turn} phase=${game.phase} dice=${game.dice ?? '-'} winner=${game.winner ?? '-'} seq=${step.seq}`;
 
   // Page coordinates of a red horse for automated picking tests; valid while the camera is untouched.
@@ -176,7 +178,7 @@ export default function DevApp() {
         </span>
       </div>
       <div ref={sceneBox} style={{ flex: 1, minHeight: 0 }}>
-        <GameScene room={room} events={step.events} myColor={playMe ? 0 : null} onPickHorse={onPickHorse} />
+        <GameScene room={room} batches={batches} myColor={playMe ? 0 : null} onPickHorse={onPickHorse} />
       </div>
     </div>
   );

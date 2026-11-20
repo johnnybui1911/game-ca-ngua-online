@@ -1,5 +1,6 @@
-import type { Color, GameEvent } from '../../../shared/game/types';
+import type { Color } from '../../../shared/game/types';
 import type { RoomSnapshot } from '../../../shared/protocol';
+import type { StateBatch } from '../room/batches';
 
 /**
  * Contract between the match page and the 3D scene. The match page owns all
@@ -9,12 +10,12 @@ export interface GameSceneProps {
   /** Latest snapshot. `room.game` is non-null whenever the scene is mounted. */
   room: RoomSnapshot;
   /**
-   * Events that led to `room`, from the same server message. A new
-   * `room.seq` means a new batch to animate; the scene must end up showing
-   * exactly `room.game` once its animations finish, and must show it
-   * immediately when mounted mid-game (reload) with an empty batch.
+   * Server state messages in `seq` order, newest last (its `room` is the `room` prop). Several can
+   * arrive before one render, so the scene walks every batch newer than the last `seq` it animated
+   * and animates its events; it must end up showing exactly `room.game` once its animations
+   * finish, and must show it immediately when mounted mid-game (reload), ignoring older batches.
    */
-  events: GameEvent[];
+  batches: StateBatch[];
   /** Colour the local player controls, null for none. That colour's stable faces the camera. */
   myColor: Color | null;
   /**

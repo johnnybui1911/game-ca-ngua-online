@@ -13,6 +13,7 @@ import type { SceneView } from './director';
 import { Celebration, Die, Horse } from './Pieces';
 import { createSceneState } from './scene-state';
 import type { SceneState } from './scene-state';
+import { unconsumed } from '../room/batches';
 import type { GameSceneProps } from './props';
 
 function createView(state: SceneState): SceneView {
@@ -91,7 +92,7 @@ function Rig({ myColor }: { myColor: Color | null }) {
   );
 }
 
-export default function SceneContent({ room, events, myColor, onPickHorse }: GameSceneProps) {
+export default function SceneContent({ room, batches, myColor, onPickHorse }: GameSceneProps) {
   const game = room.game;
   const assets = useMemo(() => new Assets(), []);
   const state = useMemo(createSceneState, []);
@@ -115,10 +116,11 @@ export default function SceneContent({ room, events, myColor, onPickHorse }: Gam
       seqRef.current = room.seq;
       return;
     }
-    if (seqRef.current === room.seq) return;
-    seqRef.current = room.seq;
-    if (game) director.push(game, events);
-  }, [director, room.seq, game, events]);
+    const fresh = unconsumed(batches, seqRef.current);
+    if (fresh.length === 0) return;
+    seqRef.current = fresh[fresh.length - 1]?.room.seq ?? seqRef.current;
+    for (const batch of fresh) if (batch.room.game) director.push(batch.room.game, batch.events);
+  }, [director, room.seq, batches]);
 
   useFrame((_, dt) => {
     state.time += dt;
