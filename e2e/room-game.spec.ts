@@ -105,7 +105,7 @@ test('reload mid-game returns to the same seat and board; outsiders see the in-p
 });
 
 test('out-of-turn roll and illegal moves answer an error and leave the snapshot unchanged', async ({ browser }) => {
-  // The raw sockets are open before the game starts, so the first turn's clock never runs while the test sets up.
+  // The raw sockets are open before the game starts, so the opening checks fit well inside the first turn's clock.
   const raw: Page[] = [];
   const { a, b } = await startTwoPlayerGame(browser, ['Người Đầu', 'Người Sau'], async (pa, pb, room) => {
     raw.push(await openRawSocket(pa, room), await openRawSocket(pb, room));

@@ -26,7 +26,7 @@ const NORMAL: Timings = {
 
 const FAST: Timings = {
   cpuDelayMs: 25,
-  turnMs: 4_000,
+  turnMs: 20_000,
   playingDisconnectMs: 400,
   waitingDisconnectMs: 8_000,
   idleCloseMs: 10 * 60_000,
@@ -43,8 +43,10 @@ export const MAX_CREATES_PER_MINUTE = 5;
 export const INVITE_COOLDOWN_MS = 10_000;
 export const LOBBY_BROADCAST_DELAY_MS = 80;
 export const MAX_ROOM_NAME = 40;
-/** Sockets one user may hold open on one room, and on the lobby; the oldest are closed beyond it. */
+/** Sockets one user may hold open on one room; the oldest are closed beyond it. */
 export const MAX_SOCKETS_PER_USER = 4;
+/** Every open page of the site holds one lobby socket, so the lobby allows more per user. */
+export const MAX_LOBBY_SOCKETS_PER_USER = 12;
 /** Per-socket message budget: a burst of this many, refilled at the rate below. Normal play sends a few a second. */
 export const SOCKET_BURST = 100;
 export const SOCKET_REFILL_PER_SEC = 50;

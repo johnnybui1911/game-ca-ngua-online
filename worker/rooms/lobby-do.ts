@@ -12,7 +12,7 @@ import {
   LOBBY_BROADCAST_DELAY_MS,
   MAX_CREATES_PER_MINUTE,
   MAX_MESSAGE_BYTES,
-  MAX_SOCKETS_PER_USER,
+  MAX_LOBBY_SOCKETS_PER_USER,
   SOCKET_BURST,
   SOCKET_REFILL_PER_SEC,
   USER_HEADER,
@@ -123,7 +123,7 @@ export class LobbyDO extends DurableObject<Env> {
     const mine = this.socketsOf(userId).sort(
       (a, b) => ((a.deserializeAttachment() as LobbySocketUser).at ?? 0) - ((b.deserializeAttachment() as LobbySocketUser).at ?? 0),
     );
-    for (const ws of mine.slice(0, Math.max(0, mine.length - MAX_SOCKETS_PER_USER))) {
+    for (const ws of mine.slice(0, Math.max(0, mine.length - MAX_LOBBY_SOCKETS_PER_USER))) {
       this.send(ws, { t: 'error', code: 'too_many_connections', message: 'Bạn mở sảnh ở quá nhiều tab.' });
       ws.close(CLOSE_TOO_MANY, 'too many connections');
     }

@@ -119,7 +119,15 @@ export function reconcileConnections(
     if (seatIndexOfUser(state, id) < 0) delete state.disconnectedSince[id];
   }
   const anyConnected = humanUsers(state).some((u) => connected.has(u.id));
-  state.noHumanConnectedSince = anyConnected ? null : (state.noHumanConnectedSince ?? now);
+  const pausedSince = state.noHumanConnectedSince;
+  if (anyConnected && pausedSince !== null && state.status === 'playing') {
+    // The game stood still while nobody was connected, so its clocks did too:
+    // whoever returns finds the time their action had left when the pause began.
+    const paused = now - pausedSince;
+    if (state.dueAt !== null) state.dueAt += paused;
+    if (state.actionDueAt != null) state.actionDueAt += paused;
+  }
+  state.noHumanConnectedSince = anyConnected ? null : (pausedSince ?? now);
 
   const turnSeat = state.seats[currentSeatIndex(state)]?.occupant;
   if (state.status === 'playing' && turnSeat?.kind === 'human') {

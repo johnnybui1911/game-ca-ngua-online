@@ -202,6 +202,20 @@ describe('reconcileConnections', () => {
     }
   });
 
+  it('freezes the turn clock while nobody is connected and resumes it with the time that was left', () => {
+    const r = playing();
+    planTurn(r, new Set(['u1', 'u2']), 0, T);
+    reconcileConnections(r, new Set(), 5_000, T);
+    expect(nextWake(r, T)).toBe(5_000 + T.idleCloseMs);
+    // Back long after the original deadline: 25 s were left when the pause began.
+    reconcileConnections(r, new Set(['u1']), 45_000, T);
+    expect(r.dueAt).toBe(70_000);
+    expect(r.actionDueAt).toBe(70_000);
+    expect(nextWake(r, T)).toBe(70_000);
+    reconcileConnections(r, new Set(['u1']), 45_000, T);
+    expect(r.dueAt).toBe(70_000);
+  });
+
   it('gives a disconnected human on turn the short takeover delay', () => {
     const r = playing();
     planTurn(r, new Set(['u2']), 10_000, T);
