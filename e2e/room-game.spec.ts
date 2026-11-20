@@ -1,29 +1,19 @@
 import { expect, test, type Page } from '@playwright/test';
 import type { GameState } from '../shared/game/types';
 import type { RoomClientMessage, RoomServerMessage } from '../shared/protocol';
-import { GAME_TIMEOUT, createRoom, newPlayer, startAutoPlayer, type Player } from './helpers/rooms';
+import {
+  GAME_TIMEOUT,
+  VIEWPORT,
+  createRoom,
+  newPlayer,
+  openRawSocket,
+  rawLog,
+  rawSend,
+  startAutoPlayer,
+  startTwoPlayerGame,
+} from './helpers/rooms';
 
 test.setTimeout(GAME_TIMEOUT + 60_000);
-
-/**
- * Headless browsers rasterise WebGL on the CPU, at a cost proportional to the
- * pixel count; a small viewport keeps full games fast without unmounting the scene.
- */
-const VIEWPORT = { width: 360, height: 520 };
-
-async function startTwoPlayerGame(browser: Parameters<typeof newPlayer>[0], names: [string, string]) {
-  const a = await newPlayer(browser, names[0], VIEWPORT);
-  const b = await newPlayer(browser, names[1], VIEWPORT);
-  const code = await createRoom(a, { name: 'Ván hai người', visibility: 'private', seats: 2 });
-  await a.page.goto(`/r/${code}`);
-  await b.page.goto(`/r/${code}`);
-  await expect(a.page.getByTestId('seat-1-name')).toContainText(names[1]);
-  await expect(a.page.getByTestId('start-button')).toBeEnabled();
-  await a.page.getByTestId('start-button').click();
-  await expect(a.page.getByTestId('hud')).toBeVisible();
-  await expect(b.page.getByTestId('hud')).toBeVisible();
-  return { a, b, code };
-}
 
 test('one human and three CPUs play a full game to the win dialog', async ({ browser }) => {
   const host = await newPlayer(browser, 'Người Chơi Một', VIEWPORT);
@@ -79,25 +69,31 @@ test('reload mid-game returns to the same seat and board; outsiders see the in-p
       horses: el.getAttribute('data-horses'),
     }));
 
-  // Stop the auto players so the board only moves on the server's own deadlines, then compare around the reload.
+  // B keeps playing while A reloads. After the reload A must come back to its own seat and, at any
+  // sequence number it shares with B, show exactly the board B shows.
+  const seqBeforeReload = (await read(a.page)).seq;
   await a.page.reload();
   await expect(a.page.getByTestId('hud')).toBeVisible();
   const afterReload = await read(a.page);
   expect(afterReload.color).toBe('0');
-  const fromB = await read(b.page);
-  await expect
-    .poll(async () => (await read(a.page)).seq, { timeout: 10_000 })
-    .toBeGreaterThanOrEqual(Math.min(afterReload.seq, fromB.seq));
-  // Both views agree on the board whenever they are at the same sequence number.
+  expect(afterReload.seq).toBeGreaterThanOrEqual(seqBeforeReload);
+  expect(JSON.parse(afterReload.horses ?? 'null')).not.toBeNull();
+
+  let compared = 0;
+  const mismatches: unknown[] = [];
   await expect
     .poll(
       async () => {
         const [x, y] = [await read(a.page), await read(b.page)];
-        return x.seq === y.seq ? x.horses === y.horses : null;
+        if (x.seq !== y.seq) return false;
+        if (x.horses !== y.horses) mismatches.push({ seq: x.seq, a: x.horses, b: y.horses });
+        compared += 1;
+        return compared >= 3;
       },
-      { timeout: 15_000 },
+      { timeout: 30_000 },
     )
     .toBe(true);
+  expect(mismatches).toEqual([]);
 
   const outsider = await newPlayer(browser, 'Người Ngoài');
   await outsider.page.goto(`/r/${code}`);
@@ -108,35 +104,13 @@ test('reload mid-game returns to the same seat and board; outsiders see the in-p
   await b.context.close();
 });
 
-interface RawLog {
-  msgs: RoomServerMessage[];
-}
-
-async function openRawSocket(player: Player, code: string): Promise<Page> {
-  const page = await player.context.newPage();
-  await page.goto('/');
-  await page.evaluate(
-    (c) =>
-      new Promise<void>((resolve) => {
-        const w = window as unknown as { __ws: WebSocket; __log: RawLog };
-        w.__log = { msgs: [] };
-        w.__ws = new WebSocket(`ws://${location.host}/api/rooms/${c}/ws`);
-        w.__ws.onmessage = (e) => w.__log.msgs.push(JSON.parse(String(e.data)) as RoomServerMessage);
-        w.__ws.onopen = () => resolve();
-      }),
-    code,
-  );
-  return page;
-}
-
-const rawSend = (page: Page, msg: RoomClientMessage) =>
-  page.evaluate((m) => (window as unknown as { __ws: WebSocket }).__ws.send(JSON.stringify(m)), msg);
-const rawLog = (page: Page) => page.evaluate(() => (window as unknown as { __log: RawLog }).__log.msgs);
-
 test('out-of-turn roll and illegal moves answer an error and leave the snapshot unchanged', async ({ browser }) => {
-  const { a, b, code } = await startTwoPlayerGame(browser, ['Người Đầu', 'Người Sau']);
-  const rawA = await openRawSocket(a, code);
-  const rawB = await openRawSocket(b, code);
+  // The raw sockets are open before the game starts, so the first turn's clock never runs while the test sets up.
+  const raw: Page[] = [];
+  const { a, b } = await startTwoPlayerGame(browser, ['Người Đầu', 'Người Sau'], async (pa, pb, room) => {
+    raw.push(await openRawSocket(pa, room), await openRawSocket(pb, room));
+  });
+  const [rawA, rawB] = raw as [Page, Page];
   const bySeat: Record<string, Page> = { '0': rawA, '1': rawB };
 
   const lastState = async (p: Page) => {
@@ -148,13 +122,21 @@ test('out-of-turn roll and illegal moves answer an error and leave the snapshot 
     return null;
   };
 
-  /** Sends `msg` and asserts the server answered exactly one error, with no state in between. */
-  const expectRejected = async (p: Page, msg: RoomClientMessage, code: string) => {
+  /** The first error the server sends after `msg`, whatever state messages are interleaved. */
+  const errorAfter = async (p: Page, msg: RoomClientMessage) => {
     const before = (await rawLog(p)).length;
     await rawSend(p, msg);
-    await expect.poll(async () => (await rawLog(p)).length, { timeout: 5000 }).toBeGreaterThan(before);
-    const fresh = (await rawLog(p)).slice(before);
-    expect(fresh[0]).toMatchObject({ t: 'error', code });
+    let found: Extract<RoomServerMessage, { t: 'error' }> | undefined;
+    await expect
+      .poll(async () => {
+        found = (await rawLog(p)).slice(before).find((m) => m.t === 'error');
+        return found !== undefined;
+      }, { timeout: 5000 })
+      .toBe(true);
+    return found;
+  };
+  const expectRejected = async (p: Page, msg: RoomClientMessage, code: string) => {
+    expect(await errorAfter(p, msg)).toMatchObject({ t: 'error', code });
   };
 
   await expect.poll(async () => (await lastState(rawA))?.game?.phase, { timeout: 5000 }).toBe('roll');
@@ -190,8 +172,7 @@ test('out-of-turn roll and illegal moves answer an error and leave the snapshot 
   expect(checked).toBe(true);
 
   // Garbage is answered with an error and an oversized message closes the socket.
-  await rawSend(rawA, { t: 'nope' } as unknown as RoomClientMessage);
-  await expect.poll(async () => (await rawLog(rawA)).at(-1)).toMatchObject({ t: 'error', code: 'bad_message' });
+  await expectRejected(rawA, { t: 'nope' } as unknown as RoomClientMessage, 'bad_message');
   const closeCode = await rawA.evaluate(
     () =>
       new Promise<number>((resolve) => {
