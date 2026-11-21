@@ -23,6 +23,24 @@ export const NO_INSETS: HudInsets = { top: 0, bottom: 0 };
 /** The board never gets less than this share of the viewport height, however tall the HUD. */
 const MIN_FREE = 0.3;
 
+/** Insets reserved for one viewport size. */
+export interface ReservedInsets extends HudInsets {
+  width: number;
+  height: number;
+}
+
+/**
+ * Reserve the largest panel heights seen at this viewport size, so panel
+ * content coming and going (an error line, wrapping move buttons) never moves
+ * the board. A different viewport size starts over from the new measurement.
+ */
+export function reserveInsets(prev: ReservedInsets | null, measured: HudInsets, width: number, height: number): ReservedInsets {
+  if (!prev || prev.width !== width || prev.height !== height) return { width, height, ...measured };
+  const top = Math.max(prev.top, measured.top);
+  const bottom = Math.max(prev.bottom, measured.bottom);
+  return top === prev.top && bottom === prev.bottom ? prev : { width, height, top, bottom };
+}
+
 /**
  * The viewport band left between the HUD panels: `fraction` of the height, and
  * `shiftPx`, how far down the picture window must slide so the board centre

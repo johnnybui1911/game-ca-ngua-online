@@ -9,7 +9,7 @@ import { secondsLeft } from './countdown';
 import { lastRollAfter, type LastRoll } from './last-roll';
 import { COLOR_NAMES, COLOR_VARS } from './colors';
 import { describeMove } from './move-text';
-import type { HudInsets } from '../scene/camera';
+import { reserveInsets, type ReservedInsets } from '../scene/camera';
 
 const GameScene = lazy(() => import('../scene/GameScene'));
 
@@ -53,27 +53,31 @@ function useCountdown(deadline: number | null, offset: number): number | null {
   return deadline === null ? null : secondsLeft(deadline, now, offset);
 }
 
-/** Heights of the top player strip and bottom panel, kept current as their content changes. */
+/**
+ * Heights of the top player strip and bottom panel. The largest seen at the current viewport size are
+ * kept, so the board does not move when panel content comes and goes during a match.
+ */
 function useHudInsets(active: boolean) {
   const topRef = useRef<HTMLUListElement>(null);
   const bottomRef = useRef<HTMLElement>(null);
-  const [insets, setInsets] = useState<HudInsets>({ top: 0, bottom: 0 });
+  const [insets, setInsets] = useState<ReservedInsets | null>(null);
   useLayoutEffect(() => {
     const topEl = topRef.current;
     const bottomEl = bottomRef.current;
-    if (!active || !topEl || !bottomEl) return;
+    const root = topEl?.parentElement;
+    if (!active || !topEl || !bottomEl || !root) return;
     const measure = () => {
-      const top = topEl.offsetHeight;
-      const bottom = bottomEl.offsetHeight;
-      setInsets((prev) => (prev.top === top && prev.bottom === bottom ? prev : { top, bottom }));
+      const measured = { top: topEl.offsetHeight, bottom: bottomEl.offsetHeight };
+      setInsets((prev) => reserveInsets(prev, measured, root.clientWidth, root.clientHeight));
     };
     measure();
     const observer = new ResizeObserver(measure);
     observer.observe(topEl);
     observer.observe(bottomEl);
+    observer.observe(root);
     return () => observer.disconnect();
   }, [active]);
-  return { topRef, bottomRef, insets };
+  return { topRef, bottomRef, insets: insets ?? { top: 0, bottom: 0 } };
 }
 
 export function MatchView({ room, batches, clockOffset, myId, send, actionError }: Props) {
