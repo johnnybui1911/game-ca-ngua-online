@@ -21,10 +21,11 @@ export function ProviderButtons({ returnTo, divider = true }: { returnTo: string
           <button
             key={p}
             type="button"
-            className={`btn btn-provider provider-${p}`}
+            className={`ui-btn ui-btn--secondary btn-provider provider-${p}`}
             data-testid={`oauth-${p}`}
             onClick={() => window.location.assign(`/api/auth/oauth/${p}/start?returnTo=${encodeURIComponent(returnTo)}`)}
           >
+            <span className="provider-mark" aria-hidden="true" />
             Tiếp tục với {LABELS[p]}
           </button>
         ))}

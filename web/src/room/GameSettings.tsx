@@ -7,6 +7,7 @@ import {
   type RoomSnapshot,
   type TurnSeconds,
 } from '../../../shared/protocol';
+import { Icon } from '../ui/Icon';
 import { RulesSheet } from './RulesSheet';
 import { nextSettings } from './settings';
 import { motionSetting, useMotionLevel, type MotionLevel } from '../scene/motion/motion-setting';
@@ -26,7 +27,10 @@ const MOTION_LEVELS: [MotionLevel, string][] = [
   ['reduced', 'Giảm'],
 ];
 
-/** Waiting room: the host picks turn time, Ván nhanh and auto-roll; everyone else reads the choice. */
+/**
+ * Waiting room: the host picks turn time, Ván nhanh and auto-roll; everyone else reads the choice.
+ * Each setting is one `.setting-row` or `.setting-block` in the list, so a new one is a new block.
+ */
 export function GameSettings({ room, isHost, offline, actionError, send }: Props) {
   const settings = room.settings;
   const [rulesOpen, setRulesOpen] = useState(false);
@@ -46,14 +50,20 @@ export function GameSettings({ room, isHost, offline, actionError, send }: Props
 
   return (
     <section className="game-settings" aria-labelledby="game-settings-title" data-testid="game-settings">
-      <h2 id="game-settings-title">Cài đặt ván</h2>
+      <h2 id="game-settings-title" className="ui-eyebrow">
+        <Icon name="settings" size="sm" />
+        Cài đặt ván
+      </h2>
 
       <div className="setting-row">
-        <label htmlFor="turn-seconds">Thời gian mỗi lượt</label>
+        <label htmlFor="turn-seconds" className="setting-label">
+          <Icon name="timer" size="sm" />
+          Thời gian mỗi lượt
+        </label>
         {isHost ? (
           <select
             id="turn-seconds"
-            className="setting-select"
+            className="glass-input glass-select"
             data-testid="turn-seconds"
             value={settings.turnSeconds}
             disabled={locked}
@@ -66,22 +76,26 @@ export function GameSettings({ room, isHost, offline, actionError, send }: Props
             ))}
           </select>
         ) : (
-          <strong data-testid="turn-seconds">{settings.turnSeconds} giây</strong>
+          <strong className="setting-value" data-testid="turn-seconds">
+            {settings.turnSeconds} giây
+          </strong>
         )}
       </div>
 
       <div className="setting-block">
-        <label className="setting-switch">
+        <label className="room-switch">
+          <span>Ván nhanh</span>
           <input
             type="checkbox"
+            role="switch"
+            className="switch-input"
             data-testid="quick-toggle"
             checked={settings.quick}
             disabled={!isHost || locked}
             onChange={(e) => change({ quick: e.target.checked })}
           />
-          <span>Ván nhanh</span>
         </label>
-        <p className="muted setting-help" data-testid="mode-summary">
+        <p className="ui-muted setting-help" data-testid="mode-summary">
           {summary}{' '}
           <button type="button" className="link-button" data-testid="mode-rules" onClick={() => setRulesOpen(true)}>
             Xem luật
@@ -90,31 +104,41 @@ export function GameSettings({ room, isHost, offline, actionError, send }: Props
       </div>
 
       <div className="setting-block">
-        <label className="setting-switch">
+        <label className="room-switch">
+          <span>Tự đổ xúc xắc</span>
           <input
             type="checkbox"
+            role="switch"
+            className="switch-input"
             data-testid="auto-roll-toggle"
             checked={settings.autoRoll}
             disabled={!isHost || locked}
             onChange={(e) => change({ autoRoll: e.target.checked })}
           />
-          <span>Tự đổ xúc xắc</span>
         </label>
-        <p className="muted setting-help">Máy đổ giúp sau 1,5 giây.</p>
+        <p className="ui-muted setting-help">Máy đổ giúp sau 1,5 giây.</p>
       </div>
 
-      {/* Buttons, not a select or radios: those are the host's room settings here, and a guest's panel has none. */}
-      <div className="setting-row" role="group" aria-labelledby="motion-level-label" data-testid="motion-level" data-level={motion}>
-        <span id="motion-level-label" style={{ whiteSpace: 'nowrap' }}>
+      {/* Toggle buttons, not a select or radios: those are the host's room settings here, and a guest's panel has none. */}
+      <div
+        className="setting-row"
+        style={{ flexWrap: 'wrap' }}
+        role="group"
+        aria-labelledby="motion-level-label"
+        data-testid="motion-level"
+        data-level={motion}
+      >
+        <span id="motion-level-label" className="setting-label" style={{ whiteSpace: 'nowrap' }}>
+          <Icon name="play" size="sm" />
           Hoạt cảnh
         </span>
-        <span style={{ display: 'flex', gap: 8 }}>
+        <span style={{ display: 'flex', gap: 'var(--space-2)' }}>
           {MOTION_LEVELS.map(([level, text]) => (
             <button
               key={level}
               type="button"
-              className={motion === level ? 'btn btn-primary' : 'btn btn-secondary'}
-              style={{ minHeight: 48, padding: '0 14px', whiteSpace: 'nowrap' }}
+              className="ui-pill"
+              style={{ whiteSpace: 'nowrap' }}
               data-testid={`motion-level-${level}`}
               aria-pressed={motion === level}
               onClick={() => motionSetting.setLevel(level)}
