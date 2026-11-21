@@ -14,6 +14,12 @@ export interface PublicUser {
   displayName: string;
 }
 
+/** The signed-in user as the account endpoints report it. */
+export interface MeUser extends PublicUser {
+  /** True for a guest: a name and a session, no email, password or provider. */
+  guest: boolean;
+}
+
 export interface ApiError {
   error: { code: string; message: string };
 }
@@ -34,13 +40,19 @@ export interface SignInRequest {
 /**
  * GET /api/auth/me -> 200 always.
  * `providers[p]` is true when the deployment holds credentials for provider p;
- * the UI shows "chưa cấu hình" for the others instead of starting the flow.
+ * the UI renders no button for the others.
  */
 export interface MeResponse {
-  user: PublicUser | null;
+  user: MeUser | null;
   providers: Record<OAuthProvider, boolean>;
 }
 
+/** POST /api/auth/guest -> 200 MeResponse (session cookie set) | 409 already_signed_in | 429 too_many_guests */
+export interface GuestRequest {
+  displayName: string;
+}
+
+// POST /api/auth/signup while the session is a guest's upgrades that user in place (same id and session).
 // POST /api/auth/signout -> 204
 // GET  /api/auth/oauth/:provider/start?returnTo=/r/ABC123 -> 302 to the provider
 // GET  /api/auth/oauth/:provider/callback                 -> 302 to returnTo (same-origin path only)
@@ -106,7 +118,7 @@ export interface CreateRoomResponse {
   code: string;
 }
 
-// GET /api/rooms/:code -> 200 RoomSummary | 404 ApiError. Requires a session.
+// GET /api/rooms/:code -> 200 RoomSummary | 404 ApiError. Public: the entry screen names the room before a session exists.
 // GET /api/rooms/:code/ws  (WebSocket upgrade, requires a session) -> room socket
 // GET /api/lobby/ws        (WebSocket upgrade, requires a session) -> lobby socket
 

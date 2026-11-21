@@ -1,4 +1,5 @@
 import { Route, Routes } from 'react-router';
+import { GuestEntryPage } from './auth/GuestEntryPage';
 import { NotFoundPage } from './auth/NotFoundPage';
 import { RequireAuth } from './auth/RequireAuth';
 import { SignInPage } from './auth/SignInPage';
@@ -11,6 +12,7 @@ export function App() {
   return (
     <LobbyProvider>
       <Routes>
+        <Route path="/bat-dau" element={<GuestEntryPage />} />
         <Route path="/dang-nhap" element={<SignInPage />} />
         <Route path="/dang-ky" element={<SignUpPage />} />
         <Route

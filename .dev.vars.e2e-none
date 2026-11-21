@@ -1,3 +1,4 @@
 # Used only by the e2e run (CLOUDFLARE_ENV=e2e-none). Selecting this file stops a developer's own
 # .dev.vars from being loaded, so no OAuth provider is configured.
 E2E_NO_PROVIDERS=1
+ROOM_FAST_TIMERS=1

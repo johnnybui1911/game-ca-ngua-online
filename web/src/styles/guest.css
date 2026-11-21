@@ -1,0 +1,125 @@
+.entry-room {
+  margin: 0 0 var(--space-4);
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.entry-room-missing {
+  padding: var(--space-3);
+  color: var(--danger);
+  background: var(--danger-bg);
+  border-radius: var(--radius-sm);
+}
+
+.guest-notice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  color: var(--wood-800);
+  font-weight: 700;
+  background: var(--wood-100);
+  border: 2px solid var(--wood-300);
+  border-radius: var(--radius-md);
+}
+
+.signout-confirm {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: var(--space-2);
+}
+
+.signout-confirm p {
+  margin: 0;
+}
+
+.signout-confirm-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-2);
+}
+
+.lobby-header .signout-confirm {
+  grid-row: auto;
+}
+
+.lobby-header .signout-confirm .btn {
+  grid-column: auto;
+  grid-row: auto;
+}
+
+.save-account {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  text-align: left;
+  background: var(--wood-100);
+  border: 2px solid var(--wood-300);
+  border-radius: var(--radius-md);
+}
+
+.save-account h3 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+}
+
+.save-account .form {
+  gap: var(--space-3);
+}
+
+.save-account .divider {
+  margin: var(--space-2) 0;
+}
+
+.save-account-done {
+  margin: 0;
+  color: var(--felt-800);
+  font-weight: 700;
+  text-align: center;
+}
+
+.btn-link {
+  justify-self: center;
+  min-height: var(--touch);
+  padding: 0 var(--space-3);
+  font: inherit;
+  font-weight: 700;
+  color: var(--felt-600);
+  background: none;
+  border: 0;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+/* A dialog taller than the screen scrolls instead of hiding its buttons. */
+.dialog {
+  max-height: calc(100dvh - 2 * var(--space-4));
+  overflow-y: auto;
+}
+
+/* Wide screens: the dialog widens so email and password sit side by side and everything fits one screen. */
+@media (min-width: 640px) {
+  .dialog:has(.save-account) {
+    width: min(100%, 520px);
+  }
+
+  .save-account .form {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .save-account .form > .form-error,
+  .save-account .form > .btn {
+    grid-column: 1 / -1;
+  }
+
+  .save-account .provider-list {
+    gap: var(--space-2);
+  }
+
+  .save-account .btn-provider {
+    min-height: 44px;
+  }
+}

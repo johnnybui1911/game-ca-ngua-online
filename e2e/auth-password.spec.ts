@@ -13,6 +13,9 @@ test('sign up, keep session on reload, sign out, sign in again', async ({ page }
   await signOut(page);
   await page.reload();
   await expect(page).toHaveURL(/\/dang-nhap/);
+  await page.goto('/');
+  await expect(page).toHaveURL(/\/bat-dau\?returnTo=%2F$/);
+  await page.goto('/dang-nhap');
 
   await page.getByTestId('signin-email').fill(email.toUpperCase());
   await page.getByTestId('signin-password').fill(PASSWORD);
@@ -57,6 +60,8 @@ test('sign-up form validates fields before sending', async ({ page }) => {
 
 test('returnTo: a signed-out visit comes back after sign-in and after sign-up', async ({ page }) => {
   await page.goto('/r/ABC234');
+  await expect(page).toHaveURL(/\/bat-dau\?returnTo=%2Fr%2FABC234/);
+  await page.getByTestId('to-signin').click();
   await expect(page).toHaveURL(/\/dang-nhap\?returnTo=%2Fr%2FABC234/);
   await page.getByTestId('to-signup').click();
   await expect(page).toHaveURL(/\/dang-ky\?returnTo=%2Fr%2FABC234/);
@@ -69,7 +74,7 @@ test('returnTo: a signed-out visit comes back after sign-in and after sign-up', 
   await expect(page).toHaveURL('/r/ABC234');
 
   await page.evaluate(() => fetch('/api/auth/signout', { method: 'POST' }));
-  await page.goto('/r/ABC234');
+  await page.goto('/dang-nhap?returnTo=%2Fr%2FABC234');
   await page.getByTestId('signin-email').fill(email);
   await page.getByTestId('signin-password').fill(PASSWORD);
   await page.getByTestId('signin-submit').click();
