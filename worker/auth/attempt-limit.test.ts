@@ -28,13 +28,15 @@ describe('sessionCap', () => {
 
 describe('windows', () => {
   it('sign-in looks back 15 minutes and sign-up one hour', () => {
+    expect(attemptWindowStart('signin-pair', 1_000_000)).toBe(1_000_000 - 15 * 60_000);
     expect(attemptWindowStart('signin-email', 1_000_000)).toBe(1_000_000 - 15 * 60_000);
     expect(attemptWindowStart('signin-addr', 1_000_000)).toBe(1_000_000 - 15 * 60_000);
     expect(attemptWindowStart('signup-addr', 10_000_000)).toBe(10_000_000 - 60 * 60_000);
   });
 
   it('defaults match the documented limits', () => {
-    expect(POLICIES['signin-email'].defaultLimit).toBe(10);
+    expect(POLICIES['signin-pair'].defaultLimit).toBe(10);
+    expect(POLICIES['signin-email'].defaultLimit).toBe(100);
     expect(POLICIES['signin-addr'].defaultLimit).toBe(50);
     expect(POLICIES['signup-addr'].defaultLimit).toBe(20);
   });
