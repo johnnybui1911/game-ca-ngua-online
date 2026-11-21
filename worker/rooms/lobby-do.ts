@@ -25,7 +25,7 @@ import {
 import { isRoomCode } from './room-code';
 import {
   ROOM_KEY_PREFIX,
-  consumeReservation,
+  listRoom,
   mergeLegacyRooms,
   publicRoomList,
   reserveCreate,
@@ -108,10 +108,10 @@ export class LobbyDO extends DurableObject<Env> {
     return this.ctx.storage.put(roomKey(code), stored);
   }
 
-  async upsertRoom(summary: RoomSummary, visibility: RoomVisibility, hostId: string): Promise<void> {
-    const prev = this.rooms[summary.code];
-    if (!prev) consumeReservation(this.pendingCreates, hostId, Date.now());
-    this.rooms[summary.code] = { summary, visibility, hostId, at: prev?.at ?? Date.now(), rev: ++this.revCounter };
+  /** `created` marks the room's first listing after its creation, which is what ends the creator's reservation. */
+  async upsertRoom(summary: RoomSummary, visibility: RoomVisibility, hostId: string, created = false): Promise<void> {
+    const entry = listRoom(this.rooms, this.pendingCreates, { summary, visibility, hostId, created }, Date.now());
+    this.rooms[summary.code] = { ...entry, rev: ++this.revCounter };
     await this.persistRoom(summary.code);
     await this.ensureSweepScheduled();
     await this.scheduleBroadcast();

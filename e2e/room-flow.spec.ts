@@ -1,6 +1,6 @@
 import { request } from 'node:http';
 import { expect, test } from '@playwright/test';
-import { createRoom, newPlayer, ORIGIN } from './helpers/rooms';
+import { createRoom, newPlayer, openRawSocket, ORIGIN, rawSend } from './helpers/rooms';
 import { PASSWORD, uniqueEmail } from './auth-helpers';
 
 test('private room: a signed-out visitor registers from the entry screen link and lands seated beside the host', async ({ browser }) => {
@@ -166,7 +166,7 @@ test('copy link puts the room URL on the clipboard', async ({ browser }) => {
   await host.context.close();
 });
 
-test('room creation validates input and is limited to five per minute', async ({ browser }) => {
+test('room creation validates input, caps open rooms at three and creations at five per minute', async ({ browser }) => {
   const p = await newPlayer(browser, 'Tạo Nhiều');
   const post = (data: unknown) => p.context.request.post('/api/rooms', { headers: { Origin: ORIGIN }, data });
   expect((await post({ name: '   ', visibility: 'public', seats: 2 })).status()).toBe(400);
@@ -179,13 +179,48 @@ test('room creation validates input and is limited to five per minute', async ({
   });
   expect(cross.status()).toBe(403);
   expect(await cross.json()).toEqual({ error: { code: 'forbidden_origin', message: 'Yêu cầu không hợp lệ.' } });
-  let firstCode = '';
-  for (let i = 0; i < 5; i++) {
-    const res = await post({ name: `Phòng ${i}`, visibility: 'private', seats: 2 });
-    expect(res.status()).toBe(201);
-    if (i === 0) firstCode = ((await res.json()) as { code: string }).code;
-  }
-  expect((await post({ name: 'Thừa', visibility: 'private', seats: 2 })).status()).toBe(429);
+  const create = async (name: string) => {
+    const res = await post({ name, visibility: 'private', seats: 2 });
+    return { res, status: res.status(), code: res.status() === 201 ? ((await res.json()) as { code: string }).code : '' };
+  };
+  // A host who leaves a waiting room that has only them closes it; the lobby then stops counting it.
+  const leave = async (code: string) => {
+    const page = await openRawSocket(p, code);
+    await rawSend(page, { t: 'leave' });
+    await page.close();
+  };
+  // Creates once the lobby has dropped the rooms just left; a refusal for the cap does not use up the per-minute limit.
+  const createWhenFree = async (name: string) => {
+    let last = await create(name);
+    for (let i = 0; i < 50 && last.status === 429 && (await last.res.json()).error.code === 'too_many_rooms'; i++) {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      last = await create(name);
+    }
+    return last;
+  };
+
+  const first = await create('Phòng 0');
+  const second = await create('Phòng 1');
+  const third = await create('Phòng 2');
+  expect([first.status, second.status, third.status]).toEqual([201, 201, 201]);
+  const firstCode = first.code;
+  const capped = await create('Thừa');
+  expect(capped.status).toBe(429);
+  expect(await capped.res.json()).toEqual({
+    error: {
+      code: 'too_many_rooms',
+      message: 'Bạn đang có quá nhiều phòng đang mở. Hãy rời bớt phòng trước khi tạo phòng mới.',
+    },
+  });
+
+  // Rooms left free the cap, but five creations in a minute are still the limit.
+  await leave(second.code);
+  await leave(third.code);
+  expect((await createWhenFree('Phòng 3')).status).toBe(201);
+  expect((await createWhenFree('Phòng 4')).status).toBe(201);
+  const limited = await create('Thừa');
+  expect(limited.status).toBe(429);
+  expect(((await limited.res.json()) as { error: { code: string } }).error.code).toBe('rate_limited');
 
   const anon = await browser.newContext({ baseURL: ORIGIN });
   expect((await anon.request.post('/api/rooms', { headers: { Origin: ORIGIN }, data: {} })).status()).toBe(401);

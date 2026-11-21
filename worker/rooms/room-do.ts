@@ -142,7 +142,7 @@ export class RoomDO extends DurableObject<Env> {
       noHumanConnectedSince: now,
     };
     await this.persistAndSchedule();
-    this.pushLobby();
+    this.pushLobby(true);
     return true;
   }
 
@@ -508,7 +508,7 @@ export class RoomDO extends DurableObject<Env> {
   }
 
   /** Tells the lobby about this room when its public summary changed. */
-  private pushLobby(): void {
+  private pushLobby(created = false): void {
     const room = this.room;
     if (!room) return;
     const summary = toSummary(room);
@@ -517,7 +517,7 @@ export class RoomDO extends DurableObject<Env> {
     this.lastPushed = key;
     this.ctx.waitUntil(
       this.env.LOBBY.getByName('lobby')
-        .upsertRoom(summary, room.visibility, room.hostId)
+        .upsertRoom(summary, room.visibility, room.hostId, created)
         .catch((err: unknown) => {
           this.lastPushed = '';
           console.error('lobby upsertRoom failed', err);
