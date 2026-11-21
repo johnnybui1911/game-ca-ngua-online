@@ -11,8 +11,10 @@ import {
   type RoomVisibility,
 } from '../../shared/protocol';
 import type { Env } from '../env';
-import { TokenBucket } from './token-bucket';
+import { KeyedTokenBuckets, TokenBucket } from './token-bucket';
 import {
+  HOST_ACTION_BURST,
+  HOST_ACTION_REFILL_PER_SEC,
   MAX_MESSAGE_BYTES,
   MAX_SOCKETS_PER_USER,
   SOCKET_BURST,
@@ -105,6 +107,8 @@ export class RoomDO extends DurableObject<Env> {
   private lastPushed = '';
   /** In memory only: a socket woken from hibernation starts with a full bucket. */
   private readonly buckets = new WeakMap<WebSocket, TokenBucket>();
+  /** Budget for host messages that write state, per user: reconnecting does not refill it. */
+  private readonly hostBudget = new KeyedTokenBuckets(HOST_ACTION_BURST, HOST_ACTION_REFILL_PER_SEC);
   private readonly timings: Timings;
 
   constructor(ctx: DurableObjectState, env: Env) {
@@ -283,10 +287,15 @@ export class RoomDO extends DurableObject<Env> {
     const needHost = () => {
       if (room.hostId !== user.userId) throw new RoomError('not_host', 'Chỉ chủ phòng mới làm được việc này.');
     };
+    // Each of these costs a room write, a room alarm and a lobby update; `start` is once per game and exempt.
+    const needHostBudget = () => {
+      needHost();
+      if (!this.hostBudget.take(user.userId, now)) throw new RoomError('too_fast', 'Bạn thao tác quá nhanh, vui lòng chậm lại.');
+    };
 
     switch (msg.t) {
       case 'addCpu': {
-        needHost();
+        needHostBudget();
         if (room.status !== 'waiting') throw new RoomError('bad_state', 'Chỉ thêm máy khi đang chờ.');
         const seat = room.seats[msg.seat];
         if (!seat || seat.occupant !== null) throw new RoomError('bad_seat', 'Chỗ này không còn trống.');
@@ -295,7 +304,7 @@ export class RoomDO extends DurableObject<Env> {
         return;
       }
       case 'removeCpu': {
-        needHost();
+        needHostBudget();
         if (room.status !== 'waiting') throw new RoomError('bad_state', 'Chỉ bỏ máy khi đang chờ.');
         const seat = room.seats[msg.seat];
         if (seat?.occupant?.kind !== 'cpu') throw new RoomError('bad_seat', 'Chỗ này không có máy.');
@@ -326,7 +335,7 @@ export class RoomDO extends DurableObject<Env> {
         return;
       }
       case 'rematch': {
-        needHost();
+        needHostBudget();
         if (room.status !== 'finished') throw new RoomError('bad_state', 'Ván đấu chưa kết thúc.');
         room.status = 'waiting';
         room.game = null;
@@ -503,12 +512,12 @@ export class RoomDO extends DurableObject<Env> {
     const room = this.room;
     if (!room) return;
     const summary = toSummary(room);
-    const key = JSON.stringify([summary, room.visibility]);
+    const key = JSON.stringify([summary, room.visibility, room.hostId]);
     if (key === this.lastPushed) return;
     this.lastPushed = key;
     this.ctx.waitUntil(
       this.env.LOBBY.getByName('lobby')
-        .upsertRoom(summary, room.visibility)
+        .upsertRoom(summary, room.visibility, room.hostId)
         .catch((err: unknown) => {
           this.lastPushed = '';
           console.error('lobby upsertRoom failed', err);

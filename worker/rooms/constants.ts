@@ -53,3 +53,12 @@ export const SOCKET_REFILL_PER_SEC = 50;
 
 /** Internal header carrying the authenticated user from the worker to a Durable Object. */
 export const USER_HEADER = 'X-Ca-User';
+/** Rooms a user may host at once that have not finished. */
+export const MAX_OPEN_ROOMS_PER_HOST = 3;
+/** How long a creation counts toward the cap before its room's first listing arrives. */
+export const CREATE_RESERVATION_MS = 20_000;
+/** Public rooms the lobby broadcasts, newest first. */
+export const MAX_LOBBY_LIST = 50;
+/** State-changing host messages (add or remove a CPU, rematch): a burst, then a steady rate, per user across reconnects. */
+export const HOST_ACTION_BURST = 4;
+export const HOST_ACTION_REFILL_PER_SEC = 2;

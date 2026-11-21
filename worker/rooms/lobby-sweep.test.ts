@@ -11,26 +11,39 @@ const summary = (code: string, seatsTaken = 1): RoomSummary => ({
   seatsTotal: 4,
 });
 
+const entry = (code: string, rev: number, visibility: 'public' | 'private' = 'public') => ({
+  summary: summary(code),
+  visibility,
+  rev,
+});
+
 describe('applySweep', () => {
   it('drops rooms that no longer exist, refreshes live ones and leaves unanswered ones', () => {
-    const rooms = {
-      AAAAAA: { summary: summary('AAAAAA'), visibility: 'public' as const },
-      BBBBBB: { summary: summary('BBBBBB'), visibility: 'public' as const },
-      CCCCCC: { summary: summary('CCCCCC'), visibility: 'public' as const },
-      DDDDDD: { summary: summary('DDDDDD'), visibility: 'public' as const },
-    };
+    const rooms = { AAAAAA: entry('AAAAAA', 1), BBBBBB: entry('BBBBBB', 2), CCCCCC: entry('CCCCCC', 3), DDDDDD: entry('DDDDDD', 4) };
     const changed = applySweep(rooms, [
-      { code: 'AAAAAA', summary: null },
-      { code: 'BBBBBB', summary: summary('BBBBBB', 3) },
-      { code: 'CCCCCC', summary: summary('CCCCCC') },
+      { code: 'AAAAAA', summary: null, rev: 1 },
+      { code: 'BBBBBB', summary: summary('BBBBBB', 3), rev: 2 },
+      { code: 'CCCCCC', summary: summary('CCCCCC'), rev: 3 },
     ]);
-    expect(changed).toBe(true);
+    expect(changed.sort()).toEqual(['AAAAAA', 'BBBBBB']);
     expect(Object.keys(rooms).sort()).toEqual(['BBBBBB', 'CCCCCC', 'DDDDDD']);
     expect(rooms.BBBBBB.summary.seatsTaken).toBe(3);
   });
 
   it('reports no change when every room is as listed', () => {
-    const rooms = { AAAAAA: { summary: summary('AAAAAA'), visibility: 'private' as const } };
-    expect(applySweep(rooms, [{ code: 'AAAAAA', summary: summary('AAAAAA') }])).toBe(false);
+    const rooms = { AAAAAA: entry('AAAAAA', 1, 'private') };
+    expect(applySweep(rooms, [{ code: 'AAAAAA', summary: summary('AAAAAA'), rev: 1 }])).toEqual([]);
+  });
+
+  it('ignores an answer older than the entry it would overwrite', () => {
+    const rooms = { AAAAAA: { summary: summary('AAAAAA', 2), visibility: 'public' as const, rev: 7 } };
+    expect(applySweep(rooms, [{ code: 'AAAAAA', summary: summary('AAAAAA', 1), rev: 6 }])).toEqual([]);
+    expect(rooms.AAAAAA.summary.seatsTaken).toBe(2);
+  });
+
+  it('does not drop a room that was removed and listed again while the question was out', () => {
+    const rooms = { AAAAAA: entry('AAAAAA', 9) };
+    expect(applySweep(rooms, [{ code: 'AAAAAA', summary: null, rev: 4 }])).toEqual([]);
+    expect(rooms.AAAAAA).toBeDefined();
   });
 });
