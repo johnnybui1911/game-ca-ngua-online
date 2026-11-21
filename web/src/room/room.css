@@ -779,9 +779,10 @@ html[data-quality='low'] .hud-player {
   border-radius: var(--radius-md);
 }
 
+/* Below the HUD (z-index 5) so an open emote grid is never covered by it. */
 .pause-banner {
   position: absolute;
-  z-index: 6;
+  z-index: 4;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
@@ -854,8 +855,8 @@ html[data-quality='low'] .hud-player {
   gap: var(--space-2);
   padding: var(--space-3);
   border-radius: var(--radius-md);
-  transform-origin: bottom left;
-  animation: dialog-in var(--dur-slow) var(--ease-out);
+  /* Fade only: a moving box would make taps wait for it to settle on slow devices. */
+  animation: backdrop-in var(--dur-base) var(--ease-out);
 }
 
 .hud-bottom .emote-picker {
