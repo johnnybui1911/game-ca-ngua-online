@@ -11,29 +11,56 @@ body {
 }
 
 body {
-  font-family: var(--font-body);
+  font-family: var(--font-ui);
   font-size: var(--text-md);
+  line-height: var(--leading-normal);
+  /* Legacy: unmigrated screens put all text on parchment cards and light HUD panels. */
   color: var(--ink);
-  background:
-    repeating-linear-gradient(95deg, rgb(255 255 255 / 3%) 0 2px, transparent 2px 14px),
-    radial-gradient(ellipse at 50% 0%, var(--wood-500), var(--wood-800) 60%, var(--wood-900));
+  background-color: var(--color-bg);
+  background-image:
+    radial-gradient(ellipse 80% 55% at 50% -10%, rgb(184 40 31 / 26%), transparent 70%),
+    radial-gradient(ellipse 60% 40% at 50% 110%, rgb(201 166 107 / 12%), transparent 70%),
+    repeating-linear-gradient(95deg, rgb(255 236 200 / 2%) 0 2px, transparent 2px 14px),
+    linear-gradient(var(--lim-850), var(--color-bg-deep));
   background-attachment: fixed;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 h1 {
   font-family: var(--font-display);
   font-size: var(--text-xl);
+  font-weight: var(--weight-bold);
+  line-height: var(--leading-tight);
+  letter-spacing: var(--tracking-title);
+  text-transform: uppercase;
   margin: 0 0 var(--space-4);
 }
 
 :focus-visible {
-  outline: 3px solid var(--focus);
+  outline: 3px solid var(--color-focus);
   outline-offset: 2px;
+  /* Dark inner halo keeps the gold ring visible on light parchment too. */
+  box-shadow: 0 0 0 2px var(--color-bg);
 }
 
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Legacy components — remove after screen migration (new UI uses web/src/ui/ui.css). */
+
 .card {
+  color: var(--ink);
   background: var(--paper);
-  border: 2px solid var(--wood-300);
+  border: 1px solid var(--wood-300);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-card);
   padding: var(--space-5);
@@ -49,9 +76,16 @@ h1 {
   border: 2px solid transparent;
   border-radius: var(--radius-md);
   font: inherit;
-  font-weight: 700;
+  font-weight: var(--weight-bold);
   text-decoration: none;
   cursor: pointer;
+  transition:
+    background-color var(--dur-base) var(--ease-out),
+    transform var(--dur-fast) var(--ease-out);
+}
+
+.btn:active:not(:disabled) {
+  transform: scale(0.98);
 }
 
 .btn:disabled {
@@ -61,7 +95,7 @@ h1 {
 
 .btn-primary {
   background: var(--felt-600);
-  color: #fff;
+  color: var(--color-text-on-accent);
   border-color: var(--felt-800);
 }
 
@@ -76,7 +110,7 @@ h1 {
 }
 
 .page-status {
-  color: var(--wood-100);
+  color: var(--color-text);
   text-align: center;
   padding: var(--space-6);
 }
