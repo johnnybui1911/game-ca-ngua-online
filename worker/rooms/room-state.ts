@@ -9,7 +9,9 @@ import {
   type Seat,
   type SeatOccupant,
 } from '../../shared/protocol';
-import type { GameState } from '../../shared/game/types';
+import type { GameEvent, GameState } from '../../shared/game/types';
+import { applyMove, applyRoll } from '../../shared/game/engine';
+import { chooseCpuMove } from '../../shared/game/cpu';
 import type { Timings } from './constants';
 import { sanitizeText } from '../auth/validate';
 
@@ -131,6 +133,53 @@ export function planTurn(state: RoomState, connected: ReadonlySet<string>, now: 
   state.dueAt = delay === null ? null : now + delay;
   state.actionDueAt = occupant?.kind === 'human' ? now + timings.turnMs : null;
 }
+
+/** True when the server plays for the colour on turn: a CPU seat, or a human with no open socket. */
+export function isAutomatedActor(state: RoomState, connected: ReadonlySet<string>): boolean {
+  const occupant = state.seats[currentSeatIndex(state)]?.occupant ?? null;
+  return occupant !== null && (occupant.kind === 'cpu' || !isConnected(connected, occupant));
+}
+
+/**
+ * Plays the action that is due and re-plans the clock. An automated actor in the roll phase
+ * rolls and moves in one step (one commit, one alarm); the clients animate both from one batch,
+ * so the next action waits one extra `cpuDelayMs`. A connected human whose clock ran out is only
+ * rolled for and keeps their own turn clock for the move. Returns null when no action applies.
+ */
+export function playDueAction(
+  state: RoomState,
+  connected: ReadonlySet<string>,
+  now: number,
+  timings: Timings,
+  draw: () => DiceValue = drawDie,
+): { events: GameEvent[]; finished: boolean } | null {
+  const game = state.game;
+  if (!game) return null;
+  let result;
+  let combined = false;
+  if (game.phase === 'roll') {
+    const automated = isAutomatedActor(state, connected);
+    result = applyRoll(game, draw());
+    if (automated && result.state.phase === 'move' && result.state.turn === game.turn) {
+      const moved = applyMove(result.state, chooseCpuMove(result.state));
+      result = { state: moved.state, events: [...result.events, ...moved.events] };
+      combined = true;
+    }
+  } else if (game.phase === 'move') {
+    result = applyMove(game, chooseCpuMove(game));
+  } else {
+    return null;
+  }
+  state.game = result.state;
+  if (result.state.phase === 'finished') {
+    state.status = 'finished';
+    state.dueAt = null;
+    state.actionDueAt = null;
+    return { events: result.events, finished: true };
+  }
+  planTurn(state, connected, combined ? now + timings.cpuDelayMs : now, timings);
+  return { events: result.events, finished: false };
+};
 
 /**
  * Brings disconnect timers, the turn clock and the host in line with who has an open
@@ -285,4 +334,12 @@ export function drawDie(fill: (bytes: Uint8Array) => Uint8Array = (b) => crypto.
     const b = buf[0] ?? 255;
     if (b < 252) return ((b % 6) + 1) as DiceValue;
   }
+}
+
+export type AlarmAction = 'set' | 'delete' | 'none';
+
+/** What the alarm needs, given the wake this instance last armed (`undefined` = unknown after construction). */
+export function alarmAction(known: number | null | undefined, wake: number | null): AlarmAction {
+  if (known === wake) return 'none';
+  return wake === null ? 'delete' : 'set';
 }

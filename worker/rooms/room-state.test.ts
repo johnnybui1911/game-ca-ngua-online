@@ -1,16 +1,18 @@
 import { describe, expect, it } from 'vitest';
-import { createGame } from '../../shared/game/engine';
+import { applyRoll, createGame } from '../../shared/game/engine';
 import { ROOM_CODE_ALPHABET, ROOM_CODE_LENGTH } from '../../shared/protocol';
 import type { Timings } from './constants';
 import { generateRoomCode, isRoomCode } from './room-code';
 import {
   cleanHorseNames,
+  alarmAction,
   drawDie,
   dueDelay,
   nextCpuName,
   nextWake,
   pickHost,
   planTurn,
+  playDueAction,
   reconcileConnections,
   resumeGame,
   setOccupant,
@@ -329,5 +331,92 @@ describe('horse names', () => {
     expect(toSnapshot(r, new Set()).seats[0]?.horseNames).toEqual(['A', 'B', 'C', 'D']);
     setOccupant(seat, { kind: 'cpu', name: 'Máy 1' });
     expect(toSnapshot(r, new Set()).seats[0]?.horseNames).toEqual(['', '', '', '']);
+  });
+});
+
+describe('automated turn in one step', () => {
+  const cpuSeats: RoomState['seats'] = [
+    { color: 0, occupant: { kind: 'cpu', name: 'Máy 1' } },
+    { color: 2, occupant: { kind: 'cpu', name: 'Máy 2' } },
+  ];
+  const dueRoom = (seats = cpuSeats) => room({ status: 'playing', seats, game: createGame([0, 2]), dueAt: 1_000 });
+  const types = (events: { type: string }[]) => events.map((e) => e.type);
+
+  it('rolls and moves for a CPU in one step and waits one extra pause for the next action', () => {
+    const r = dueRoom();
+    const played = playDueAction(r, new Set(['u1']), 1_000, T, () => 6)!;
+    expect(types(played.events).slice(0, 2)).toEqual(['rolled', 'moved']);
+    expect(played.finished).toBe(false);
+    expect(r.game!.phase).toBe('roll');
+    expect(r.game!.horses[0]!.filter((p) => p >= 0)).toHaveLength(1);
+    // A six earns another roll for the same colour, still a CPU: now + two pauses.
+    expect(r.game!.turn).toBe(0);
+    expect(r.dueAt).toBe(1_000 + 2 * T.cpuDelayMs);
+  });
+
+  it('passes the turn after a combined step that gives no extra roll', () => {
+    const r = dueRoom();
+    r.game = { ...r.game!, horses: [[5, -1, -1, -1], ...r.game!.horses.slice(1)] };
+    const played = playDueAction(r, new Set(['u1']), 1_000, T, () => 2)!;
+    expect(types(played.events)).toEqual(['rolled', 'moved', 'turn']);
+    expect(r.game!.turn).toBe(2);
+    expect(r.game!.phase).toBe('roll');
+    expect(r.dueAt).toBe(1_000 + 2 * T.cpuDelayMs);
+  });
+
+  it('only rolls when no move is legal', () => {
+    const r = dueRoom();
+    const played = playDueAction(r, new Set(['u1']), 1_000, T, () => 3)!;
+    expect(types(played.events)).toEqual(['rolled', 'turn']);
+    expect(r.dueAt).toBe(1_000 + T.cpuDelayMs);
+  });
+
+  it('plays a due move phase on its own', () => {
+    const r = dueRoom();
+    r.game = applyRoll(r.game!, 6).state;
+    const played = playDueAction(r, new Set(), 1_000, T)!;
+    expect(types(played.events)[0]).toBe('moved');
+    expect(r.dueAt).toBe(1_000 + T.cpuDelayMs);
+  });
+
+  it('only rolls for a connected human whose clock ran out', () => {
+    const r = dueRoom([{ color: 0, occupant: { kind: 'human', user: ann } }, cpuSeats[1]!]);
+    const played = playDueAction(r, new Set(['u1']), 1_000, T, () => 6)!;
+    expect(types(played.events)).toEqual(['rolled']);
+    expect(r.game!.phase).toBe('move');
+    expect(r.dueAt).toBe(1_000 + T.turnMs);
+  });
+
+  it('rolls and moves for a human who is not connected', () => {
+    const r = dueRoom([{ color: 0, occupant: { kind: 'human', user: ann } }, cpuSeats[1]!]);
+    const played = playDueAction(r, new Set(), 1_000, T, () => 6)!;
+    expect(types(played.events).slice(0, 2)).toEqual(['rolled', 'moved']);
+  });
+
+  it('ends the match from the combined step and clears the clocks', () => {
+    const r = dueRoom();
+    const g = r.game!;
+    const horses = g.horses.map((row) => row.slice());
+    horses[0] = [59, 60, 61, 55];
+    r.game = { ...g, horses };
+    r.actionDueAt = 5;
+    const played = playDueAction(r, new Set(['u1']), 1_000, T, () => 3)!;
+    expect(played.finished).toBe(true);
+    expect(types(played.events)).toEqual(['rolled', 'moved', 'won']);
+    expect(r.status).toBe('finished');
+    expect(r.dueAt).toBeNull();
+    expect(r.actionDueAt).toBeNull();
+  });
+});
+
+describe('alarmAction', () => {
+  it('touches storage only when the wake differs from what is known to be armed', () => {
+    expect(alarmAction(undefined, 5)).toBe('set');
+    expect(alarmAction(undefined, null)).toBe('delete');
+    expect(alarmAction(5, 5)).toBe('none');
+    expect(alarmAction(null, null)).toBe('none');
+    expect(alarmAction(5, 9)).toBe('set');
+    expect(alarmAction(5, null)).toBe('delete');
+    expect(alarmAction(null, 9)).toBe('set');
   });
 });

@@ -196,6 +196,39 @@ describe('Director', () => {
     expect(view.die.visible).toBe(false);
   });
 
+  it('plays a combined roll and move as roll, hold, move, then hides the die', () => {
+    const view = new FakeView();
+    const d = new Director(view);
+    const start = createGame([0, 2]);
+    d.reset(start);
+    const rolled = applyRoll(start, 6);
+    const moved = applyMove(rolled.state, rolled.state.legalHorses[0]!);
+    d.push(moved.state, [...rolled.events, ...moved.events]);
+
+    // Roll (0.5 s) lands, the die is on show while the hold runs, then the horse moves.
+    let t = 0;
+    const step = () => {
+      d.update(1 / 60);
+      t += 1 / 60;
+    };
+    while (t < 0.55) step();
+    expect(view.die.visible).toBe(true);
+    expect(view.moves).toHaveLength(0);
+    while (t < 0.68) step();
+    expect(view.die.visible).toBe(true);
+    expect(view.moves).toHaveLength(0);
+    while (t < 0.8) step();
+    expect(view.moves).toHaveLength(1);
+    expect(view.die.visible).toBe(true);
+
+    const total = t + drain(d);
+    // 0.5 roll + 0.2 hold + a 0.16 s stable exit; never longer than two batch budgets.
+    expect(total).toBeGreaterThan(0.8);
+    expect(total).toBeLessThan(2 * BATCH_BUDGET + 0.05);
+    expect(view.die.visible).toBe(false);
+    view.expectShows(moved.state);
+  });
+
   it('keeps the die visible after a roll that passes the turn', () => {
     const view = new FakeView();
     const d = new Director(view);
