@@ -140,7 +140,9 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError 
   useMusic('game');
   useGameSounds(batches, myTurn && !paused, seconds, room.turnDeadline);
   const dialogOpen = menuOpen || renaming || confirmLeave || confirmClose;
-  const shake = useShakeToRoll(canRoll && !dialogOpen, () => send({ t: 'roll' }));
+  // Changes with every roll the server reports, so each roll chance allows one shake-roll.
+  const lastRolledSeq = [...batches].reverse().find((b) => b.events.some((e) => e.type === 'rolled'))?.room.seq ?? null;
+  const shake = useShakeToRoll(canRoll && !dialogOpen, lastRolledSeq, () => send({ t: 'roll' }));
   if (!game) return null;
 
   const turnSeat = room.seats.find((s) => s.color === game.turn);

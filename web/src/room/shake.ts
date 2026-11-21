@@ -62,12 +62,17 @@ export interface ShakeToRoll {
   setEnabled: (on: boolean) => void;
 }
 
+/** Stands for "no shake-roll sent yet", distinct from any roll key. */
+const NONE_SENT = Symbol('none sent');
+
 /**
- * Calls `onShake` once per entry into `active` when the device is shaken; opt-in, only on touch
- * devices with motion events. The choice is stored in this browser; iOS asks for permission again
- * on each visit, so there it starts off.
+ * While `active`, a shake calls `onShake` once per roll chance: `rollKey` must change whenever a
+ * new chance begins (each roll the server reports), so an extra roll after a 1 or 6 re-arms it and
+ * a shake sent before the server answers cannot send a second one. Opt-in, only on touch devices
+ * with motion events. The choice is stored in this browser; iOS asks for permission again on each
+ * visit, so there it starts off.
  */
-export function useShakeToRoll(active: boolean, onShake: () => void): ShakeToRoll {
+export function useShakeToRoll(active: boolean, rollKey: unknown, onShake: () => void): ShakeToRoll {
   const [api] = useState(motionApi);
   const [enabled, setEnabledState] = useState(() => {
     if (api === null || typeof api.requestPermission === 'function') return false;
@@ -79,11 +84,11 @@ export function useShakeToRoll(active: boolean, onShake: () => void): ShakeToRol
   });
   const handler = useRef(onShake);
   handler.current = onShake;
-  // One roll per stretch of `active`: re-armed when it turns on again.
-  const armed = useRef(active);
   const activeRef = useRef(active);
-  if (active && !activeRef.current) armed.current = true;
   activeRef.current = active;
+  const keyRef = useRef(rollKey);
+  keyRef.current = rollKey;
+  const sentFor = useRef<unknown>(NONE_SENT);
 
   useEffect(() => {
     if (!enabled) return;
@@ -91,8 +96,8 @@ export function useShakeToRoll(active: boolean, onShake: () => void): ShakeToRol
     const listener = (e: DeviceMotionEvent) => {
       const a = e.accelerationIncludingGravity;
       if (a?.x == null || a.y == null || a.z == null) return;
-      if (!detect({ x: a.x, y: a.y, z: a.z }, e.timeStamp) || !activeRef.current || !armed.current) return;
-      armed.current = false;
+      if (!detect({ x: a.x, y: a.y, z: a.z }, e.timeStamp) || !activeRef.current || sentFor.current === keyRef.current) return;
+      sentFor.current = keyRef.current;
       handler.current();
     };
     window.addEventListener('devicemotion', listener);
