@@ -9,6 +9,7 @@ Production: <https://ca-ngua-online.johnny-bui1911.workers.dev>
 ## Kiến trúc
 
 - `web/`: client React + react-three-fiber (Vite). `web/src/scene/` là bàn cờ 3D, `web/src/room/` và `web/src/lobby/` là sảnh, phòng chờ và HUD.
+- `co-ca-ngua-online.html` + `web/src/landing/`: trang giới thiệu tĩnh tại `/co-ca-ngua-online` (luật, câu hỏi thường gặp, dữ liệu có cấu trúc cho Google), một entry Vite riêng không tải ứng dụng React. `public/robots.txt` và `public/sitemap.xml` trỏ tới trang này.
 - `worker/`: Cloudflare Worker (Hono). `worker/auth/` là tài khoản và OAuth trên D1; `worker/rooms/` là Durable Object cho từng phòng (`RoomDO`: ghế, luật, xúc xắc, CPU, hẹn giờ) và sảnh (`LobbyDO`: phòng công khai, người online, lời mời).
 - `shared/`: mô hình bàn cờ, luật chơi (`shared/game/`) và hợp đồng HTTP/WebSocket (`shared/protocol.ts`) dùng chung cho client và server.
 - `migrations/`: schema D1. `e2e/`: Playwright và máy chủ OAuth giả lập.
@@ -48,7 +49,7 @@ npm run deploy
 
 Worker đếm tổng theo ngày (UTC) vào bảng D1 `daily_events` (`day`, `event`, `source`, `n`), không lưu id, địa chỉ hay tên người chơi. Danh sách sự kiện và nguồn nằm ở `shared/analytics.ts`.
 
-- Trình duyệt báo `visit` (mỗi tab một lần) và `invite_shared` (sao chép hoặc chia sẻ link phòng) qua `POST /api/events`.
+- Trình duyệt báo `visit` (mỗi tab một lần), `landing_view` (mỗi lần mở trang giới thiệu, theo nguồn của chính lần ghé đó) và `invite_shared` (sao chép hoặc chia sẻ link phòng) qua `POST /api/events`.
 - Worker tự đếm `guest_started`, `signed_up` (đăng ký email), `account_saved` (khách lưu tài khoản), `room_created`; phòng đếm `match_started_solo` (1 người + máy), `match_started_group` (từ 2 người), `match_finished` với nguồn `-`.
 - Nguồn lấy từ `?utm_source=` của lần ghé đầu tiên (cookie `ca_src`, 30 ngày); link mời trong phòng tự gắn `utm_source=invite`. Nguồn ngoài danh sách thành `other`, không có thì là `direct`.
 

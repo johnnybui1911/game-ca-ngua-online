@@ -156,3 +156,9 @@
   color: var(--felt-600);
   font-weight: 800;
 }
+
+.entry-pitch-more {
+  justify-self: start;
+  font-weight: 700;
+  color: var(--felt-600);
+}

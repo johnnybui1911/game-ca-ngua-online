@@ -109,6 +109,9 @@ export function GuestEntryPage() {
             <li>Tạo phòng, gửi link rủ cả nhóm</li>
             <li>Thiếu người? Có máy chơi cùng</li>
           </ul>
+          <a className="entry-pitch-more" href="/co-ca-ngua-online" data-testid="entry-landing-link">
+            Luật chơi và giới thiệu
+          </a>
         </div>
       )}
       <form className="form" onSubmit={(e) => void submit(e)} noValidate>

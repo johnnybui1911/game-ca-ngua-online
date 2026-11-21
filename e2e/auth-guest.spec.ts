@@ -239,3 +239,16 @@ test('a guest signing in with Google whose verified email belongs to an account 
   await g.context.close();
   await owner.close();
 });
+
+test('the landing page explains the game and its play button leads to the entry screen', async ({ browser }) => {
+  const context = await browser.newContext({ baseURL: ORIGIN, locale: 'vi-VN' });
+  const page = await context.newPage();
+  await page.goto('/co-ca-ngua-online?utm_source=facebook');
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Cờ cá ngựa online, đúng luật Việt Nam');
+  await expect(page.locator('#luat-choi')).toBeVisible();
+  expect((await context.cookies()).find((c) => c.name === 'ca_src')?.value).toBe('facebook');
+  await page.getByTestId('landing-play').click();
+  await expect(page).toHaveURL(/\/bat-dau\?returnTo=%2F$/);
+  await expect(page.getByTestId('entry-landing-link')).toHaveAttribute('href', '/co-ca-ngua-online');
+  await context.close();
+});
