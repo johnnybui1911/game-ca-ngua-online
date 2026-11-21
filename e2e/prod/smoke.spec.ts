@@ -78,8 +78,8 @@ test('accounts, a shared room and a live two-player match work on the deployed s
   await expect(a.getByTestId('hud')).toBeVisible();
   await expect(b.getByTestId('hud')).toBeVisible();
   const colorB = await b.getByTestId('hud').getAttribute('data-my-color');
-  await expect(a.locator('[data-testid=game-scene] canvas')).toBeVisible();
-  await expect(b.locator('[data-testid=game-scene] canvas')).toBeVisible();
+  await expect(a.locator('[data-testid=scene-host] canvas')).toBeVisible();
+  await expect(b.locator('[data-testid=scene-host] canvas')).toBeVisible();
 
   // Both players take turns until the match has clearly progressed.
   const deadline = Date.now() + 150_000;
@@ -125,6 +125,7 @@ test('a CPU seat takes its turns on the deployed site', async ({ browser }) => {
   const ctx = await browser.newContext();
   const page = await ctx.newPage();
   await page.goto('/');
+  await page.getByTestId('play-now').click();
   await enterAsGuest(page, `Khoi-smoke-c-${tag}`);
   await expect(page.getByTestId('greeting')).toContainText(`Khoi-smoke-c-${tag}`);
   await page.getByTestId('create-visibility-private').check();

@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { PASSWORD, control, signOut, signUp, uniqueEmail } from './auth-helpers';
+import { PASSWORD, control, enterLobby, signOut, signUp, uniqueEmail } from './auth-helpers';
 
 test.beforeEach(async () => {
   await control('reset');
@@ -158,5 +158,7 @@ test('returnTo that leaves the site is replaced by /', async ({ page }) => {
   await control('profile', { provider: 'facebook', profile: { id: `f-${Date.now()}`, name: 'Người Đi' } });
   await page.goto('/api/auth/oauth/facebook/start?returnTo=//evil.example/x');
   await expect(page).toHaveURL('/');
+  // A tab that starts on the provider's return lands on the home page first.
+  await enterLobby(page);
   await expect(page.getByTestId('greeting')).toHaveText('Xin chào, Người Đi');
 });
