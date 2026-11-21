@@ -10,7 +10,8 @@ import { useSession } from './session-context';
 const MIN_NAME_LENGTH = 2;
 const MAX_NAME_LENGTH = 24;
 
-type RoomState = { kind: 'none' } | { kind: 'loading' } | { kind: 'found'; room: RoomSummary } | { kind: 'missing' } | { kind: 'failed' };
+type RoomState = { kind: 'none' } | { kind: 'loading' } | { kind: 'found'; room: RoomSummary } | { kind: 'missing' } | { kind: 'limited'; message: string }
+  | { kind: 'failed' };
 
 /** The room code a `returnTo` path points at, or null when it is not a room link. */
 export function roomCodeOf(returnTo: string): string | null {
@@ -30,7 +31,10 @@ function useRoomSummary(code: string | null): RoomState {
     api<RoomSummary>(`/api/rooms/${code}`)
       .then((room) => live && setState({ kind: 'found', room }))
       .catch((err: unknown) => {
-        if (live) setState({ kind: err instanceof ApiRequestError && err.status === 404 ? 'missing' : 'failed' });
+        if (!live) return;
+        if (err instanceof ApiRequestError && err.status === 404) setState({ kind: 'missing' });
+        else if (err instanceof ApiRequestError && err.status === 429) setState({ kind: 'limited', message: err.message });
+        else setState({ kind: 'failed' });
       });
     return () => {
       live = false;
@@ -90,6 +94,11 @@ export function GuestEntryPage() {
       {missing && (
         <p className="entry-room entry-room-missing" role="status" data-testid="entry-room-missing">
           Không tìm thấy phòng. Bạn vẫn có thể vào sảnh và chơi.
+        </p>
+      )}
+      {room.kind === 'limited' && (
+        <p className="entry-room" role="status" data-testid="entry-room-limited">
+          {room.message}
         </p>
       )}
       {code === null && (

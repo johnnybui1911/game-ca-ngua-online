@@ -70,13 +70,40 @@ export async function createSession(env: Env, userId: string): Promise<string> {
   return cookieHeader(SESSION_COOKIE, token, { maxAge: SESSION_SECONDS });
 }
 
-/** Deletes the session named by the request cookie and returns the cookie-clearing header. */
-export async function destroySession(request: Request, env: Env): Promise<string> {
+/**
+ * Deletes the session named by the request cookie. Returns the cookie-clearing header and the
+ * hash of the session that was named (null when the cookie held none), so the caller can end
+ * the sockets that were opened under it.
+ */
+export async function destroySession(
+  request: Request,
+  env: Env,
+): Promise<{ cookie: string; sessionHash: string | null }> {
   const token = readCookie(request, SESSION_COOKIE);
+  let sessionHash: string | null = null;
   if (plausibleToken(token)) {
-    await env.DB.prepare('DELETE FROM sessions WHERE token_hash = ?').bind(await sha256Hex(token)).run();
+    sessionHash = await sha256Hex(token);
+    await env.DB.prepare('DELETE FROM sessions WHERE token_hash = ?').bind(sessionHash).run();
   }
-  return cookieHeader(SESSION_COOKIE, '', { maxAge: 0 });
+  return { cookie: cookieHeader(SESSION_COOKIE, '', { maxAge: 0 }), sessionHash };
+}
+
+/** How a socket's session is looked up again: by its own token hash, or (older sockets) by user. */
+export type SessionCheck = { kind: 'session'; hash: string } | { kind: 'user'; userId: string };
+
+/** True while the session (or, for a user check, any session of that user) exists and has not expired. */
+export async function sessionIsLive(db: D1Database, check: SessionCheck, now: number): Promise<boolean> {
+  const row =
+    check.kind === 'session'
+      ? await db.prepare('SELECT 1 AS live FROM sessions WHERE token_hash = ? AND expires_at > ?').bind(check.hash, now).first()
+      : await db.prepare('SELECT 1 AS live FROM sessions WHERE user_id = ? AND expires_at > ? LIMIT 1').bind(check.userId, now).first();
+  return row !== null;
+}
+
+/** A signed-in user together with the hash of the session that proves it. The hash never leaves the server. */
+export interface SessionIdentity {
+  user: PublicUser;
+  sessionHash: string;
 }
 
 /**
@@ -84,16 +111,22 @@ export async function destroySession(request: Request, env: Env): Promise<string
  * through the current name cleaner, so names saved under an older, looser rule display cleanly.
  */
 export async function getSessionUser(request: Request, env: Env): Promise<PublicUser | null> {
+  return (await getSessionIdentity(request, env))?.user ?? null;
+}
+
+/** Like `getSessionUser`, plus the session's token hash for binding a WebSocket to it. */
+export async function getSessionIdentity(request: Request, env: Env): Promise<SessionIdentity | null> {
   const token = readCookie(request, SESSION_COOKIE);
   if (!plausibleToken(token)) return null;
+  const sessionHash = await sha256Hex(token);
   const row = await env.DB.prepare(
     `SELECT u.id AS id, u.display_name AS displayName
        FROM sessions s JOIN users u ON u.id = s.user_id
       WHERE s.token_hash = ? AND s.expires_at > ?`,
   )
-    .bind(await sha256Hex(token), Date.now())
+    .bind(sessionHash, Date.now())
     .first<PublicUser>();
-  return row ? { id: row.id, displayName: displayNameFromProfile(row.displayName) } : null;
+  return row ? { user: { id: row.id, displayName: displayNameFromProfile(row.displayName) }, sessionHash } : null;
 }
 
 /** The session's user including whether it is a guest, or null. Used by account routes only. */

@@ -147,6 +147,13 @@ export type RoomServerMessage =
   | { t: 'state'; room: RoomSnapshot; events: GameEvent[]; serverNow: number }
   | { t: 'error'; code: string; message: string };
 
+// ------------------------------------------------------ session end
+
+/** Close code, error code and text for a socket whose login session has ended (signed out, expired, or its user deleted). */
+export const CLOSE_SIGNED_OUT = 4006;
+export const SIGNED_OUT_CODE = 'signed_out';
+export const SIGNED_OUT_MESSAGE = 'Phiên đăng nhập đã kết thúc.';
+
 // ----------------------------------------------------------- lobby socket
 
 export type LobbyClientMessage =

@@ -1,6 +1,13 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router';
-import type { LobbyClientMessage, LobbyServerMessage, PublicUser, RoomSummary } from '../../../shared/protocol';
+import {
+  CLOSE_SIGNED_OUT,
+  SIGNED_OUT_CODE,
+  type LobbyClientMessage,
+  type LobbyServerMessage,
+  type PublicUser,
+  type RoomSummary,
+} from '../../../shared/protocol';
 import { useSession } from '../auth/session-context';
 import { openReconnectingSocket, type ReconnectingSocket } from './reconnecting-socket';
 import './lobby.css';
@@ -25,7 +32,7 @@ const MAX_TOASTS = 3;
 
 /** Keeps one lobby socket open while signed in and renders invite toasts on every page. */
 export function LobbyProvider({ children }: { children: ReactNode }) {
-  const { user } = useSession();
+  const { user, refresh } = useSession();
   const navigate = useNavigate();
   const [rooms, setRooms] = useState<RoomSummary[]>([]);
   const [online, setOnline] = useState<PublicUser[]>([]);
@@ -33,6 +40,8 @@ export function LobbyProvider({ children }: { children: ReactNode }) {
   const socket = useRef<ReconnectingSocket | null>(null);
   const nextId = useRef(1);
   const userId = user?.id ?? null;
+  /** Bumped to open a fresh socket when the session ended but the same user is signed in again. */
+  const [epoch, setEpoch] = useState(0);
 
   const dismiss = useCallback((id: number) => setToasts((all) => all.filter((t) => t.id !== id)), []);
   const push = useCallback(
@@ -49,6 +58,14 @@ export function LobbyProvider({ children }: { children: ReactNode }) {
     const conn = openReconnectingSocket({
       path: '/api/lobby/ws',
       onStatus: () => undefined,
+      // The server ended this session's socket. Re-read the session: signed out, the app moves on;
+      // still (or again) signed in, a new socket is opened under the live session.
+      onServerStop: (code) => {
+        if (code !== CLOSE_SIGNED_OUT) return;
+        void refresh().then((me) => {
+          if (me) setEpoch((n) => n + 1);
+        });
+      },
       onMessage: (data) => {
         const msg = JSON.parse(data) as LobbyServerMessage;
         if (msg.t === 'lobby') {
@@ -56,7 +73,8 @@ export function LobbyProvider({ children }: { children: ReactNode }) {
           setOnline(msg.online);
         } else if (msg.t === 'invited') {
           push({ kind: 'invite', from: msg.from, code: msg.code, roomName: msg.roomName }, INVITE_MS);
-        } else {
+        } else if (msg.code !== SIGNED_OUT_CODE) {
+          // The close code that follows handles an ended session; no toast for it.
           push({ kind: 'notice', text: msg.message }, NOTICE_MS);
         }
       },
@@ -68,7 +86,7 @@ export function LobbyProvider({ children }: { children: ReactNode }) {
       setRooms([]);
       setOnline([]);
     };
-  }, [userId, push]);
+  }, [userId, epoch, push, refresh]);
 
   const invite = useCallback((toUserId: string, code: string) => {
     const msg: LobbyClientMessage = { t: 'invite', toUserId, code };

@@ -141,7 +141,16 @@ authRoutes.post('/signin', requireSameOrigin, async (c) => {
 });
 
 authRoutes.post('/signout', requireSameOrigin, async (c) => {
-  c.header('Set-Cookie', await destroySession(c.req.raw, c.env));
+  const { cookie, sessionHash } = await destroySession(c.req.raw, c.env);
+  c.header('Set-Cookie', cookie);
+  if (sessionHash) {
+    // Sign-out has already succeeded; the lobby call runs after the response, and if it fails the socket ends at the lobby's next recheck.
+    c.executionCtx.waitUntil(
+      c.env.LOBBY.getByName('lobby')
+        .closeSession(sessionHash)
+        .catch((e: unknown) => console.error('closing lobby sockets failed', e)),
+    );
+  }
   return c.body(null, 204);
 });
 

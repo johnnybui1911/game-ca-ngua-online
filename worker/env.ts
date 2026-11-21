@@ -7,6 +7,9 @@ export interface Env {
   ROOMS: DurableObjectNamespace<RoomDO>;
   LOBBY: DurableObjectNamespace<LobbyDO>;
 
+  /** Public room summary lookups per client address (see wrangler.jsonc). Optional so a missing binding fails open. */
+  ROOM_SUMMARY_LIMITER?: RateLimit;
+
   // OAuth credentials, set per deployment with `wrangler secret put`. A provider
   // with a missing id or secret is reported as not configured.
   GOOGLE_CLIENT_ID?: string;
@@ -37,6 +40,9 @@ export interface Env {
 
   /** Sign-up attempts allowed per client address per hour (positive integer; default 20). Local `.dev.vars.<env>` only. */
   SIGNUP_ADDRESS_LIMIT?: string;
+
+  /** Test-only: "1" turns the room summary rate limit off (the e2e suite looks rooms up from one address). Local `.dev.vars.<env>` only. */
+  ROOM_SUMMARY_LIMIT_OFF?: string;
 
   /** Live sessions kept per user, oldest removed first (positive integer; default 10). Local `.dev.vars.<env>` only. */
   SESSIONS_PER_USER?: string;

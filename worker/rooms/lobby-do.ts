@@ -1,10 +1,13 @@
 import { DurableObject } from 'cloudflare:workers';
-import type {
-  LobbyClientMessage,
-  LobbyServerMessage,
-  PublicUser,
-  RoomSummary,
-  RoomVisibility,
+import {
+  CLOSE_SIGNED_OUT,
+  SIGNED_OUT_CODE,
+  SIGNED_OUT_MESSAGE,
+  type LobbyClientMessage,
+  type LobbyServerMessage,
+  type PublicUser,
+  type RoomSummary,
+  type RoomVisibility,
 } from '../../shared/protocol';
 import type { Env } from '../env';
 import {
@@ -16,6 +19,8 @@ import {
   MAX_OPEN_ROOMS_PER_HOST,
   MAX_MESSAGE_BYTES,
   MAX_LOBBY_SOCKETS_PER_USER,
+  SESSION_HEADER,
+  SESSION_RECHECK_MS,
   SOCKET_BURST,
   SOCKET_REFILL_PER_SEC,
   USER_HEADER,
@@ -33,15 +38,15 @@ import {
   type PendingCreates,
   type StoredRoom,
 } from './lobby-rooms';
+import { bindingOf, invitedMessage, onlineUsers, type LobbySocketUser } from './lobby-sockets';
+import { SessionGuard, itemsOfSession } from './session-guard';
+import { KeyedQueue } from './socket-queue';
 import { applySweep } from './lobby-sweep';
 import { TokenBucket } from './token-bucket';
 
 /** Close codes the client treats as final; see STOP_CODES on the web side. */
 const CLOSE_TOO_MANY = 4003;
 const CLOSE_RATE_LIMITED = 4005;
-
-/** What the lobby keeps on a socket: the user, plus when it connected to find the oldest. */
-type LobbySocketUser = PublicUser & { at: number };
 
 interface LobbyEntry extends StoredRoom {
   /** Bumped from `revCounter` on every write, so a sweep can tell its answer went stale. */
@@ -65,6 +70,8 @@ export class LobbyDO extends DurableObject<Env> {
   private invites = new Map<string, number>();
   private readonly buckets = new WeakMap<WebSocket, TokenBucket>();
   private readonly timings: Timings;
+  private readonly sessions: SessionGuard;
+  private readonly inbox = new KeyedQueue<WebSocket>();
   /** When the lobby next checks its listed rooms against their room objects; null while it lists none. */
   private sweepAt: number | null = null;
   /** When the pending broadcast is due; null when none is waiting. */
@@ -75,6 +82,7 @@ export class LobbyDO extends DurableObject<Env> {
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
     this.timings = timingsFor(env);
+    this.sessions = new SessionGuard(env.DB, SESSION_RECHECK_MS, this.timings.lobbySweepMs);
     void ctx.blockConcurrencyWhile(async () => {
       await this.loadRooms();
       this.creates = (await ctx.storage.get<Record<string, number[]>>(CREATES_KEY)) ?? {};
@@ -145,6 +153,18 @@ export class LobbyDO extends DurableObject<Env> {
     return 'ok';
   }
 
+  /** Ends every lobby socket opened under this session; the user's other sessions stay connected. */
+  async closeSession(sessionHash: string): Promise<void> {
+    const mine = itemsOfSession(this.openSockets(), (ws) => (ws.deserializeAttachment() as LobbySocketUser | null)?.sessionHash, sessionHash);
+    for (const ws of mine) this.endSocket(ws);
+    if (mine.length > 0) await this.scheduleBroadcast();
+  }
+
+  private endSocket(ws: WebSocket): void {
+    this.send(ws, { t: 'error', code: SIGNED_OUT_CODE, message: SIGNED_OUT_MESSAGE });
+    ws.close(CLOSE_SIGNED_OUT, SIGNED_OUT_CODE);
+  }
+
   // ------------------------------------------------------------ sockets
 
   override async fetch(request: Request): Promise<Response> {
@@ -156,7 +176,8 @@ export class LobbyDO extends DurableObject<Env> {
     const client = pair[0];
     const server = pair[1];
     this.ctx.acceptWebSocket(server);
-    const attachment: LobbySocketUser = { id: user.id, displayName: user.displayName, at: Date.now() };
+    const sessionHash = request.headers.get(SESSION_HEADER) ?? undefined;
+    const attachment: LobbySocketUser = { id: user.id, displayName: user.displayName, at: Date.now(), sessionHash };
     server.serializeAttachment(attachment);
     this.trimSockets(user.id);
     this.send(server, this.lobbyMessage());
@@ -175,7 +196,12 @@ export class LobbyDO extends DurableObject<Env> {
     }
   }
 
-  override async webSocketMessage(ws: WebSocket, message: string | ArrayBuffer): Promise<void> {
+  /** One socket's messages are handled in arrival order, though handling awaits. */
+  override webSocketMessage(ws: WebSocket, message: string | ArrayBuffer): Promise<void> {
+    return this.inbox.run(ws, () => this.handleMessage(ws, message));
+  }
+
+  private async handleMessage(ws: WebSocket, message: string | ArrayBuffer): Promise<void> {
     let bucket = this.buckets.get(ws);
     if (!bucket) {
       bucket = new TokenBucket(SOCKET_BURST, SOCKET_REFILL_PER_SEC, Date.now());
@@ -191,7 +217,12 @@ export class LobbyDO extends DurableObject<Env> {
       ws.close(1009, 'Message too big');
       return;
     }
-    const sender = ws.deserializeAttachment() as PublicUser;
+    const attachment = ws.deserializeAttachment() as LobbySocketUser;
+    if (await this.sessions.hasEnded(ws, bindingOf(attachment), Date.now())) {
+      this.endSocket(ws);
+      await this.scheduleBroadcast();
+      return;
+    }
     const fail = (code: string, text: string) => this.send(ws, { t: 'error', code, message: text });
     if (typeof message !== 'string') return fail('bad_message', 'Tin nhắn không hợp lệ.');
     let msg: unknown;
@@ -204,11 +235,11 @@ export class LobbyDO extends DurableObject<Env> {
     if (invite?.t !== 'invite' || typeof invite.toUserId !== 'string' || typeof invite.code !== 'string') {
       return fail('bad_message', 'Tin nhắn không hợp lệ.');
     }
-    await this.invite(sender, invite.toUserId, invite.code, fail);
+    await this.invite(attachment, invite.toUserId, invite.code, fail);
   }
 
   private async invite(
-    sender: PublicUser,
+    sender: LobbySocketUser,
     toUserId: string,
     code: string,
     fail: (code: string, text: string) => void,
@@ -231,7 +262,7 @@ export class LobbyDO extends DurableObject<Env> {
       this.invites.delete(key);
       return fail('not_in_room', 'Bạn không ở trong phòng này.');
     }
-    for (const ws of targets) this.send(ws, { t: 'invited', from: sender, code, roomName });
+    for (const ws of targets) this.send(ws, invitedMessage(sender, code, roomName));
   }
 
   override async webSocketClose(ws: WebSocket): Promise<void> {
@@ -252,7 +283,7 @@ export class LobbyDO extends DurableObject<Env> {
   }
 
   private socketsOf(userId: string): WebSocket[] {
-    return this.openSockets().filter((ws) => (ws.deserializeAttachment() as PublicUser | null)?.id === userId);
+    return this.openSockets().filter((ws) => (ws.deserializeAttachment() as LobbySocketUser | null)?.id === userId);
   }
 
   private send(ws: WebSocket, msg: LobbyServerMessage): void {
@@ -292,6 +323,7 @@ export class LobbyDO extends DurableObject<Env> {
       await this.ensureSweepScheduled();
       if (this.sweepAt === null) await this.ctx.storage.delete(SWEEP_KEY);
     }
+    await this.endExpiredSockets(now);
     const payload = JSON.stringify(this.lobbyMessage());
     if (payload !== this.lastPayload) {
       this.lastPayload = payload;
@@ -304,6 +336,13 @@ export class LobbyDO extends DurableObject<Env> {
       }
     }
     await this.arm();
+  }
+
+  /** Sockets whose session expired or whose user was deleted close even if they never send a message. */
+  private async endExpiredSockets(now: number): Promise<void> {
+    const sockets = this.openSockets();
+    const ended = await this.sessions.endedAmong(sockets, (ws) => bindingOf(ws.deserializeAttachment() as LobbySocketUser), now);
+    for (const ws of ended) this.endSocket(ws);
   }
 
   /**
@@ -329,11 +368,7 @@ export class LobbyDO extends DurableObject<Env> {
 
   private lobbyMessage(): LobbyServerMessage {
     const rooms = publicRoomList(this.rooms, MAX_LOBBY_LIST);
-    const online = new Map<string, PublicUser>();
-    for (const ws of this.openSockets()) {
-      const user = ws.deserializeAttachment() as PublicUser | null;
-      if (user) online.set(user.id, { id: user.id, displayName: user.displayName });
-    }
-    return { t: 'lobby', rooms, online: [...online.values()] };
+    const online = onlineUsers(this.openSockets().map((ws) => ws.deserializeAttachment() as LobbySocketUser | null));
+    return { t: 'lobby', rooms, online };
   }
 }

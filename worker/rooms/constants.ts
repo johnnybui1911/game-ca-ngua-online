@@ -53,6 +53,10 @@ export const SOCKET_REFILL_PER_SEC = 50;
 
 /** Internal header carrying the authenticated user from the worker to a Durable Object. */
 export const USER_HEADER = 'X-Ca-User';
+/** Internal header carrying the hash of the session the socket was opened under; never sent to a client. */
+export const SESSION_HEADER = 'X-Ca-Session';
+/** A socket's session is looked up again when it sends a message and its last lookup is at least this old. */
+export const SESSION_RECHECK_MS = 30_000;
 /** Rooms a user may host at once that have not finished. */
 export const MAX_OPEN_ROOMS_PER_HOST = 3;
 /** How long a creation counts toward the cap before its room's first listing arrives. */
