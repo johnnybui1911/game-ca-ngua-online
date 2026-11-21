@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { applyMove, applyRoll, createGame, engine } from './engine';
+import { applyMove, applyRoll, createGame, engine, isLocked, rollAndSettle, segmentsOf } from './engine';
 import { chooseCpuMove } from './cpu';
 import { mulberry32 } from './seeded-random';
 import {
@@ -329,5 +329,209 @@ describe('simulation', () => {
       expect(state.winner).not.toBeNull();
       expect((state.horses[state.winner as Color] ?? []).every((p) => p > POS_GATE)).toBe(true);
     }
+  });
+});
+
+/** A quick-variant roll-phase state with the given horses; `unlocked` lists the colours whose home column is open. */
+function makeQuick(
+  colors: Color[],
+  placed: Partial<Record<Color, HorsePos[]>>,
+  unlocked: Color[] = [],
+  turn: Color = colors[0] ?? 0,
+): GameState {
+  const base = createGame(colors, 'quick');
+  const horses = base.horses.map((row, c) => placed[c as Color] ?? row);
+  return { ...base, horses, turn, unlocked: COLORS.map((c) => unlocked.includes(c)) };
+}
+
+describe('quick variant', () => {
+  it('starts each playing colour with one horse on its entry cell, the rest in the stable, columns locked', () => {
+    const g = createGame([0, 1, 3], 'quick');
+    expect(g.variant).toBe('quick');
+    expect(g.horses[0]).toEqual([0, S, S, S]);
+    expect(g.horses[1]).toEqual([0, S, S, S]);
+    expect(g.horses[2]).toEqual([S, S, S, S]);
+    expect(g.horses[3]).toEqual([0, S, S, S]);
+    expect(g.unlocked).toEqual([false, false, false, false]);
+    expect(COLORS.every((c) => isLocked(g, c))).toBe(true);
+  });
+
+  it('a horse on its entry cell blocks leaving the stable until it moves', () => {
+    const g = createGame([0, 1], 'quick');
+    expect(legal(g, 6)).toEqual([0]);
+    expect(legal(g, 3)).toEqual([0]);
+  });
+
+  it('a locked column lets a horse reach its gate but not climb, and a gate horse has no move', () => {
+    const g = makeQuick([0, 1], { 0: [POS_GATE - 2, S, S, S] });
+    expect(legal(g, 2)).toEqual([0]);
+    expect(legal(g, 3)).toEqual([]);
+    const onGate = makeQuick([0, 1], { 0: [POS_GATE, S, S, S] });
+    for (const dice of [1, 2, 3, 4, 5, 6] as DiceValue[]) {
+      expect(legal(onGate, dice)).toEqual(dice === 1 || dice === 6 ? [1, 2, 3] : []);
+    }
+    // The turn passes (or repeats on 1/6) when the gate horse is the only candidate.
+    const r = applyRoll(onGate, 3);
+    expect(r.state.turn).toBe(1);
+    expect(r.events.map((e) => e.type)).toEqual(['rolled', 'turn']);
+  });
+
+  it('a kick on the track opens the kicker\'s column only', () => {
+    const g = makeQuick([0, 1], { 0: [5, S, S, S], 1: [S, S, S, S] });
+    // Colour 1 progress 0 is cell 14; colour 0 progress 14 is cell 14.
+    setPos(g, 1, 0, 0);
+    setPos(g, 0, 0, 11);
+    const rolled = applyRoll(g, 3).state;
+    const moved = applyMove(rolled, 0);
+    expect(moved.events[0]).toMatchObject({ type: 'moved', kicked: { color: 1, horse: 0 } });
+    expect(moved.state.unlocked).toEqual([true, false, false, false]);
+    expect(isLocked(moved.state, 0)).toBe(false);
+    expect(isLocked(moved.state, 1)).toBe(true);
+  });
+
+  it('leaving the stable onto an opponent standing on the entry cell kicks and unlocks', () => {
+    const g = makeQuick([0, 1], { 0: [20, S, S, S], 1: [S, S, S, S] });
+    setPos(g, 1, 0, 42); // colour 1 progress 42 = cell (14 + 42) % 56 = 0 = colour 0 entry cell
+    const rolled = applyRoll(g, 6);
+    expect(rolled.state.legalHorses).toContain(1);
+    const moved = applyMove(rolled.state, 1);
+    expect(moved.events[0]).toMatchObject({ type: 'moved', from: S, to: 0, kicked: { color: 1, horse: 0 } });
+    expect(moved.state.unlocked?.[0]).toBe(true);
+  });
+
+  it('an unlocked column lets the gate horse climb, and the first horse home wins at once', () => {
+    const g = makeQuick([0, 1], { 0: [POS_GATE, S, S, S] }, [0]);
+    expect(legal(g, 4)).toEqual([0]);
+    const rolled = applyRoll(g, 4);
+    const moved = applyMove(rolled.state, 0);
+    expect(moved.events.map((e) => e.type)).toEqual(['moved', 'won']);
+    expect(moved.state.phase).toBe('finished');
+    expect(moved.state.winner).toBe(0);
+    expect(posOf(moved.state, 0, 0)).toBe(POS_GATE + 4);
+  });
+
+  it('a win does not need the other horses home, and another colour\'s locked column does not matter', () => {
+    const g = makeQuick([0, 1], { 0: [S, S, S, S], 1: [POS_GATE, S, S, S] }, [1], 1);
+    const moved = applyMove(applyRoll(g, 1).state, 0);
+    expect(moved.state.winner).toBe(1);
+  });
+
+  it('classic is unaffected: nothing locked, one start horse not given, four horses needed to win', () => {
+    const g = createGame([0, 1]);
+    expect(g.variant).toBeUndefined();
+    expect(g.unlocked).toBeUndefined();
+    expect(g.horses.flat().every((p) => p === S)).toBe(true);
+    const gate = make([0, 1], { 0: [POS_GATE, S, S, S] });
+    expect(legal(gate, 3)).toEqual([0]);
+    const moved = applyMove(applyRoll(gate, 3).state, 0);
+    expect(moved.state.phase).toBe('roll');
+    expect(moved.state.winner).toBeNull();
+  });
+
+  it('a game stored without a variant plays as classic', () => {
+    const { variant: _variant, unlocked: _unlocked, ...stored } = createGame([0, 1]);
+    const g = stored as GameState;
+    expect(isLocked(g, 0)).toBe(false);
+    const gate: GameState = { ...g, horses: g.horses.map((row, c) => (c === 0 ? [POS_GATE, S, S, S] : row)) };
+    expect(applyRoll(gate, 5).state.legalHorses).toEqual([0]);
+  });
+
+  it('a quick state with no unlocked list reads as locked', () => {
+    const g: GameState = { ...createGame([0, 1], 'quick') };
+    delete g.unlocked;
+    expect(isLocked(g, 0)).toBe(true);
+  });
+});
+
+describe('rollAndSettle', () => {
+  it('plays a forced single move in the same step, then passes the turn', () => {
+    const g = makeQuick([0, 1], { 0: [5, S, S, S] });
+    const r = rollAndSettle(g, 2, true);
+    expect(r.events.map((e) => e.type)).toEqual(['rolled', 'moved', 'turn']);
+    expect(segmentsOf(r.events)).toBe(2);
+    expect(posOf(r.state, 0, 0)).toBe(7);
+    expect(r.state.turn).toBe(1);
+    const manual = applyMove(applyRoll(g, 2).state, 0);
+    expect(r.state).toEqual(manual.state);
+  });
+
+  it('keeps the same colour on a 1 or 6 and marks the extra roll', () => {
+    const g = makeQuick([0, 1], { 0: [5, S, S, S] });
+    expect(rollAndSettle(g, 6, false).state.phase).toBe('move');
+    // Horses on 5, 6, 7, 8: a roll of 1 can only move the last one.
+    const chain = makeQuick([0, 1], { 0: [5, 6, 7, 8] });
+    const f = rollAndSettle(chain, 1, true);
+    expect(f.events.map((e) => e.type)).toEqual(['rolled', 'moved', 'turn']);
+    expect(f.events.at(-1)).toMatchObject({ type: 'turn', color: 0, extraRoll: true });
+    expect(f.state.turn).toBe(0);
+    expect(f.state.phase).toBe('roll');
+  });
+
+  it('leaves the choice to the player with two or more legal horses and passes with none', () => {
+    const two = makeQuick([0, 1], { 0: [5, 20, S, S] });
+    const choice = rollAndSettle(two, 3, true);
+    expect(choice.state.phase).toBe('move');
+    expect(choice.state.legalHorses).toEqual([0, 1]);
+    expect(choice.events.map((e) => e.type)).toEqual(['rolled']);
+    const none = makeQuick([0, 1], { 0: [POS_GATE, S, S, S] });
+    expect(rollAndSettle(none, 3, true)).toEqual(applyRoll(none, 3));
+  });
+
+  it('a winning forced move ends the game with rolled, moved, won', () => {
+    const g = makeQuick([0, 1], { 0: [POS_GATE, S, S, S] }, [0]);
+    const r = rollAndSettle(g, 4, true);
+    expect(r.events.map((e) => e.type)).toEqual(['rolled', 'moved', 'won']);
+    expect(r.state.phase).toBe('finished');
+  });
+
+  it('with autoMove off it is exactly applyRoll', () => {
+    const g = makeQuick([0, 1], { 0: [5, S, S, S] });
+    expect(rollAndSettle(g, 2, false)).toEqual(applyRoll(g, 2));
+  });
+});
+
+describe('quick variant simulation', () => {
+  it('seeded CPU games of every level finish with consistent boards; a win needs a kick first', () => {
+    const colorSets: Color[][] = [[0, 2], [1, 3], [0, 1, 2], [0, 1, 3], [0, 1, 2, 3]];
+    const levels = ['easy', 'normal', 'hard'] as const;
+    for (let game = 0; game < 150; game++) {
+      const rand = mulberry32(5000 + game);
+      const level = levels[game % levels.length] ?? 'normal';
+      let state = createGame(colorSets[game % colorSets.length] ?? [0, 1], 'quick');
+      let actions = 0;
+      while (state.phase !== 'finished') {
+        if (++actions > 5000) throw new Error(`game ${game} exceeded 5000 rolls`);
+        const step = rollAndSettle(state, (Math.floor(rand() * 6) + 1) as DiceValue, false);
+        state = step.state;
+        assertConsistent(state);
+        if (state.phase === 'move') {
+          const horse = chooseCpuMove(state, level, rand);
+          expect(state.legalHorses).toContain(horse);
+          state = applyMove(state, horse).state;
+          assertConsistent(state);
+        }
+      }
+      const winner = state.winner as Color;
+      expect(state.unlocked?.[winner]).toBe(true);
+      expect((state.horses[winner] ?? []).some((p) => p > POS_GATE)).toBe(true);
+    }
+  });
+
+  it('a CPU on a locked column kicks when it can and never picks an illegal move', () => {
+    // Colour 0 horse on progress 11 can kick colour 1's horse on its entry cell (cell 14) with a 3,
+    // or advance another horse; the kick wins at every level that plays the best move.
+    const g = makeQuick([0, 1], { 0: [11, 20, S, S], 1: [0, S, S, S] });
+    const rolled = applyRoll(g, 3).state;
+    expect(chooseCpuMove(rolled, 'normal')).toBe(0);
+    expect(chooseCpuMove(rolled, 'hard')).toBe(0);
+  });
+
+  it('a CPU with an open column enters it rather than kicking, since that wins', () => {
+    const g = makeQuick([0, 1], { 0: [POS_GATE, 7, S, S], 1: [10, S, S, S] }, [0]);
+    // Roll 3: the gate horse climbs to step 3 and wins; horse 1 moving to 10 would kick colour 1.
+    const rolled = applyRoll(g, 3).state;
+    expect(rolled.legalHorses).toEqual([0, 1]);
+    expect(chooseCpuMove(rolled, 'normal')).toBe(0);
+    expect(chooseCpuMove(rolled, 'hard')).toBe(0);
   });
 });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { rulesFor } from '../../../shared/rules-text';
+import { QUICK_DIFFERENCES, rulesFor } from '../../../shared/rules-text';
 import landingHtml from '../../../co-ca-ngua-online.html?raw';
 
 const text = (html: string) => html.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
@@ -16,5 +16,24 @@ describe('rulesFor', () => {
     const list = /<ol class="lp-rules">([\s\S]*?)<\/ol>/.exec(landingHtml)?.[1] ?? '';
     const landing = [...list.matchAll(/<li>([\s\S]*?)<\/li>/g)].map((m) => text(m[1] ?? ''));
     expect(landing).toEqual([...(rulesFor()[0]?.items ?? [])]);
+  });
+
+  it('puts the quick-match differences before the classic rules in a quick room only', () => {
+    const quick = rulesFor({ quick: true });
+    expect(quick).toHaveLength(2);
+    expect(quick[0]?.items).toEqual([...QUICK_DIFFERENCES]);
+    expect(quick[1]?.items).toEqual([...(rulesFor()[0]?.items ?? [])]);
+    expect(rulesFor({ quick: false })).toEqual(rulesFor());
+  });
+
+  it('keeps the landing page comparison in step with the quick differences', () => {
+    const section = /id="van-nhanh"[\s\S]*?<\/table>/.exec(landingHtml)?.[0] ?? '';
+    const rows = [...section.matchAll(/<tr><th scope="row">([\s\S]*?)<\/th><td>([\s\S]*?)<\/td><td>([\s\S]*?)<\/td><\/tr>/g)];
+    expect(rows).toHaveLength(4);
+    const quickCells = text(rows.map((m) => m[3] ?? '').join(' '));
+    expect(quickCells).toContain('1 ngựa ở ô xuất phát');
+    expect(quickCells).toContain('đá được ít nhất 1 ngựa');
+    expect(quickCells).toContain('Ngựa đầu tiên lên chuồng thắng');
+    expect(text(QUICK_DIFFERENCES.join(' '))).toContain('ngựa đầu tiên của bất kỳ màu nào lên chuồng');
   });
 });

@@ -20,7 +20,34 @@ export const CLASSIC_RULES: readonly string[] = [
   'Thắng: màu đầu tiên đưa đủ 4 ngựa lên chuồng.',
 ];
 
-/** The sections of the rules sheet, first section first. Classic rules only for now. */
-export function rulesFor(): RulesSection[] {
-  return [{ heading: 'Luật cá ngựa', items: CLASSIC_RULES }];
+/** What a quick match ("ván nhanh") changes, one rule per item. Shown first in the rules sheet of a quick room. */
+export const QUICK_DIFFERENCES: readonly string[] = [
+  'Mỗi màu bắt đầu với 1 ngựa đã ra sẵn ở ô xuất phát, 3 ngựa còn lại ở trong chuồng.',
+  'Chuồng đích bị khóa cho tới khi màu đó đá được ít nhất 1 ngựa đối thủ (ra chuồng đá ngựa cũng tính). Chưa mở thì ngựa vẫn đi tới cửa chuồng nhưng chưa lên được.',
+  'Thắng: ngựa đầu tiên của bất kỳ màu nào lên chuồng (bậc nào cũng được) thắng ngay.',
+  'Còn lại giữ luật thường. Khi chỉ có một nước đi, máy tự đi giúp; máy và hoạt ảnh chạy nhanh hơn.',
+];
+
+/** One line under the mode control in the waiting room. */
+export const QUICK_MODE_SUMMARY =
+  'Mỗi màu có sẵn 1 ngựa ngoài chuồng, đá được ngựa đối thủ mới mở chuồng đích, ngựa đầu tiên lên chuồng thắng. Tự đi khi chỉ có một nước.';
+export const CLASSIC_MODE_SUMMARY = 'Luật cá ngựa thường: đưa đủ 4 ngựa lên chuồng để thắng.';
+
+/** The three lines of the card shown when a quick match starts. */
+export const QUICK_INTRO: readonly string[] = [
+  'Mỗi màu có sẵn 1 ngựa ngoài chuồng.',
+  'Phải đá được 1 ngựa đối thủ thì mới mở chuồng đích để lên.',
+  'Ngựa đầu tiên lên chuồng thắng ngay.',
+];
+
+export const LOCKED_LABEL = 'Chưa mở chuồng';
+export const UNLOCKED_LABEL = 'Đã mở chuồng';
+export const NEED_KICK_HINT = 'Cần đá 1 ngựa trước';
+export const QUICK_WIN_TEXT = 'Thắng ván nhanh: ngựa đầu tiên lên chuồng';
+
+/** The sections of the rules sheet, first section first. A quick room lists its differences before the classic rules. */
+export function rulesFor(settings?: { quick: boolean }): RulesSection[] {
+  const classic: RulesSection = { heading: 'Luật cá ngựa', items: CLASSIC_RULES };
+  if (!settings?.quick) return [classic];
+  return [{ heading: 'Ván nhanh khác ván thường', items: QUICK_DIFFERENCES }, classic];
 }
