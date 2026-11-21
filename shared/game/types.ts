@@ -72,7 +72,16 @@ export interface GameState {
   /** Horse indices of `turn` that may move with `dice`. Empty unless phase is 'move'. */
   legalHorses: number[];
   winner: Color | null;
+  /**
+   * Rule variant of this game. Absent in games stored before variants existed: classic.
+   * `quick` is the quick match: see the "Quick variant" block below.
+   */
+  variant?: RuleVariant;
+  /** Quick variant only, indexed by colour: true once that colour has kicked an opponent horse (its home column is open). */
+  unlocked?: boolean[];
 }
+
+export type RuleVariant = 'classic' | 'quick';
 
 export type GameEvent =
   | { type: 'rolled'; color: Color; dice: DiceValue; legalHorses: number[] }
@@ -112,9 +121,17 @@ export interface StepResult {
  *    legal.
  * 6. If at least one move is legal the player must make one of them.
  * 7. The first colour with all four horses on its home column wins.
+ *
+ * Quick variant (`GameState.variant === 'quick'`, the "ván nhanh"): rules 1-6 are unchanged, except:
+ * a. Each colour starts with one horse already on its entry cell (progress 0); the other three are in the stable.
+ * b. A colour's home column is locked until that colour has kicked at least one opponent horse
+ *    (any kick counts, including one made by leaving the stable onto an occupied entry cell). While it
+ *    is locked a horse still moves up to its gate (progress 55) but cannot climb, so a horse on the
+ *    gate has no legal move.
+ * c. Rule 7 becomes: the first horse of any colour to enter its home column (any step) wins at once.
  */
 export interface RulesEngine {
-  createGame(colors: Color[]): GameState;
+  createGame(colors: Color[], variant?: RuleVariant): GameState;
   /** Apply a roll for the current colour. Phase must be 'roll'. */
   applyRoll(state: GameState, dice: DiceValue): StepResult;
   /** Move one of `state.legalHorses`. Phase must be 'move'. */

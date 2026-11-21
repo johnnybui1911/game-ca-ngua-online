@@ -2,18 +2,19 @@ import { applyMove, applyRoll, createGame } from './engine';
 import { chooseCpuMove } from './cpu';
 import { DEFAULT_CPU_LEVEL, type CpuLevel } from './cpu-level';
 import { mulberry32 } from './seeded-random';
-import type { Color, DiceValue } from './types';
+import type { Color, DiceValue, RuleVariant } from './types';
 
 /** Plays one CPU-only game with dice from `mulberry32(seed)`. Colours without a level play Normal. */
 export function playMatch(
   levels: Partial<Record<Color, CpuLevel>>,
   seed: number,
+  variant: RuleVariant = 'classic',
 ): { winner: Color; rolls: number } {
   const colors = (Object.keys(levels).map(Number) as Color[]).sort((a, b) => a - b);
   const rand = mulberry32(seed);
   // Separate stream for Easy's choices so they do not correlate with the dice.
   const cpuRand = mulberry32(seed ^ 0x9e3779b9);
-  let state = createGame(colors);
+  let state = createGame(colors, variant);
   let rolls = 0;
   while (state.phase !== 'finished') {
     if (++rolls > 5000) throw new Error(`game seed ${seed} exceeded 5000 rolls`);
@@ -45,6 +46,7 @@ export function runMatchup(
   colors: Color[],
   games: number,
   firstSeed: number,
+  variant: RuleVariant = 'classic',
 ): MatchupResult {
   let wins = 0;
   let rolls = 0;
@@ -52,7 +54,7 @@ export function runMatchup(
     const seat = colors[i % colors.length] as Color;
     const levels: Partial<Record<Color, CpuLevel>> = {};
     for (const c of colors) levels[c] = c === seat ? a : b;
-    const r = playMatch(levels, firstSeed + i);
+    const r = playMatch(levels, firstSeed + i, variant);
     if (r.winner === seat) wins++;
     rolls += r.rolls;
   }

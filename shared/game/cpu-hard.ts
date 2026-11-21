@@ -1,6 +1,6 @@
 import { HOME_STEPS, HORSES_PER_COLOR, POS_GATE, POS_STABLE, POS_START, TRACK_LENGTH, isOnTrack, trackCell } from './types';
 import type { Color, GameState, HorsePos } from './types';
-import { landingFor, type Landing } from './engine';
+import { isLocked, landingFor, type Landing } from './engine';
 
 /**
  * Weights of the Hard evaluator. Tuned by coordinate descent against Normal (two-player and
@@ -23,6 +23,8 @@ export const HARD_WEIGHTS = {
   THREAT: 1,
   /** Value of freeing the own entry cell while horses still wait in the stable (a 1 or 6 can then bring one out). */
   ENTRY: 4,
+  /** Quick game: extra value of the first kick of a colour, which opens its home column (it cannot win before). */
+  UNLOCK: 12,
   /** Cost per horse that no longer fits below the lowest occupied home step (it must wait for an exact climb). */
   COLUMN_DEFICIT: 30,
 };
@@ -142,6 +144,8 @@ export function chooseHard(state: GameState, w: Weights = HARD_WEIGHTS): number 
   if (dice === null) throw new Error('CPU can only choose in the move phase');
   const opponents = state.colors.filter((c) => c !== color);
   const own = rowOf(state.horses, color);
+  const quick = state.variant === 'quick';
+  const locked = isLocked(state, color);
   const now = assess(state.horses, opponents, color, w);
   const deficitNow = columnDeficit(own);
   const entryNow = entryFree(own);
@@ -149,7 +153,7 @@ export function chooseHard(state: GameState, w: Weights = HARD_WEIGHTS): number 
   let best = -1;
   let bestScore = -Infinity;
   for (const horse of [...state.legalHorses].sort((a, b) => a - b)) {
-    const landing = landingFor(state.horses, color, horse, dice);
+    const landing = landingFor(state.horses, color, horse, dice, locked);
     if (landing === null) continue;
     const from = own[horse] ?? POS_STABLE;
     const after = boardAfter(state.horses, color, horse, landing);
@@ -157,10 +161,11 @@ export function chooseHard(state: GameState, w: Weights = HARD_WEIGHTS): number 
     const next = assess(after, opponents, color, w);
 
     let score = w.ADVANCE * Math.max(from, 0);
-    if (ownAfter.every((p) => p > POS_GATE)) score += w.WIN;
-    if (landing.kicked) score += w.KICK_BASE + w.KICK_PROGRESS * landing.kicked.from;
+    // Quick: the first horse into the home column wins; there is no column to fill afterwards.
+    if (quick ? landing.to > POS_GATE : ownAfter.every((p) => p > POS_GATE)) score += w.WIN;
+    if (landing.kicked) score += w.KICK_BASE + w.KICK_PROGRESS * landing.kicked.from + (locked ? w.UNLOCK : 0);
     if (from === POS_STABLE) score += w.LEAVE;
-    score += w.COLUMN_DEFICIT * (deficitNow - columnDeficit(ownAfter));
+    if (!quick) score += w.COLUMN_DEFICIT * (deficitNow - columnDeficit(ownAfter));
     score += w.ENTRY * (entryFree(ownAfter) - entryNow);
     score += now.danger - next.danger;
     score += w.THREAT * (next.threat - now.threat);

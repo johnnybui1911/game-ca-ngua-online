@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { applyRoll, createGame } from '../../shared/game/engine';
-import { ROOM_CODE_ALPHABET, ROOM_CODE_LENGTH } from '../../shared/protocol';
-import type { Timings } from './constants';
+import { applyMove, applyRoll, createGame } from '../../shared/game/engine';
+import type { DiceValue } from '../../shared/game/types';
+import { DEFAULT_ROOM_SETTINGS, ROOM_CODE_ALPHABET, ROOM_CODE_LENGTH, TURN_SECONDS_OPTIONS, type RoomSettings } from '../../shared/protocol';
+import { IDLE_AUTOPLAY_AFTER, type Timings } from './constants';
 import { generateRoomCode, isRoomCode } from './room-code';
 import {
   cleanHorseNames,
@@ -11,6 +12,12 @@ import {
   levelForOccupant,
   levelOf,
   parseCpuLevel,
+  parseRoomSettings,
+  clearMisses,
+  isAutopilot,
+  paceMs,
+  settingsOf,
+  timingsOf,
   nextCpuName,
   nextWake,
   pickHost,
@@ -24,7 +31,17 @@ import {
   type RoomState,
 } from './room-state';
 
-const T: Timings = { cpuDelayMs: 700, turnMs: 30_000, playingDisconnectMs: 3_000, waitingDisconnectMs: 30_000, idleCloseMs: 600_000, lobbySweepMs: 180_000 };
+const BASE: Timings = {
+  cpuDelayMs: 700,
+  turnUnitMs: 1_000,
+  autoRollMs: 1_500,
+  quickSegmentMs: 400,
+  playingDisconnectMs: 3_000,
+  waitingDisconnectMs: 30_000,
+  idleCloseMs: 600_000,
+  lobbySweepMs: 180_000,
+};
+const T = timingsOf({} as RoomState, BASE);
 const ann = { id: 'u1', displayName: 'An' };
 const binh = { id: 'u2', displayName: 'Bình' };
 
@@ -153,7 +170,7 @@ describe('scheduler', () => {
 describe('snapshot', () => {
   it('derives connection state and only exposes the deadline for a connected human on turn', () => {
     const game = createGame([0, 2]);
-    const r = room({ status: 'playing', game, dueAt: 12_345 });
+    const r = room({ status: 'playing', game, dueAt: 12_345, actionDueAt: 12_345 });
     expect(toSnapshot(r, new Set(['u1'])).turnDeadline).toBe(12_345);
     expect(toSnapshot(r, new Set(['u2'])).turnDeadline).toBeNull();
     const snap = toSnapshot(r, new Set(['u2']));
@@ -488,5 +505,322 @@ describe('cpu level', () => {
     const stored = JSON.parse(JSON.stringify(room())) as RoomState;
     expect('cpuLevel' in stored).toBe(false);
     expect(toSnapshot(stored, new Set()).cpuLevel).toBe('normal');
+  });
+});
+
+describe('room settings', () => {
+  const settings = (over: Partial<RoomSettings> = {}): RoomSettings => ({ ...DEFAULT_ROOM_SETTINGS, ...over });
+  const playing = (st?: RoomSettings, over: Partial<RoomState> = {}) =>
+    room({ status: 'playing', game: createGame([0, 2]), settings: st, ...over });
+  const both = new Set(['u1', 'u2']);
+
+  it('reads a room without settings as the defaults', () => {
+    expect(settingsOf(room())).toEqual({ turnSeconds: 30, quick: false, autoRoll: false });
+    expect(timingsOf(room(), BASE).turnMs).toBe(30_000);
+    expect(paceMs(room(), BASE)).toBe(700);
+  });
+
+  it('derives the turn time from every allowed choice', () => {
+    for (const turnSeconds of TURN_SECONDS_OPTIONS) {
+      expect(timingsOf(room({ settings: settings({ turnSeconds }) }), BASE).turnMs).toBe(turnSeconds * 1_000);
+    }
+    expect(timingsOf(room({ settings: settings({ turnSeconds: 10 }) }), { ...BASE, turnUnitMs: 50 }).turnMs).toBe(500);
+  });
+
+  it('accepts exactly the allowed settings and nothing else', () => {
+    expect(parseRoomSettings({ turnSeconds: 20, quick: true, autoRoll: false })).toEqual({ turnSeconds: 20, quick: true, autoRoll: false });
+    for (const turnSeconds of TURN_SECONDS_OPTIONS) {
+      expect(parseRoomSettings({ turnSeconds, quick: false, autoRoll: true })?.turnSeconds).toBe(turnSeconds);
+    }
+    const bad: unknown[] = [
+      null,
+      'x',
+      [],
+      {},
+      { turnSeconds: 0, quick: false, autoRoll: false },
+      { turnSeconds: 31, quick: false, autoRoll: false },
+      { turnSeconds: '30', quick: false, autoRoll: false },
+      { turnSeconds: 30.5, quick: false, autoRoll: false },
+      { turnSeconds: 30, quick: 'true', autoRoll: false },
+      { turnSeconds: 30, quick: 1, autoRoll: false },
+      { turnSeconds: 30, quick: false, autoRoll: undefined },
+      { turnSeconds: 30, quick: false },
+      { turnSeconds: 30, quick: false, autoRoll: false, extra: 1 },
+    ];
+    for (const b of bad) expect(parseRoomSettings(b)).toBeNull();
+  });
+
+  it('plans the action deadline from the room turn time and keeps 30 s without settings', () => {
+    const a = playing(settings({ turnSeconds: 10 }));
+    planTurn(a, both, 1_000, timingsOf(a, BASE));
+    expect(a.actionDueAt).toBe(11_000);
+    expect(a.dueAt).toBe(11_000);
+    const b = playing();
+    planTurn(b, both, 1_000, timingsOf(b, BASE));
+    expect(b.actionDueAt).toBe(31_000);
+    expect(b.dueAt).toBe(31_000);
+    const fast = timingsOf(a, { ...BASE, turnUnitMs: 50 });
+    planTurn(a, both, 0, fast);
+    expect(a.actionDueAt).toBe(500);
+  });
+
+  it('keeps the original deadline across a reconnect with settings present', () => {
+    const r = playing(settings({ turnSeconds: 15 }));
+    const t = timingsOf(r, BASE);
+    planTurn(r, both, 0, t);
+    reconcileConnections(r, new Set(['u2']), 4_000, t);
+    expect(r.dueAt).toBe(7_000);
+    reconcileConnections(r, both, 5_000, t);
+    expect(r.dueAt).toBe(15_000);
+  });
+
+  it('pause keeps the time left, measured with the room turn time', () => {
+    const r = playing(settings({ turnSeconds: 10 }));
+    const t = timingsOf(r, BASE);
+    planTurn(r, both, 0, t);
+    r.pausedAt = 4_000;
+    resumeGame(r, both, 100_000, t);
+    expect(r.dueAt).toBe(106_000);
+    expect(r.actionDueAt).toBe(106_000);
+  });
+
+  it('snapshot publishes the settings, the seat autopilot flag and the action deadline', () => {
+    const r = playing(settings({ turnSeconds: 20, quick: true }), { dueAt: 1_700, actionDueAt: 20_000 });
+    r.seats[1]!.misses = IDLE_AUTOPLAY_AFTER;
+    const snap = toSnapshot(r, both);
+    expect(snap.settings).toEqual({ turnSeconds: 20, quick: true, autoRoll: false });
+    expect(snap.seats.map((s) => s.auto)).toEqual([false, true]);
+    expect(snap.turnDeadline).toBe(20_000);
+    r.actionDueAt = null;
+    expect(toSnapshot(r, both).turnDeadline).toBeNull();
+    expect(toSnapshot(room(), both).settings).toEqual(DEFAULT_ROOM_SETTINGS);
+  });
+});
+
+describe('missed turns and autopilot', () => {
+  const both = new Set(['u1', 'u2']);
+  const dice = (v: DiceValue) => () => v;
+  const playing = (over: Partial<RoomState> = {}) => room({ status: 'playing', game: createGame([0, 2]), ...over });
+
+  /** The turn runs out for the colour on turn, then the server plays it. */
+  function timeOut(r: RoomState, connected: ReadonlySet<string>, roll: DiceValue = 2) {
+    const t = timingsOf(r, BASE);
+    const at = r.dueAt!;
+    return playDueAction(r, connected, at, t, dice(roll));
+  }
+
+  it('counts a missed turn only for a connected human whose own deadline passed', () => {
+    const r = playing();
+    planTurn(r, both, 0, T);
+    timeOut(r, both);
+    expect(r.seats[0]!.misses).toBe(1);
+    expect(isAutopilot(r.seats[0])).toBe(false);
+  });
+
+  it('puts the seat on autopilot after two misses and schedules it at CPU pace with no countdown', () => {
+    const r = playing();
+    planTurn(r, both, 0, T);
+    timeOut(r, both); // roll 2 with every horse in the stable: the turn passes to the other colour
+    expect(r.game!.turn).toBe(2);
+    // Give the first colour the turn again with a fresh clock.
+    r.game = { ...r.game!, turn: 0, phase: 'roll', legalHorses: [] };
+    planTurn(r, both, 100_000, T);
+    timeOut(r, both);
+    expect(r.seats[0]!.misses).toBe(IDLE_AUTOPLAY_AFTER);
+    expect(toSnapshot(r, both).seats[0]!.auto).toBe(true);
+    r.game = { ...r.game!, turn: 0, phase: 'roll', legalHorses: [] };
+    planTurn(r, both, 200_000, T);
+    expect(r.dueAt).toBe(200_000 + T.cpuDelayMs);
+    expect(r.actionDueAt).toBeNull();
+    expect(toSnapshot(r, both).turnDeadline).toBeNull();
+  });
+
+  it('never counts autopilot actions, CPU actions or a takeover for a disconnected human', () => {
+    const r = playing();
+    r.seats[0]!.misses = IDLE_AUTOPLAY_AFTER;
+    planTurn(r, both, 0, T);
+    timeOut(r, both);
+    expect(r.seats[0]!.misses).toBe(IDLE_AUTOPLAY_AFTER);
+
+    const takeover = playing();
+    planTurn(takeover, new Set(['u2']), 0, T);
+    expect(takeover.dueAt).toBe(3_000);
+    timeOut(takeover, new Set(['u2']));
+    expect(takeover.seats[0]!.misses).toBeUndefined();
+
+    const cpu = playing();
+    cpu.seats[0]!.occupant = { kind: 'cpu', name: 'Máy 1' };
+    planTurn(cpu, both, 0, T);
+    timeOut(cpu, both);
+    expect(cpu.seats[0]!.misses).toBeUndefined();
+  });
+
+  it('ends autopilot when misses are cleared, and the clock restarts for the player', () => {
+    const r = playing();
+    r.seats[0]!.misses = 3;
+    clearMisses(r);
+    expect(isAutopilot(r.seats[0])).toBe(false);
+    planTurn(r, both, 0, T);
+    expect(r.actionDueAt).toBe(30_000);
+  });
+
+  it('does not treat a CPU seat or an emptied seat as autopilot', () => {
+    const r = playing();
+    r.seats[0]!.misses = 5;
+    setOccupant(r.seats[0]!, { kind: 'cpu', name: 'Máy 1' });
+    expect(isAutopilot(r.seats[0])).toBe(false);
+    expect(r.seats[0]!.misses).toBeUndefined();
+  });
+
+  it('a room stored without settings or misses loads and plays at the old pace', () => {
+    const stored = JSON.parse(JSON.stringify(playing())) as RoomState;
+    expect(stored.settings).toBeUndefined();
+    planTurn(stored, both, 0, timingsOf(stored, BASE));
+    expect(stored.dueAt).toBe(30_000);
+    const played = timeOut(stored, both)!;
+    expect(played.events.map((e) => e.type)).toEqual(['rolled', 'turn']);
+    expect(stored.game!.variant ?? 'classic').toBe('classic');
+    expect(stored.seats[0]!.misses).toBe(1);
+  });
+});
+
+describe('quick match pace and auto-roll', () => {
+  const both = new Set(['u1', 'u2']);
+  const quick = (over: Partial<RoomState> = {}) =>
+    room({ status: 'playing', game: createGame([0, 2], 'quick'), settings: { turnSeconds: 20, quick: true, autoRoll: false }, ...over });
+
+  it('creates a quick game with each colour starting with a horse out', () => {
+    const g = createGame([0, 2], 'quick');
+    expect(g.variant).toBe('quick');
+    for (const color of g.colors) expect(g.horses[color]!.filter((p) => p >= 0)).toHaveLength(1);
+    expect(createGame([0, 2]).horses.flat().every((p) => p < 0)).toBe(true);
+  });
+
+  it('paces CPU, autopilot and takeover by segments of the last commit in a quick match only', () => {
+    const r = quick();
+    r.seats[0]!.occupant = { kind: 'cpu', name: 'Máy 1' };
+    const t = timingsOf(r, BASE);
+    expect(dueDelay(r, both, t)).toBe(400);
+    expect(dueDelay(r, both, t, 2)).toBe(800);
+    expect(dueDelay(r, both, t, 0)).toBe(400);
+    planTurn(r, both, 1_000, t, 2);
+    expect(r.dueAt).toBe(1_800);
+
+    const normal = room({ status: 'playing', game: createGame([0, 2]) });
+    normal.seats[0]!.occupant = { kind: 'cpu', name: 'Máy 1' };
+    expect(dueDelay(normal, both, T, 2)).toBe(700);
+    expect(dueDelay(normal, both, T, 1)).toBe(700);
+
+    const auto = quick();
+    auto.seats[0]!.misses = IDLE_AUTOPLAY_AFTER;
+    expect(dueDelay(auto, both, timingsOf(auto, BASE), 2)).toBe(800);
+    expect(dueDelay(auto, new Set(['u2']), timingsOf(auto, BASE), 2)).toBe(3_000);
+  });
+
+  it('plays a forced single move in the same step in a quick match and passes segments to the clock', () => {
+    const r = quick();
+    r.seats[0]!.occupant = { kind: 'cpu', name: 'Máy 1' };
+    r.game = { ...r.game!, horses: [[5, -1, -1, -1], ...r.game!.horses.slice(1)] };
+    const t = timingsOf(r, BASE);
+    planTurn(r, both, 0, t);
+    const played = playDueAction(r, both, r.dueAt!, t, () => 2)!;
+    expect(played.events.map((e) => e.type)).toEqual(['rolled', 'moved', 'turn']);
+    expect(r.game!.turn).toBe(2);
+    // The next colour is a human: full turn time, no pace involved.
+    expect(r.dueAt).toBe(400 + 20_000);
+  });
+
+  it('a normal room rolls for a human whose clock ran out and leaves the move to them', () => {
+    const r = room({ status: 'playing', game: createGame([0, 2]) });
+    r.game = { ...r.game!, horses: [[5, -1, -1, -1], ...r.game!.horses.slice(1)] };
+    planTurn(r, both, 0, T);
+    const played = playDueAction(r, both, r.actionDueAt!, T, () => 2)!;
+    expect(played.events.map((e) => e.type)).toEqual(['rolled']);
+    expect(r.game!.phase).toBe('move');
+  });
+
+  it('ends the match through the same path and reports it', () => {
+    const r = room({ status: 'playing', game: createGame([0, 2]) });
+    const h = r.game!.horses.map((row) => [...row]);
+    h[0] = [61, 60, 59, 55];
+    r.game = applyRoll({ ...r.game!, horses: h }, 3).state;
+    expect(r.game.phase).toBe('move');
+    const played = playDueAction(r, both, 0, T)!;
+    expect(played.finished).toBe(true);
+    expect(played.events.map((e) => e.type)).toEqual(['moved', 'won']);
+    expect(r.status).toBe('finished');
+    expect(r.dueAt).toBeNull();
+    expect(r.actionDueAt).toBeNull();
+  });
+
+  it('auto-roll: a human on a roll phase is rolled for early, without moving the action deadline or counting a miss', () => {
+    const r = room({ status: 'playing', game: createGame([0, 2]), settings: { turnSeconds: 30, quick: false, autoRoll: true } });
+    const t = timingsOf(r, BASE);
+    planTurn(r, both, 10_000, t);
+    expect(r.dueAt).toBe(11_500);
+    expect(r.actionDueAt).toBe(40_000);
+    expect(toSnapshot(r, both).turnDeadline).toBe(40_000);
+    playDueAction(r, both, 11_500, t, () => 2);
+    expect(r.seats[0]!.misses).toBeUndefined();
+  });
+
+  it('auto-roll does not apply to a move phase and a timeout still counts', () => {
+    const r = room({ status: 'playing', game: createGame([0, 2]), settings: { turnSeconds: 30, quick: false, autoRoll: true } });
+    const t = timingsOf(r, BASE);
+    r.game = applyRoll(r.game!, 6).state;
+    expect(r.game.phase).toBe('move');
+    planTurn(r, both, 0, t);
+    expect(r.dueAt).toBe(30_000);
+    playDueAction(r, both, 30_000, t, () => 2);
+    expect(r.seats[0]!.misses).toBe(1);
+  });
+
+  it('auto-roll is re-derived on reconnect and shifted by a pause', () => {
+    const r = room({ status: 'playing', game: createGame([0, 2]), settings: { turnSeconds: 30, quick: false, autoRoll: true } });
+    const t = timingsOf(r, BASE);
+    planTurn(r, both, 0, t);
+    reconcileConnections(r, new Set(['u2']), 200, t);
+    expect(r.dueAt).toBe(1_500);
+    reconcileConnections(r, both, 300, t);
+    expect(r.dueAt).toBe(1_500);
+
+    const p = room({ status: 'playing', game: createGame([0, 2]), settings: { turnSeconds: 30, quick: false, autoRoll: true } });
+    planTurn(p, both, 0, t);
+    p.pausedAt = 500;
+    resumeGame(p, both, 10_500, t);
+    expect(p.dueAt).toBe(11_500);
+    expect(p.actionDueAt).toBe(40_000);
+  });
+
+  it('a quick match room with a human keeps pace segments out of the human turn clock', () => {
+    const r = quick();
+    const t = timingsOf(r, BASE);
+    planTurn(r, both, 0, t, 3);
+    expect(r.dueAt).toBe(20_000);
+    expect(r.actionDueAt).toBe(20_000);
+  });
+
+  it('applying a move by hand matches what the server plays for a forced single move', () => {
+    const g = createGame([0, 2], 'quick');
+    const rolled = applyRoll(g, 3);
+    expect(rolled.state.legalHorses).toHaveLength(1);
+    const moved = applyMove(rolled.state, rolled.state.legalHorses[0]!);
+    const r = quick({ game: g });
+    r.seats[0]!.occupant = { kind: 'cpu', name: 'Máy 1' };
+    const t = timingsOf(r, BASE);
+    planTurn(r, both, 0, t);
+    playDueAction(r, both, r.dueAt!, t, () => 3);
+    expect(r.game).toEqual(moved.state);
+  });
+});
+
+describe('rematch', () => {
+  it('keeps the settings and clears missed turns', () => {
+    const r = room({ status: 'finished', game: createGame([0, 2]), settings: { turnSeconds: 15, quick: true, autoRoll: true } });
+    r.seats[0]!.misses = 2;
+    r.seats[1]!.misses = 1;
+    clearMisses(r);
+    expect(r.seats.map((s) => s.misses)).toEqual([undefined, undefined]);
+    expect(settingsOf(r)).toEqual({ turnSeconds: 15, quick: true, autoRoll: true });
   });
 });

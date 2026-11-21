@@ -1,6 +1,8 @@
 import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { HORSES_PER_COLOR, POS_GATE } from '../../../shared/game/types';
+import { isLocked } from '../../../shared/game/engine';
+import { HORSES_PER_COLOR, POS_GATE, type Color } from '../../../shared/game/types';
+import { LOCKED_LABEL, NEED_KICK_HINT, QUICK_WIN_TEXT, UNLOCKED_LABEL } from '../../../shared/rules-text';
 import { SaveAccountBlock } from '../auth/SaveAccountBlock';
 import { useSession } from '../auth/session-context';
 import type { RoomClientMessage, RoomSnapshot, Seat } from '../../../shared/protocol';
@@ -9,6 +11,9 @@ import { SoundSwitches, useMusic } from '../audio/SoundControls';
 import { unconsumed, type StateBatch } from './batches';
 import { secondsLeft } from './countdown';
 import { lastRollAfter, type LastRoll } from './last-roll';
+import { needKickAfter } from './need-kick';
+import { QuickIntroCard } from './QuickIntroCard';
+import { quickIntro } from './quick-intro';
 import { COLOR_NAMES, COLOR_VARS } from './colors';
 import { CPU_LEVEL_LABELS, cpuLevelOf } from './cpu-levels';
 import { EmoteBubble, EmoteLive } from './EmoteBubble';
@@ -55,6 +60,19 @@ function useLastRoll(batches: StateBatch[]): LastRoll | null {
     setLast((prev) => lastRollAfter(prev, batches, from));
   }, [batches]);
   return last;
+}
+
+/** Whether the local player's last roll was blocked only by their locked home column (quick match). */
+function useNeedKick(batches: StateBatch[], color: Color | null): boolean {
+  const [hint, setHint] = useState(false);
+  const consumed = useRef<number | null>(null);
+  useEffect(() => {
+    const from = consumed.current;
+    if (unconsumed(batches, from).length === 0) return;
+    consumed.current = batches[batches.length - 1]?.room.seq ?? from;
+    setHint((prev) => needKickAfter(prev, batches, from, color));
+  }, [batches, color]);
+  return hint;
 }
 
 function useCountdown(deadline: number | null, offset: number): number | null {
@@ -131,6 +149,10 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
   const [renaming, setRenaming] = useState(false);
   const [rulesOpen, setRulesOpen] = useState(false);
   const [confirmClose, setConfirmClose] = useState(false);
+  // Decided once per mount: the first quick match on a device explains itself, later ones do not.
+  const [introOpen, setIntroOpen] = useState(
+    () => room.settings.quick && room.game !== null && room.game.phase !== 'finished' && quickIntro.shouldShow(),
+  );
   const { guest } = useSession();
   // Decided once per visit: stays on screen as a confirmation after the guest registers.
   const [offerSave] = useState(guest);
@@ -142,13 +164,14 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
 
   const mySeat = room.seats.find((s) => s.occupant?.kind === 'human' && s.occupant.user.id === myId);
   const myColor = mySeat?.color ?? null;
+  const needKick = useNeedKick(batches, myColor);
   const finished = game?.phase === 'finished';
   const paused = room.paused;
   const myTurn = game !== null && myColor !== null && game.turn === myColor && !finished;
   const canRoll = myTurn && !paused && game?.phase === 'roll';
   useMusic('game');
   useGameSounds(batches, myTurn && !paused, seconds, room.turnDeadline);
-  const dialogOpen = menuOpen || renaming || rulesOpen || confirmLeave || confirmClose;
+  const dialogOpen = menuOpen || renaming || rulesOpen || confirmLeave || confirmClose || (introOpen && !finished);
   // Changes with every roll the server reports, so each roll chance allows one shake-roll.
   const lastRolledSeq = [...batches].reverse().find((b) => b.events.some((e) => e.type === 'rolled'))?.room.seq ?? null;
   const shake = useShakeToRoll(canRoll && !dialogOpen, lastRolledSeq, () => send({ t: 'roll' }));
@@ -158,6 +181,8 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
   const isHost = room.hostId === myId;
   const winnerSeat = game.winner === null ? undefined : room.seats.find((s) => s.color === game.winner);
   const turnNames = turnSeat?.horseNames;
+  const quickGame = game.variant === 'quick';
+  const showKickHint = quickGame && needKick && myColor !== null && isLocked(game, myColor) && !finished;
 
   const leave = () => {
     send({ t: 'leave' });
@@ -208,7 +233,7 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
             return (
               <li
                 key={s.color}
-                className={`hud-player${active ? ' is-turn' : ''}`}
+                className={`hud-player${active ? ' is-turn' : ''}${quickGame ? ' hud-player-quick' : ''}`}
                 style={{ borderColor: COLOR_VARS[s.color] }}
                 data-testid={`hud-player-${s.color}`}
                 data-active={active}
@@ -217,9 +242,19 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
                 <span className="hud-name">{seatName(s)}</span>
                 {occ?.kind === 'cpu' && <span className="badge">CPU · {CPU_LEVEL_LABELS[cpuLevelOf(room)]}</span>}
                 {occ?.kind === 'human' && !occ.connected && <span className="badge badge-warn">Offline</span>}
+                {s.auto && s !== mySeat && (
+                  <span className="badge" data-testid={`auto-tag-${s.color}`}>
+                    (tự động)
+                  </span>
+                )}
                 <span className="hud-home" title="Quân đã về đích">
                   {home}/{HORSES_PER_COLOR}
                 </span>
+                {quickGame && (
+                  <span className="lock-badge" data-testid={`lock-${s.color}`} data-locked={isLocked(game, s.color)}>
+                    {isLocked(game, s.color) ? `🔒 ${LOCKED_LABEL}` : `🔓 ${UNLOCKED_LABEL}`}
+                  </span>
+                )}
                 <EmoteBubble seat={room.seats.indexOf(s)} emote={emotes[room.seats.indexOf(s)]} mine={s === mySeat} />
               </li>
             );
@@ -230,6 +265,11 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
 
       <section className="hud-bottom" aria-label="Điều khiển" ref={hud.bottomRef}>
         <div className="hud-line">
+          {room.settings.quick && (
+            <span className="badge badge-quick" data-testid="quick-tag">
+              Ván nhanh
+            </span>
+          )}
           <p className="turn-banner" data-testid="turn-banner" aria-live="polite">
             {turnText}
           </p>
@@ -243,6 +283,21 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
             {lastRoll?.dice ?? '–'}
           </span>
         </div>
+
+        {showKickHint && (
+          <p className="need-kick" role="status" data-testid="need-kick-hint">
+            {NEED_KICK_HINT}
+          </p>
+        )}
+
+        {mySeat?.auto && !finished && (
+          <div className="autopilot-banner" role="status" data-testid="autopilot-banner">
+            <span>Đang chơi tự động vì bạn không thao tác.</span>
+            <button type="button" className="btn btn-primary" data-testid="autopilot-back" onClick={() => send({ t: 'back' })}>
+              Tôi đã quay lại
+            </button>
+          </div>
+        )}
 
         {actionError && (
           <p className="form-error" role="alert" data-testid="action-error">
@@ -371,7 +426,16 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
         </div>
       )}
 
-      {rulesOpen && <RulesSheet secondsLeft={myTurn && !finished ? seconds : null} onClose={() => setRulesOpen(false)} />}
+      {rulesOpen && <RulesSheet settings={room.settings} secondsLeft={myTurn && !finished ? seconds : null} onClose={() => setRulesOpen(false)} />}
+
+      {introOpen && !finished && (
+        <QuickIntroCard
+          onClose={() => {
+            quickIntro.markSeen();
+            setIntroOpen(false);
+          }}
+        />
+      )}
 
       {renaming && mySeat && (
         <HorseNamesDialog color={mySeat.color} names={mySeat.horseNames} send={send} onClose={() => setRenaming(false)} />
@@ -417,6 +481,9 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
             <h2 id="win-title" data-testid="win-title">
               {seatName(winnerSeat)} thắng!
             </h2>
+            {quickGame && (
+              <p data-testid="win-condition">{QUICK_WIN_TEXT}</p>
+            )}
             <div className="dialog-actions">
               {isHost ? (
                 <button type="button" className="btn btn-primary" data-testid="rematch-button" onClick={() => send({ t: 'rematch' })}>

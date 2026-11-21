@@ -2,6 +2,8 @@ import { useEffect, useRef } from 'react';
 import { rulesFor } from '../../../shared/rules-text';
 
 interface Props {
+  /** The room's settings: a quick room lists the quick-match differences first. */
+  settings: { quick: boolean };
   /** Whole seconds left on the reader's own turn; null when it is not their turn. */
   secondsLeft: number | null;
   onClose: () => void;
@@ -10,7 +12,7 @@ interface Props {
 const FOCUSABLE = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
 
 /** Modal rules sheet. Opening it never touches the turn clock. */
-export function RulesSheet({ secondsLeft, onClose }: Props) {
+export function RulesSheet({ settings, secondsLeft, onClose }: Props) {
   const ref = useRef<HTMLDivElement>(null);
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
@@ -59,7 +61,7 @@ export function RulesSheet({ secondsLeft, onClose }: Props) {
           )}
         </div>
         <div className="rules-body">
-          {rulesFor().map((section) => (
+          {rulesFor(settings).map((section) => (
             <section key={section.heading}>
               <h3>{section.heading}</h3>
               <ol>

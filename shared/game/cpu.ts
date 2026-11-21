@@ -1,6 +1,6 @@
 import type { GameState } from './types';
 import { POS_GATE, POS_STABLE } from './types';
-import { landingFor } from './engine';
+import { isLocked, landingFor } from './engine';
 import { DEFAULT_CPU_LEVEL, type CpuLevel } from './cpu-level';
 import { chooseHard } from './cpu-hard';
 
@@ -38,12 +38,15 @@ function chooseEasy(state: GameState, rand: () => number): number {
 /**
  * Priority: kick an opponent; else reach/climb the home column (highest
  * resulting step); else leave the stable; else the most advanced track horse.
- * Ties go to the lowest horse index.
+ * Ties go to the lowest horse index. In a quick game entering the home column
+ * wins at once, so it comes first; a locked column keeps climbs out of the legal
+ * moves, which leaves kicking as the first choice until the column opens.
  */
 function chooseNormal(state: GameState): number {
   const color = state.turn;
   const dice = state.dice;
   if (dice === null) throw new Error('CPU can only choose in the move phase');
+  const locked = isLocked(state, color);
 
   let kick = -1;
   let home = -1;
@@ -53,8 +56,9 @@ function chooseNormal(state: GameState): number {
   let advancePos = -2;
 
   for (const horse of [...state.legalHorses].sort((a, b) => a - b)) {
-    const landing = landingFor(state.horses, color, horse, dice);
+    const landing = landingFor(state.horses, color, horse, dice, locked);
     if (landing === null) continue;
+    if (state.variant === 'quick' && landing.to > POS_GATE) return horse;
     const pos = state.horses[color]?.[horse] ?? POS_STABLE;
     if (landing.kicked && kick < 0) kick = horse;
     if (landing.to > POS_GATE && landing.to - POS_GATE > homeStep) {

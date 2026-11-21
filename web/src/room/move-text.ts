@@ -1,4 +1,4 @@
-import { landingFor } from '../../../shared/game/engine';
+import { isLocked, landingFor } from '../../../shared/game/engine';
 import { POS_GATE, POS_STABLE, type GameState } from '../../../shared/game/types';
 import { COLOR_NAMES } from './colors';
 
@@ -12,7 +12,7 @@ export function describeMove(game: GameState, horse: number, names?: readonly st
   const dice = game.dice;
   const from = game.horses[game.turn]?.[horse];
   if (dice === null || from === undefined) return label;
-  const landing = landingFor(game.horses, game.turn, horse, dice);
+  const landing = landingFor(game.horses, game.turn, horse, dice, isLocked(game, game.turn));
   if (landing === null) return label;
   let action: string;
   if (from === POS_STABLE) action = 'ra quân';

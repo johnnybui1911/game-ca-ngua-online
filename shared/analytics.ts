@@ -16,6 +16,8 @@ export type ServerEvent =
   | 'match_started_solo'
   | 'match_started_group'
   | 'match_finished'
+  | 'match_started_quick'
+  | 'match_finished_quick'
   | 'cpu_match_easy'
   | 'cpu_match_normal'
   | 'cpu_match_hard';

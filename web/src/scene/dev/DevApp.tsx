@@ -9,7 +9,7 @@ import { applyMove, applyRoll, createGame } from '../../../../shared/game/engine
 import { chooseCpuMove } from '../../../../shared/game/cpu';
 import { DEFAULT_CPU_LEVEL, isCpuLevel, type CpuLevel } from '../../../../shared/game/cpu-level';
 import type { DiceValue, GameEvent, GameState } from '../../../../shared/game/types';
-import { SEAT_COLORS } from '../../../../shared/protocol';
+import { DEFAULT_ROOM_SETTINGS, SEAT_COLORS } from '../../../../shared/protocol';
 import type { RoomSnapshot } from '../../../../shared/protocol';
 import { defaultPolar, fitCameraDistance, seatCameraPosition } from '../camera';
 import GameScene from '../GameScene';
@@ -27,6 +27,11 @@ function mulberry32(seed: number): () => number {
 }
 
 /** `?level=easy|normal|hard` makes the harness CPUs play at that level (default Thường). */
+/** `?quick=1` plays the quick match variant at quick pace. */
+function devQuick(): boolean {
+  return new URLSearchParams(window.location.search).get('quick') === '1';
+}
+
 function devLevel(): CpuLevel {
   const level = new URLSearchParams(window.location.search).get('level');
   return isCpuLevel(level) ? level : DEFAULT_CPU_LEVEL;
@@ -46,11 +51,12 @@ function snapshot(step: Step, players: number): RoomSnapshot {
     visibility: 'private',
     hostId: 'dev',
     status: step.game.phase === 'finished' ? 'finished' : 'playing',
-    seats: colors.map((color) => ({ color, occupant: { kind: 'cpu' as const, name: `CPU ${color}` }, horseNames: ['', '', '', ''] })),
+    seats: colors.map((color) => ({ color, occupant: { kind: 'cpu' as const, name: `CPU ${color}` }, horseNames: ['', '', '', ''], auto: false })),
     game: step.game,
     turnDeadline: null,
     paused: false,
     cpuLevel: devLevel(),
+    settings: { ...DEFAULT_ROOM_SETTINGS, quick: devQuick() },
     seq: step.seq,
   };
 }
@@ -74,11 +80,11 @@ export default function DevApp() {
   const [paused, setPaused] = useState(false);
   const [picks, setPicks] = useState(0);
   const rng = useRef(mulberry32(seed));
-  const [step, setStep] = useState<Step>(() => ({ game: createGame(SEAT_COLORS[4]!), events: [], seq: 1 }));
+  const [step, setStep] = useState<Step>(() => ({ game: createGame(SEAT_COLORS[4]!, devQuick() ? 'quick' : 'classic'), events: [], seq: 1 }));
 
   const restart = useCallback((count: number, nextSeed: number) => {
     rng.current = mulberry32(nextSeed);
-    setStep((prev) => ({ game: createGame(SEAT_COLORS[count]!), events: [], seq: prev.seq + 1 }));
+    setStep((prev) => ({ game: createGame(SEAT_COLORS[count]!, devQuick() ? 'quick' : 'classic'), events: [], seq: prev.seq + 1 }));
   }, []);
 
   const advance = useCallback((fn: (g: GameState) => { state: GameState; events: GameEvent[] }) => {

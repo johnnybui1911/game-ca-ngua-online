@@ -1,6 +1,6 @@
 import { DurableObject } from 'cloudflare:workers';
 import { NO_SOURCE, type ServerEvent } from '../../shared/analytics';
-import { applyMove, applyRoll, createGame } from '../../shared/game/engine';
+import { applyMove, createGame, rollAndSettle, segmentsOf } from '../../shared/game/engine';
 import type { GameEvent, StepResult } from '../../shared/game/types';
 import { isEmoteId } from '../../shared/emotes';
 import {
@@ -33,14 +33,21 @@ import {
   SOCKET_REFILL_PER_SEC,
   USER_HEADER,
   timingsFor,
+  type RoomTimings,
   type Timings,
 } from './constants';
 import {
   cleanHorseNames,
+  clearMisses,
   currentSeatIndex,
   AlarmTracker,
+  isAutopilot,
   levelOf,
+  paceMs,
   parseCpuLevel,
+  parseRoomSettings,
+  settingsOf,
+  timingsOf,
   drawDie,
   firstEmptySeat,
   humanUsers,
@@ -119,6 +126,11 @@ function parseClientMessage(text: string): RoomClientMessage {
       if (!level) throw new RoomError('bad_message', 'Độ khó không hợp lệ.');
       return { t: 'cpuLevel', level };
     }
+    case 'settings': {
+      const settings = parseRoomSettings(msg.settings);
+      if (!settings) throw new RoomError('bad_message', 'Tin nhắn không hợp lệ.');
+      return { t: 'settings', settings };
+    }
     case 'emote':
       if (!isEmoteId(msg.id)) throw new RoomError('bad_emote', 'Biểu cảm không hợp lệ.');
       return { t: 'emote', id: msg.id };
@@ -126,6 +138,7 @@ function parseClientMessage(text: string): RoomClientMessage {
     case 'roll':
     case 'rematch':
     case 'leave':
+    case 'back':
     case 'pause':
     case 'resume':
     case 'closeRoom':
@@ -373,28 +386,39 @@ export class RoomDO extends DurableObject<Env> {
         await this.commit([]);
         return;
       }
+      case 'settings': {
+        needHostBudget();
+        if (room.status !== 'waiting') throw new RoomError('bad_state', 'Chỉ đổi cài đặt khi đang chờ.');
+        room.settings = msg.settings;
+        await this.commit([]);
+        return;
+      }
       case 'start': {
         needHost();
         if (room.status !== 'waiting') throw new RoomError('bad_state', 'Ván đấu đã bắt đầu.');
         if (occupiedCount(room) < 2) throw new RoomError('need_players', 'Cần ít nhất 2 người chơi để bắt đầu.');
         const colors = room.seats.filter((s) => s.occupant !== null).map((s) => s.color);
-        room.game = createGame(colors);
+        room.game = createGame(colors, settingsOf(room).quick ? 'quick' : 'classic');
         room.status = 'playing';
         room.pausedAt = null;
-        planTurn(room, this.connectedUsers(), now, this.timings);
+        clearMisses(room);
+        planTurn(room, this.connectedUsers(), now, this.roomTimings(room));
         await this.commit([]);
         this.count(humanUsers(room).length > 1 ? 'match_started_group' : 'match_started_solo');
+        if (settingsOf(room).quick) this.count('match_started_quick');
         if (room.seats.some((s) => s.occupant?.kind === 'cpu')) this.count(`cpu_match_${levelOf(room)}`);
         return;
       }
       case 'roll': {
         const game = this.playableGame(user, 'roll');
-        await this.apply(applyRoll(game, drawDie()));
+        this.clearMissesOf(user.userId);
+        await this.apply(rollAndSettle(game, drawDie(), settingsOf(room).quick));
         return;
       }
       case 'move': {
         const game = this.playableGame(user, 'move');
         if (!game.legalHorses.includes(msg.horse)) throw new RoomError('illegal_move', 'Quân này không đi được.');
+        this.clearMissesOf(user.userId);
         await this.apply(applyMove(game, msg.horse));
         return;
       }
@@ -405,6 +429,7 @@ export class RoomDO extends DurableObject<Env> {
         room.game = null;
         room.dueAt = null;
         room.actionDueAt = null;
+        clearMisses(room);
         // A fresh start for everyone: time spent disconnected during the game does not count against a seat.
         for (const id of Object.keys(room.disconnectedSince)) room.disconnectedSince[id] = now;
         await this.commit([]);
@@ -413,6 +438,20 @@ export class RoomDO extends DurableObject<Env> {
       case 'leave':
         await this.leave(user.userId);
         return;
+      case 'back': {
+        const i = seatIndexOfUser(room, user.userId);
+        const seat = room.seats[i];
+        if (!seat?.misses) return;
+        const wasAuto = isAutopilot(seat);
+        delete seat.misses;
+        if (wasAuto && room.status === 'playing' && currentSeatIndex(room) === i) {
+          // Control is theirs again with a full turn; while paused the clocks stand at the pause start and resuming moves them on.
+          const from = isPaused(room) ? (room.pausedAt ?? now) : now;
+          planTurn(room, this.connectedUsers(), from, this.roomTimings(room));
+        }
+        await this.commit([]);
+        return;
+      }
       case 'horseNames': {
         if (!this.nameBudget.take(user.userId, now)) throw new RoomError('too_fast', 'Bạn thao tác quá nhanh, vui lòng chậm lại.');
         const seat = room.seats[seatIndexOfUser(room, user.userId)];
@@ -433,7 +472,7 @@ export class RoomDO extends DurableObject<Env> {
       case 'resume': {
         needHostBudget();
         if (!isPaused(room)) throw new RoomError('bad_state', 'Ván đấu không tạm dừng.');
-        resumeGame(room, this.connectedUsers(), now, this.timings);
+        resumeGame(room, this.connectedUsers(), now, this.roomTimings(room));
         await this.commit([]);
         return;
       }
@@ -455,6 +494,18 @@ export class RoomDO extends DurableObject<Env> {
         await this.closeRoom('closed_by_host', 'Chủ phòng đã đóng phòng.');
         return;
     }
+  }
+
+  /** Timings of one room: the object's base timings with the room's turn time. */
+  private roomTimings(room: RoomState): RoomTimings {
+    return timingsOf(room, this.timings);
+  }
+
+  /** A human's own roll or move ends their run of missed turns. */
+  private clearMissesOf(userId: string): void {
+    const room = this.room;
+    const seat = room?.seats[room ? seatIndexOfUser(room, userId) : -1];
+    if (seat) delete seat.misses;
   }
 
   /** The running game when it is `user`'s turn in `phase`; otherwise throws the matching error. */
@@ -479,11 +530,11 @@ export class RoomDO extends DurableObject<Env> {
     room.game = result.state;
     if (result.state.phase === 'finished') {
       room.status = 'finished';
-      this.count('match_finished');
+      this.countFinished(room);
       room.dueAt = null;
       room.actionDueAt = null;
     } else {
-      planTurn(room, this.connectedUsers(), Date.now(), this.timings);
+      planTurn(room, this.connectedUsers(), Date.now(), this.roomTimings(room), segmentsOf(result.events));
     }
     await this.commit(result.events);
   }
@@ -491,6 +542,12 @@ export class RoomDO extends DurableObject<Env> {
   /** Counts a match milestone in the launch funnel without delaying the room. */
   private count(event: Extract<ServerEvent, `match_${string}` | `cpu_match_${string}`>): void {
     this.ctx.waitUntil(countEvent(this.env, event, NO_SOURCE));
+  }
+
+  /** A match ended: counted generally and, in addition, as a quick match when it was one. */
+  private countFinished(room: RoomState): void {
+    this.count('match_finished');
+    if (settingsOf(room).quick) this.count('match_finished_quick');
   }
 
   private async leave(userId: string): Promise<void> {
@@ -510,7 +567,7 @@ export class RoomDO extends DurableObject<Env> {
     if (room.status === 'playing' && currentSeatIndex(room) === i) {
       // While paused the clocks stand at the pause start; resuming moves them on from there.
       const from = isPaused(room) ? (room.pausedAt ?? Date.now()) : Date.now();
-      room.dueAt = Math.min(room.dueAt ?? Infinity, from + this.timings.cpuDelayMs);
+      room.dueAt = Math.min(room.dueAt ?? Infinity, from + paceMs(room, this.timings));
       room.actionDueAt = null;
     }
     await this.commit([]);
@@ -527,7 +584,7 @@ export class RoomDO extends DurableObject<Env> {
     const room = this.room;
     if (!room) return;
     const connected = this.connectedUsers(closing);
-    reconcileConnections(room, connected, Date.now(), this.timings);
+    reconcileConnections(room, connected, Date.now(), this.roomTimings(room));
     if (this.closeIfAbandoned(room)) return;
     room.seq += 1;
     await this.persistAndSchedule();
@@ -549,7 +606,7 @@ export class RoomDO extends DurableObject<Env> {
   private async onConnectionChange(before: string, closing?: WebSocket): Promise<boolean> {
     const room = this.room;
     if (!room) return false;
-    reconcileConnections(room, this.connectedUsers(closing), Date.now(), this.timings);
+    reconcileConnections(room, this.connectedUsers(closing), Date.now(), this.roomTimings(room));
     if (JSON.stringify(room) === before) return false;
     await this.commit([], closing);
     return true;
@@ -672,7 +729,7 @@ export class RoomDO extends DurableObject<Env> {
     if (this.room !== room) return;
     const before = JSON.stringify(room);
     const connected = this.connectedUsers();
-    reconcileConnections(room, connected, now, this.timings);
+    reconcileConnections(room, connected, now, this.roomTimings(room));
 
     if (room.noHumanConnectedSince !== null && now >= room.noHumanConnectedSince + this.timings.idleCloseMs) {
       await this.closeRoom();
@@ -690,13 +747,13 @@ export class RoomDO extends DurableObject<Env> {
         delete room.disconnectedSince[userId];
         vacated = true;
       }
-      if (vacated) reconcileConnections(room, connected, now, this.timings);
+      if (vacated) reconcileConnections(room, connected, now, this.roomTimings(room));
     } else if (room.status === 'playing' && !isPaused(room) && room.noHumanConnectedSince === null && room.dueAt !== null && now >= room.dueAt && room.game) {
       // With nobody watching, or paused by the host, the game stays frozen.
-      const played = playDueAction(room, connected, now, this.timings);
+      const played = playDueAction(room, connected, now, this.roomTimings(room));
       if (played) {
         events = played.events;
-        if (played.finished) this.count('match_finished');
+        if (played.finished) this.countFinished(room);
       }
     }
 
