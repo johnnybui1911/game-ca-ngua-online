@@ -123,7 +123,7 @@ function SignUpForm() {
             {serverError}
           </p>
         )}
-        <button type="submit" className="btn btn-primary" data-testid="signup-submit" disabled={busy}>
+        <button type="submit" className="ui-btn ui-btn--primary" data-testid="signup-submit" disabled={busy}>
           {busy ? 'Đang lưu…' : guest ? 'Lưu tài khoản' : 'Đăng ký'}
         </button>
       </form>

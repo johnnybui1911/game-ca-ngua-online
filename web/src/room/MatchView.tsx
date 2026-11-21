@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 import { useNavigate } from 'react-router';
 import { isLocked } from '../../../shared/game/engine';
 import { HORSES_PER_COLOR, POS_GATE, type Color } from '../../../shared/game/types';
@@ -20,10 +20,12 @@ import { EmoteBubble, EmoteLive } from './EmoteBubble';
 import { EmotePicker } from './EmotePicker';
 import type { EmoteBySeat } from './emote-feed';
 import { HorseNamesDialog } from './HorseNamesDialog';
+import { Modal } from './Modal';
 import { RulesButton, RulesSheet } from './RulesSheet';
 import { describeMove } from './move-text';
 import { useShakeToRoll } from './shake';
 import { reserveInsets, type ReservedInsets } from '../scene/camera';
+import { Icon } from '../ui/Icon';
 
 /** Seconds left on the local player's action at which the reminder sounds. */
 const REMINDER_SECONDS = 10;
@@ -219,6 +221,7 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
       : myTurn
         ? 'Lượt của bạn'
         : `Lượt của ${seatName(turnSeat)}`;
+  const lowTime = seconds !== null && seconds <= REMINDER_SECONDS && myTurn && !paused;
   return (
     <div
       className="match"
@@ -249,31 +252,51 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
             const occ = s.occupant;
             const home = (game.horses[s.color] ?? []).filter((p) => p > POS_GATE).length;
             const active = !finished && game.turn === s.color;
+            const locked = quickGame && isLocked(game, s.color);
             return (
               <li
                 key={s.color}
-                className={`hud-player${active ? ' is-turn' : ''}${quickGame ? ' hud-player-quick' : ''}`}
-                style={{ borderColor: COLOR_VARS[s.color] }}
+                className={`hud-player${active ? ' is-turn' : ''}${s === mySeat ? ' is-mine' : ''}`}
+                style={{ '--seat-color': COLOR_VARS[s.color] } as CSSProperties}
                 data-testid={`hud-player-${s.color}`}
                 data-active={active}
               >
-                <span className="seat-dot" style={{ background: COLOR_VARS[s.color] }} title={COLOR_NAMES[s.color]} />
-                <span className="hud-name">{seatName(s)}</span>
-                {occ?.kind === 'cpu' && <span className="badge">CPU · {CPU_LEVEL_LABELS[cpuLevelOf(room)]}</span>}
-                {occ?.kind === 'human' && !occ.connected && <span className="badge badge-warn">Offline</span>}
-                {s.auto && s !== mySeat && (
-                  <span className="badge" data-testid={`auto-tag-${s.color}`}>
-                    (tự động)
-                  </span>
-                )}
-                <span className="hud-home" title="Quân đã về đích">
-                  {home}/{HORSES_PER_COLOR}
+                <span className="seat-dot" title={COLOR_NAMES[s.color]}>
+                  {occ?.kind === 'cpu' && <Icon name="bot" size="sm" />}
                 </span>
-                {quickGame && (
-                  <span className="lock-badge" data-testid={`lock-${s.color}`} data-locked={isLocked(game, s.color)}>
-                    {isLocked(game, s.color) ? `🔒 ${LOCKED_LABEL}` : `🔓 ${UNLOCKED_LABEL}`}
+                <span className="hud-player-main">
+                  <span className="hud-name">{seatName(s)}</span>
+                  <span className="hud-badges">
+                    {occ?.kind === 'cpu' && <span className="badge">CPU · {CPU_LEVEL_LABELS[cpuLevelOf(room)]}</span>}
+                    {occ?.kind === 'human' && !occ.connected && (
+                      <span className="badge badge-warn">
+                        <Icon name="wifi-off" size="sm" />
+                        Offline
+                      </span>
+                    )}
+                    {s.auto && s !== mySeat && (
+                      <span className="badge" data-testid={`auto-tag-${s.color}`}>
+                        (tự động)
+                      </span>
+                    )}
+                    {quickGame && (
+                      <span className={`badge lock-badge${locked ? ' is-locked' : ''}`} data-testid={`lock-${s.color}`} data-locked={locked}>
+                        <Icon name={locked ? 'lock' : 'unlock'} size="sm" />
+                        <span className="lock-label">{locked ? LOCKED_LABEL : UNLOCKED_LABEL}</span>
+                      </span>
+                    )}
                   </span>
-                )}
+                </span>
+                <span className="hud-home" title="Quân đã về đích" aria-label={`${home}/${HORSES_PER_COLOR} quân đã về đích`}>
+                  <span className="hud-home-pips" aria-hidden="true">
+                    {Array.from({ length: HORSES_PER_COLOR }, (_, i) => (
+                      <span key={i} className={i < home ? 'is-home' : undefined} />
+                    ))}
+                  </span>
+                  <span aria-hidden="true">
+                    {home}/{HORSES_PER_COLOR}
+                  </span>
+                </span>
                 <EmoteBubble seat={room.seats.indexOf(s)} emote={emotes[room.seats.indexOf(s)]} mine={s === mySeat} />
               </li>
             );
@@ -282,29 +305,43 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
 
       <EmoteLive emotes={emotes} mySeat={mySeat ? room.seats.indexOf(mySeat) : -1} nameOf={(i) => seatName(room.seats[i])} />
 
-      <section className="hud-bottom" aria-label="Điều khiển" ref={hud.bottomRef}>
+      <section className={`glass hud-bottom${myTurn && !paused ? ' is-my-turn' : ''}`} aria-label="Điều khiển" ref={hud.bottomRef}>
         <div className="hud-line">
-          {room.settings.quick && (
-            <span className="badge badge-quick" data-testid="quick-tag">
-              Ván nhanh
-            </span>
-          )}
-          <p className="turn-banner" data-testid="turn-banner" aria-live="polite">
-            {turnText}
-          </p>
+          <span
+            className="dice"
+            data-testid="dice-value"
+            aria-label="Xúc xắc"
+            style={lastRoll ? ({ '--seat-color': COLOR_VARS[lastRoll.color] } as CSSProperties) : undefined}
+          >
+            {lastRoll?.dice ?? '–'}
+          </span>
+          <div className="turn-info">
+            {room.settings.quick && (
+              <span className="badge badge-quick" data-testid="quick-tag">
+                Ván nhanh
+              </span>
+            )}
+            <p
+              className="turn-banner"
+              data-testid="turn-banner"
+              aria-live="polite"
+              style={turnSeat && !finished ? ({ '--seat-color': COLOR_VARS[turnSeat.color] } as CSSProperties) : undefined}
+            >
+              {turnText}
+            </p>
+          </div>
           {seconds !== null && !finished && (
-            <span className="countdown" data-testid="countdown">
+            <span className={`countdown${lowTime ? ' is-low' : ''}`} data-testid="countdown">
+              <Icon name="timer" size="sm" />
               {seconds} giây
             </span>
           )}
           <RulesButton onClick={() => setRulesOpen(true)} />
-          <span className="dice" data-testid="dice-value" aria-label="Xúc xắc" style={lastRoll ? { borderColor: COLOR_VARS[lastRoll.color] } : undefined}>
-            {lastRoll?.dice ?? '–'}
-          </span>
         </div>
 
         {showKickHint && (
           <p className="need-kick" role="status" data-testid="need-kick-hint">
+            <Icon name="lock" size="sm" />
             {NEED_KICK_HINT}
           </p>
         )}
@@ -312,7 +349,7 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
         {mySeat?.auto && !finished && (
           <div className="autopilot-banner" role="status" data-testid="autopilot-banner">
             <span>Đang chơi tự động vì bạn không thao tác.</span>
-            <button type="button" className="btn btn-primary" data-testid="autopilot-back" onClick={() => send({ t: 'back' })}>
+            <button type="button" className="ui-btn ui-btn--primary" data-testid="autopilot-back" onClick={() => send({ t: 'back' })}>
               Tôi đã quay lại
             </button>
           </div>
@@ -326,12 +363,14 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
 
         <div className="hud-actions">
           {canRoll && (
-            <button type="button" className="btn btn-primary btn-roll" data-testid="roll-button" onClick={() => send({ t: 'roll' })}>
+            <button type="button" className="ui-btn ui-btn--hero btn-roll" data-testid="roll-button" onClick={() => send({ t: 'roll' })}>
+              <Icon name="dice" size="lg" />
               {shake.enabled ? 'Đổ xúc xắc (hoặc lắc máy)' : 'Đổ xúc xắc'}
             </button>
           )}
           {canRoll && shake.supported && !shake.enabled && (
-            <button type="button" className="btn btn-secondary" data-testid="enable-shake" onClick={() => shake.setEnabled(true)}>
+            <button type="button" className="ui-btn ui-btn--secondary" data-testid="enable-shake" onClick={() => shake.setEnabled(true)}>
+              <Icon name="shake" />
               Bật lắc để đổ
             </button>
           )}
@@ -342,28 +381,32 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
               <button
                 type="button"
                 key={horse}
-                className="btn btn-primary btn-move"
+                className="ui-btn ui-btn--primary btn-move"
                 data-testid={`move-button-${horse}`}
                 onClick={() => send({ t: 'move', horse })}
               >
                 {describeMove(game, horse, turnNames)}
               </button>
             ))}
-          <EmotePicker send={send} offline={offline} />
-          <button type="button" className="btn btn-secondary" data-testid="match-menu-button" onClick={() => setMenuOpen(true)}>
-            Menu
-          </button>
-          <button type="button" className="btn btn-secondary btn-leave" data-testid="leave-room" onClick={() => setConfirmLeave(true)}>
-            Rời phòng
-          </button>
+          <span className="hud-tools">
+            <EmotePicker send={send} offline={offline} />
+            <button type="button" className="ui-btn ui-btn--icon" aria-label="Menu" data-testid="match-menu-button" onClick={() => setMenuOpen(true)}>
+              <Icon name="menu" />
+            </button>
+            <button type="button" className="ui-btn ui-btn--icon btn-leave" aria-label="Rời phòng" data-testid="leave-room" onClick={() => setConfirmLeave(true)}>
+              <Icon name="leave" />
+            </button>
+          </span>
         </div>
       </section>
 
       {paused && !finished && (
-        <div className="pause-banner" role="status" data-testid="pause-banner">
+        <div className="glass pause-banner" role="status" data-testid="pause-banner">
+          <Icon name="pause" size="xl" />
           <strong>Chủ phòng đã tạm dừng ván đấu</strong>
           {isHost && (
-            <button type="button" className="btn btn-primary" data-testid="resume-button" onClick={() => send({ t: 'resume' })}>
+            <button type="button" className="ui-btn ui-btn--primary" data-testid="resume-button" onClick={() => send({ t: 'resume' })}>
+              <Icon name="play" />
               Tiếp tục
             </button>
           )}
@@ -371,78 +414,87 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
       )}
 
       {menuOpen && (
-        <div className="dialog-backdrop">
-          <div className="card dialog" role="dialog" aria-modal="true" aria-labelledby="menu-title" data-testid="match-menu">
-            <h2 id="menu-title">Menu</h2>
+        <Modal labelledBy="menu-title" testId="match-menu" className="match-menu" onClose={() => setMenuOpen(false)}>
+          <h2 id="menu-title" className="ui-title dialog-title">
+            Menu
+          </h2>
+          <div className="menu-settings">
             <SoundSwitches />
             {shake.supported && (
-              <label className="shake-switch">
+              <label className="sound-switch">
+                <Icon name="shake" />
+                <span>Lắc máy để đổ xúc xắc</span>
                 <input
                   type="checkbox"
+                  role="switch"
+                  className="switch-input"
                   data-testid="shake-toggle"
                   checked={shake.enabled}
                   onChange={(e) => shake.setEnabled(e.target.checked)}
                 />
-                Lắc máy để đổ xúc xắc
               </label>
             )}
-            <div className="dialog-actions">
+          </div>
+          <div className="dialog-actions">
+            <button
+              type="button"
+              className="ui-btn ui-btn--secondary"
+              data-testid="menu-rules"
+              onClick={() => {
+                setMenuOpen(false);
+                setRulesOpen(true);
+              }}
+            >
+              <Icon name="rules" />
+              Luật chơi
+            </button>
+            {mySeat && (
               <button
                 type="button"
-                className="btn btn-secondary"
-                data-testid="menu-rules"
+                className="ui-btn ui-btn--secondary"
+                data-testid="rename-horses"
                 onClick={() => {
                   setMenuOpen(false);
-                  setRulesOpen(true);
+                  setRenaming(true);
                 }}
               >
-                Luật chơi
+                <Icon name="pencil" />
+                Đặt tên quân
               </button>
-              {mySeat && (
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  data-testid="rename-horses"
-                  onClick={() => {
-                    setMenuOpen(false);
-                    setRenaming(true);
-                  }}
-                >
-                  Đặt tên quân
-                </button>
-              )}
-              {isHost && !finished && (
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  data-testid={paused ? 'menu-resume' : 'pause-button'}
-                  onClick={() => {
-                    send({ t: paused ? 'resume' : 'pause' });
-                    setMenuOpen(false);
-                  }}
-                >
-                  {paused ? 'Tiếp tục ván đấu' : 'Tạm dừng ván đấu'}
-                </button>
-              )}
-              {isHost && !finished && (
-                <button
-                  type="button"
-                  className="btn btn-danger"
-                  data-testid="close-room"
-                  onClick={() => {
-                    setMenuOpen(false);
-                    setConfirmClose(true);
-                  }}
-                >
-                  Đóng phòng
-                </button>
-              )}
-              <button type="button" className="btn btn-primary" data-testid="menu-close" onClick={() => setMenuOpen(false)}>
-                Đóng
+            )}
+            {isHost && !finished && (
+              <button
+                type="button"
+                className="ui-btn ui-btn--secondary"
+                data-testid={paused ? 'menu-resume' : 'pause-button'}
+                onClick={() => {
+                  send({ t: paused ? 'resume' : 'pause' });
+                  setMenuOpen(false);
+                }}
+              >
+                <Icon name={paused ? 'play' : 'pause'} />
+                {paused ? 'Tiếp tục ván đấu' : 'Tạm dừng ván đấu'}
               </button>
-            </div>
+            )}
+            {isHost && !finished && (
+              <button
+                type="button"
+                className="ui-btn ui-btn--danger"
+                data-testid="close-room"
+                onClick={() => {
+                  setMenuOpen(false);
+                  setConfirmClose(true);
+                }}
+              >
+                <Icon name="close" />
+                Đóng phòng
+              </button>
+            )}
+            <button type="button" className="ui-btn ui-btn--primary" data-testid="menu-close" data-autofocus onClick={() => setMenuOpen(false)}>
+              Đóng
+            </button>
           </div>
-        </div>
+        </Modal>
       )}
 
       {rulesOpen && <RulesSheet settings={room.settings} secondsLeft={myTurn && !finished ? seconds : null} onClose={() => setRulesOpen(false)} />}
@@ -461,67 +513,73 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
       )}
 
       {confirmClose && !finished && (
-        <div className="dialog-backdrop">
-          <div className="card dialog" role="dialog" aria-modal="true" aria-labelledby="close-title" data-testid="close-dialog">
-            <h2 id="close-title">Đóng phòng?</h2>
-            <p>Ván đấu sẽ bị huỷ và mọi người sẽ rời phòng.</p>
-            <div className="dialog-actions">
-              <button type="button" className="btn btn-danger" data-testid="close-confirm" onClick={closeRoom}>
-                Đóng phòng
-              </button>
-              <button type="button" className="btn btn-secondary" data-testid="close-cancel" onClick={() => setConfirmClose(false)}>
-                Huỷ
-              </button>
-            </div>
+        <Modal labelledBy="close-title" testId="close-dialog" onClose={() => setConfirmClose(false)}>
+          <h2 id="close-title" className="ui-title dialog-title">
+            Đóng phòng?
+          </h2>
+          <p className="ui-muted">Ván đấu sẽ bị huỷ và mọi người sẽ rời phòng.</p>
+          <div className="dialog-actions">
+            <button type="button" className="ui-btn ui-btn--danger" data-testid="close-confirm" onClick={closeRoom}>
+              <Icon name="close" />
+              Đóng phòng
+            </button>
+            <button type="button" className="ui-btn ui-btn--secondary" data-testid="close-cancel" data-autofocus onClick={() => setConfirmClose(false)}>
+              Huỷ
+            </button>
           </div>
-        </div>
+        </Modal>
       )}
 
       {confirmLeave && !finished && (
-        <div className="dialog-backdrop">
-          <div className="card dialog" role="dialog" aria-modal="true" aria-labelledby="leave-title" data-testid="leave-dialog">
-            <h2 id="leave-title">Rời phòng?</h2>
-            <p>Máy sẽ chơi thay bạn đến hết ván.</p>
-            <div className="dialog-actions">
-              <button type="button" className="btn btn-primary" data-testid="leave-confirm" onClick={leave}>
-                Rời phòng
-              </button>
-              <button type="button" className="btn btn-secondary" data-testid="leave-cancel" onClick={() => setConfirmLeave(false)}>
-                Ở lại
-              </button>
-            </div>
+        <Modal labelledBy="leave-title" testId="leave-dialog" onClose={() => setConfirmLeave(false)}>
+          <h2 id="leave-title" className="ui-title dialog-title">
+            Rời phòng?
+          </h2>
+          <p className="ui-muted">Máy sẽ chơi thay bạn đến hết ván.</p>
+          <div className="dialog-actions">
+            <button type="button" className="ui-btn ui-btn--primary" data-testid="leave-confirm" onClick={leave}>
+              <Icon name="leave" />
+              Rời phòng
+            </button>
+            <button type="button" className="ui-btn ui-btn--secondary" data-testid="leave-cancel" data-autofocus onClick={() => setConfirmLeave(false)}>
+              Ở lại
+            </button>
           </div>
-        </div>
+        </Modal>
       )}
 
       {finished && (
-        <div className="dialog-backdrop">
-          <div className="card dialog" role="dialog" aria-modal="true" aria-labelledby="win-title" data-testid="win-dialog">
-            <h2 id="win-title" data-testid="win-title">
-              {seatName(winnerSeat)} thắng!
-            </h2>
-            {quickGame && (
-              <p data-testid="win-condition">{QUICK_WIN_TEXT}</p>
-            )}
-            <div className="dialog-actions">
-              {isHost ? (
-                <button type="button" className="btn btn-primary" data-testid="rematch-button" onClick={() => send({ t: 'rematch' })}>
-                  Chơi lại
-                </button>
-              ) : (
-                <p className="muted" data-testid="await-host">
-                  Chờ chủ phòng
-                </p>
-              )}
-              <button type="button" className="btn btn-secondary" data-testid="to-lobby" onClick={leave}>
-                Về sảnh
+        <Modal labelledBy="win-title" testId="win-dialog" className="win-dialog">
+          <span
+            className="win-emblem"
+            style={winnerSeat ? ({ '--seat-color': COLOR_VARS[winnerSeat.color] } as CSSProperties) : undefined}
+          >
+            <Icon name="win" size="xl" />
+          </span>
+          <h2 id="win-title" className="ui-title dialog-title win-title" data-testid="win-title">
+            {seatName(winnerSeat)} thắng!
+          </h2>
+          {quickGame && <p data-testid="win-condition">{QUICK_WIN_TEXT}</p>}
+          <div className="dialog-actions">
+            {isHost ? (
+              <button type="button" className="ui-btn ui-btn--hero" data-testid="rematch-button" data-autofocus onClick={() => send({ t: 'rematch' })}>
+                <Icon name="dice" size="lg" />
+                Chơi lại
               </button>
-            </div>
-            {offerSave && !saveDismissed && (
-              <SaveAccountBlock returnTo={`/r/${room.code}`} onDismiss={() => setSaveDismissed(true)} />
+            ) : (
+              <p className="ui-muted await-host" data-testid="await-host">
+                Chờ chủ phòng
+              </p>
             )}
+            <button type="button" className="ui-btn ui-btn--secondary" data-testid="to-lobby" onClick={leave}>
+              <Icon name="back" />
+              Về sảnh
+            </button>
           </div>
-        </div>
+          {offerSave && !saveDismissed && (
+            <SaveAccountBlock returnTo={`/r/${room.code}`} onDismiss={() => setSaveDismissed(true)} />
+          )}
+        </Modal>
       )}
     </div>
   );
