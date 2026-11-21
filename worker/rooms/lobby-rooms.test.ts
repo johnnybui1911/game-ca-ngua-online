@@ -121,9 +121,50 @@ describe('listRoom', () => {
   it('leaves another user\'s reservation alone when an existing room is listed again', () => {
     const rooms: Record<string, StoredRoom> = { A: room('A', { at: 3 }) };
     const pending: PendingCreates = new Map([['u2', [1000]]]);
-    const entry = listRoom(rooms, pending, listing('A', 'u2', false), 5);
+    const { entry } = listRoom(rooms, pending, listing('A', 'u2', false), 5);
     expect(pending.get('u2')).toEqual([1000]);
     expect(entry.at).toBe(3);
     expect(rooms.A?.hostId).toBe('u2');
+  });
+
+  it('reports an identical re-listing as unchanged and leaves the entry alone', () => {
+    const existing = room('A', { at: 3 });
+    const rooms: Record<string, StoredRoom> = { A: existing };
+    const { entry, changed } = listRoom(rooms, new Map(), listing('A', 'u1', false), 99);
+    expect(changed).toBe(false);
+    expect(entry).toBe(existing);
+    expect(rooms.A).toBe(existing);
+    expect(existing.at).toBe(3);
+  });
+
+  it('reports every differing field as a change', () => {
+    const base = listing('A', 'u1', false);
+    const variants = [
+      { ...base, summary: { ...base.summary, seatsTaken: 2 } },
+      { ...base, summary: { ...base.summary, status: 'playing' as const } },
+      { ...base, summary: { ...base.summary, name: 'Other' } },
+      { ...base, summary: { ...base.summary, hostName: 'Binh' } },
+      { ...base, visibility: 'private' as const },
+      { ...base, hostId: 'u2' },
+    ];
+    for (const variant of variants) {
+      const rooms: Record<string, StoredRoom> = { A: room('A', { at: 3 }) };
+      const { entry, changed } = listRoom(rooms, new Map(), variant, 99);
+      expect(changed).toBe(true);
+      expect(entry.at).toBe(3);
+    }
+  });
+
+  it('treats a real host arriving on a legacy entry without one as a change', () => {
+    const rooms: Record<string, StoredRoom> = { A: room('A', { hostId: null, at: 3 }) };
+    expect(listRoom(rooms, new Map(), listing('A', 'u1', false), 99).changed).toBe(true);
+    expect(rooms.A?.hostId).toBe('u1');
+  });
+
+  it('still consumes the reservation when the created listing matches the stored entry', () => {
+    const rooms: Record<string, StoredRoom> = { A: room('A', { at: 3 }) };
+    const pending: PendingCreates = new Map([['u1', [1000]]]);
+    expect(listRoom(rooms, pending, listing('A', 'u1', true), 5).changed).toBe(false);
+    expect(pending.has('u1')).toBe(false);
   });
 });
