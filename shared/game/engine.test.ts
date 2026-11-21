@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { applyMove, applyRoll, createGame, engine } from './engine';
 import { chooseCpuMove } from './cpu';
+import { mulberry32 } from './seeded-random';
 import {
   COLORS,
   POS_GATE,
@@ -283,16 +284,6 @@ describe('chooseCpuMove', () => {
     expect(pick(t, 6)).toBe(0);
   });
 });
-
-function mulberry32(seed: number): () => number {
-  let a = seed;
-  return () => {
-    a = (a + 0x6d2b79f5) | 0;
-    let t = Math.imul(a ^ (a >>> 15), 1 | a);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
 
 function assertConsistent(state: GameState): void {
   const cells = new Set<number>();

@@ -1,6 +1,6 @@
 ---
 title: CPU difficulty levels (Dễ / Thường / Khó) chosen by the host
-status: proposed
+status: accepted
 ---
 
 # CPU difficulty levels
@@ -31,7 +31,7 @@ The host of a waiting room picks how well the machine players play: **Dễ**, **
 
 ## Non-goals
 
-Per-seat levels (an option, see Open questions), difficulty in the public lobby list (`RoomSummary`), changing the level mid-game, adaptive/"learning" difficulty, machine-learning or search-based (expectimax/MCTS) players, changing CPU pacing (`cpuDelayMs`) per level, any rule change, difficulty for the dev harness beyond an optional URL parameter.
+Per-seat levels (not chosen, see Decisions), difficulty in the public lobby list (`RoomSummary`), changing the level mid-game, adaptive/"learning" difficulty, machine-learning or search-based (expectimax/MCTS) players, changing CPU pacing (`cpuDelayMs`) per level, any rule change, difficulty for the dev harness beyond an optional URL parameter.
 
 ## Level definitions
 
@@ -86,16 +86,33 @@ Read with `gh pr diff 16` (head `24481e8`). Overlapping files and symbols, and h
 
 Pause (`pausedAt`) and the level do not interact: no CPU move happens while paused (`alarm()` is gated), and the level cannot change outside `waiting`. Rebase of this branch after PR #16 lands is mechanical; the implementation worktree must start from `main` after the merge.
 
-## Open questions for the user
+## Decisions (accepted by the user)
 
-1. **Scope of the level**: room-level (default, recommended) or per-seat (each CPU seat has its own level, host picks when pressing "Thêm CPU")? Per-seat needs `level` on the cpu occupant (`StoredOccupant`, `SeatOccupant`), a message `{ t: 'addCpu', seat, level }` or a `setCpuLevel` per seat, a takeover rule (inherit the leaver's seat? the room's most common level?) and a per-seat label; roughly +1 phase.
-2. **Auto-play of a still-seated human** (timeout / disconnected): Thường (default) or the room level?
-3. **Strength thresholds** for the bench. Proposal (2 players, seats rotated, N ≥ 1000 games per matchup): Hard beats Normal with win rate ≥ 60% and the lower 95% bound > 55%; Normal beats Easy ≥ 60%; Hard beats Easy ≥ 70%. Dice dominate this game, so the heuristic ceiling is unknown until measured; if Hard cannot clear 60% against Normal, accept a lower bar (for example > 55% with the lower bound > 50%) or invest in a deeper search? We will report measured numbers, not assume them.
-4. **Easy flavour**: uniformly random with a 25% chance of playing the Thường move (default), or pure random? The 25% is a tunable constant; the bench decides whether Easy lands clearly below Normal.
-5. **Hard decision budget**: the alarm must stay far below the Workers free-tier CPU time limit (documented per invocation; verify the current figure in Cloudflare docs when implementing). Proposal: median < 1 ms and worst case < 5 ms per decision on the bench machine. OK?
-6. **Funnel counter** `cpu_match_<level>`: keep (default) or skip?
-7. **Control visibility**: show the level control always (default, since it governs takeover) or only once a CPU is seated?
-8. **Persist the choice across a user's rooms** (remember last pick in `localStorage` and send it right after creating a room)? Default: no, always start at Thường.
+1. Room-level difficulty, chosen by the host in the waiting room (Dễ / Thường / Khó), default Thường; an absent field in a stored room reads as Thường.
+2. A seated human auto-played after the turn clock or a disconnect uses Thường; the CPU that takes a seat after `leave` uses the room level.
+3. Strength thresholds (head-to-head, 2 players, seats rotated, N = 1000 per matchup with a 95% Wilson interval): Khó >= 60% vs Thường, Thường >= 60% vs Dễ, Khó >= 70% vs Dễ. The bar is not lowered silently: if Khó cannot reach 60% after honest tuning the measured numbers are reported instead.
+4. Dễ = the Thường move 25% of the time, otherwise a uniformly random legal move.
+5. Hard decision budget: median < 1 ms and 99th percentile < 5 ms per decision (asserted in `cpu-bench.test.ts`).
+6. Funnel counter `cpu_match_<level>` kept.
+7. The control is always shown to the host (it governs takeover too).
+8. The last pick is not remembered across rooms.
+
+## Measured strength
+
+Command: `CPU_BENCH=1 CPU_BENCH_GAMES=1000 npx vitest run shared/game/cpu-bench.test.ts --silent=false --reporter=verbose`. Hard's weights were tuned on seeds 1..5000 (coordinate descent against Thường, 2-player and 4-player games); the numbers below are on seeds that were never used for tuning.
+
+| Matchup | Games | Win rate of the first level | 95% interval | Threshold |
+|---|---|---|---|---|
+| 2p: Khó vs Thường | 1000 (seeds 1000000..) | 63.3% | 60.3-66.2% | >= 60% met |
+| 2p: Thường vs Dễ | 1000 | 88.2% | 86.1-90.1% | >= 60% met |
+| 2p: Khó vs Dễ | 1000 | 93.9% | 92.2-95.2% | >= 70% met |
+| 2p: Thường vs Thường (control) | 1000 | 52.5% | 49.4-55.6% | about 50% |
+| 4p: 1 Khó + 3 Thường | 1000 | 30.1% | 27.3-33.0% | no threshold (fair share 25%) |
+| 4p: 4 x Thường (control) | 1000 | 26.5% | 23.9-29.3% | about 25% |
+
+Larger confirmation for the main threshold (10000 games, seeds 2000000..): Khó vs Thường 62.4% +- 0.9; Khó vs Dễ 93.6% +- 0.5. Hard decision time over 1680 calls: median 0.011 ms, p99 0.033 ms, worst 2.1 ms.
+
+What Hard does beyond Thường: it scores each legal move (kick value by victim progress, threat to kick next turn, danger to own horses with opponents in the stable counted on their entry cell, finishing the home column in a feasible order, freeing the entry cell, preferring the leading horse). Heuristics for blocking opponent mobility and home-step bonuses were tried and removed because the bench showed no gain.
 
 ## Phases
 

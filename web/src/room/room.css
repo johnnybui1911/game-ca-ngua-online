@@ -590,3 +590,20 @@
   display: grid;
   gap: var(--space-2);
 }
+
+.cpu-level {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin: 0 0 12px;
+}
+.cpu-level-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.cpu-level-help {
+  flex-basis: 100%;
+  margin: 0;
+}

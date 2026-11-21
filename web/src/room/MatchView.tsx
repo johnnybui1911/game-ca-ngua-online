@@ -10,6 +10,7 @@ import { unconsumed, type StateBatch } from './batches';
 import { secondsLeft } from './countdown';
 import { lastRollAfter, type LastRoll } from './last-roll';
 import { COLOR_NAMES, COLOR_VARS } from './colors';
+import { CPU_LEVEL_LABELS, cpuLevelOf } from './cpu-levels';
 import { EmoteBubble, EmoteLive } from './EmoteBubble';
 import { EmotePicker } from './EmotePicker';
 import type { EmoteBySeat } from './emote-feed';
@@ -214,7 +215,7 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
               >
                 <span className="seat-dot" style={{ background: COLOR_VARS[s.color] }} title={COLOR_NAMES[s.color]} />
                 <span className="hud-name">{seatName(s)}</span>
-                {occ?.kind === 'cpu' && <span className="badge">CPU</span>}
+                {occ?.kind === 'cpu' && <span className="badge">CPU · {CPU_LEVEL_LABELS[cpuLevelOf(room)]}</span>}
                 {occ?.kind === 'human' && !occ.connected && <span className="badge badge-warn">Offline</span>}
                 <span className="hud-home" title="Quân đã về đích">
                   {home}/{HORSES_PER_COLOR}

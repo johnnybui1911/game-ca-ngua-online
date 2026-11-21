@@ -1,5 +1,5 @@
 import { DurableObject } from 'cloudflare:workers';
-import { NO_SOURCE } from '../../shared/analytics';
+import { NO_SOURCE, type ServerEvent } from '../../shared/analytics';
 import { applyMove, applyRoll, createGame } from '../../shared/game/engine';
 import { chooseCpuMove } from '../../shared/game/cpu';
 import type { GameEvent, StepResult } from '../../shared/game/types';
@@ -39,6 +39,9 @@ import {
 import {
   cleanHorseNames,
   currentSeatIndex,
+  levelForOccupant,
+  levelOf,
+  parseCpuLevel,
   drawDie,
   firstEmptySeat,
   humanUsers,
@@ -110,6 +113,11 @@ function parseClientMessage(text: string): RoomClientMessage {
       const names = cleanHorseNames(msg.names);
       if (!names) throw new RoomError('bad_name', `Tên quân tối đa ${MAX_HORSE_NAME} ký tự.`);
       return { t: 'horseNames', names };
+    }
+    case 'cpuLevel': {
+      const level = parseCpuLevel(msg.level);
+      if (!level) throw new RoomError('bad_message', 'Độ khó không hợp lệ.');
+      return { t: 'cpuLevel', level };
     }
     case 'emote':
       if (!isEmoteId(msg.id)) throw new RoomError('bad_emote', 'Biểu cảm không hợp lệ.');
@@ -356,6 +364,14 @@ export class RoomDO extends DurableObject<Env> {
         await this.commit([]);
         return;
       }
+      case 'cpuLevel': {
+        needHostBudget();
+        if (room.status !== 'waiting') throw new RoomError('bad_state', 'Chỉ đổi độ khó khi đang chờ.');
+        if (levelOf(room) === msg.level) return;
+        room.cpuLevel = msg.level;
+        await this.commit([]);
+        return;
+      }
       case 'start': {
         needHost();
         if (room.status !== 'waiting') throw new RoomError('bad_state', 'Ván đấu đã bắt đầu.');
@@ -367,6 +383,7 @@ export class RoomDO extends DurableObject<Env> {
         planTurn(room, this.connectedUsers(), now, this.timings);
         await this.commit([]);
         this.count(humanUsers(room).length > 1 ? 'match_started_group' : 'match_started_solo');
+        if (room.seats.some((s) => s.occupant?.kind === 'cpu')) this.count(`cpu_match_${levelOf(room)}`);
         return;
       }
       case 'roll': {
@@ -471,7 +488,7 @@ export class RoomDO extends DurableObject<Env> {
   }
 
   /** Counts a match milestone in the launch funnel without delaying the room. */
-  private count(event: 'match_started_solo' | 'match_started_group' | 'match_finished'): void {
+  private count(event: Extract<ServerEvent, `match_${string}` | `cpu_match_${string}`>): void {
     this.ctx.waitUntil(countEvent(this.env, event, NO_SOURCE));
   }
 
@@ -669,7 +686,7 @@ export class RoomDO extends DurableObject<Env> {
         game.phase === 'roll'
           ? applyRoll(game, drawDie())
           : game.phase === 'move'
-            ? applyMove(game, chooseCpuMove(game))
+            ? applyMove(game, chooseCpuMove(game, levelForOccupant(room, room.seats[currentSeatIndex(room)]?.occupant ?? null)))
             : null;
       if (result) {
         room.game = result.state;
