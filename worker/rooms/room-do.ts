@@ -390,7 +390,7 @@ export class RoomDO extends DurableObject<Env> {
       case 'horseNames': {
         if (!this.nameBudget.take(user.userId, now)) throw new RoomError('too_fast', 'Bạn thao tác quá nhanh, vui lòng chậm lại.');
         const seat = room.seats[seatIndexOfUser(room, user.userId)];
-        if (!seat) return;
+        if (!seat) throw new RoomError('not_seated', 'Bạn không có chỗ trong phòng này.');
         if (msg.names.every((n) => n === '')) delete seat.horseNames;
         else seat.horseNames = msg.names;
         await this.commit([]);

@@ -13,12 +13,14 @@ describe('createShakeDetector', () => {
     expect(detect({ x: 0, y: -14, z: -8 }, 30)).toBe(true);
   });
 
-  it('rolls once per shake: jolts inside the cooldown are ignored, the next shake fires again', () => {
+  it('fires once per shake: jolts keep restarting the quiet period, a later shake fires again', () => {
     const detect = createShakeDetector(15, 1000);
     detect(still, 0);
     expect(detect(jolt, 100)).toBe(true);
     expect(detect(still, 200)).toBe(false);
     expect(detect(jolt, 900)).toBe(false);
-    expect(detect(still, 1100)).toBe(true);
+    // Coming back to rest 1.1 s after the first jolt is still the same shake.
+    expect(detect(still, 1100)).toBe(false);
+    expect(detect(jolt, 2200)).toBe(true);
   });
 });

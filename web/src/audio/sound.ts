@@ -141,15 +141,19 @@ class SoundEngine {
     this.syncMusic();
   }
 
-  /** Attaches the one-time gesture listeners that create the audio context. */
+  /**
+   * Attaches the gesture listeners that create and resume the audio context. A finger's
+   * `pointerdown` is not a user activation, so touch devices unlock on `pointerup`/`touchend`/`click`;
+   * the listeners stay until the context is actually running.
+   */
   install(): void {
+    const events = ['pointerup', 'touchend', 'click', 'keydown'] as const;
     const unlock = () => {
-      this.unlock();
-      window.removeEventListener('pointerdown', unlock, true);
-      window.removeEventListener('keydown', unlock, true);
+      void this.unlock().then((running) => {
+        if (running) for (const e of events) window.removeEventListener(e, unlock, true);
+      });
     };
-    window.addEventListener('pointerdown', unlock, true);
-    window.addEventListener('keydown', unlock, true);
+    for (const e of events) window.addEventListener(e, unlock, true);
     document.addEventListener('visibilitychange', () => {
       if (!this.ctx) return;
       if (document.hidden) void this.ctx.suspend();
@@ -207,22 +211,27 @@ class SoundEngine {
 
   // ----------------------------------------------------------------- internals
 
-  private unlock(): void {
-    if (this.ctx) {
-      void this.ctx.resume();
-      return;
+  /** Creates the context on first call and resumes it; resolves whether it is running. */
+  private async unlock(): Promise<boolean> {
+    if (typeof AudioContext === 'undefined') return false;
+    if (!this.ctx) {
+      const ctx = new AudioContext();
+      this.ctx = ctx;
+      this.master = ctx.createGain();
+      this.master.gain.value = 0.8;
+      this.master.connect(ctx.destination);
+      const buffer = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+      this.noise = buffer;
+      this.syncMusic();
     }
-    if (typeof AudioContext === 'undefined') return;
-    const ctx = new AudioContext();
-    this.ctx = ctx;
-    this.master = ctx.createGain();
-    this.master.gain.value = 0.8;
-    this.master.connect(ctx.destination);
-    const buffer = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
-    const data = buffer.getChannelData(0);
-    for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
-    this.noise = buffer;
-    this.syncMusic();
+    try {
+      await this.ctx.resume();
+    } catch {
+      // not a user activation yet; a later gesture retries
+    }
+    return this.ctx.state === 'running';
   }
 
   private effectsContext(): AudioContext | null {

@@ -154,7 +154,9 @@ export default function SceneContent({
     assets.haloMat.opacity = 0.55 + 0.4 * state.tap;
     director.update(dt);
     // Labels are DOM nodes over the canvas: place each one above its horse, hidden with it.
+    // Matrices are refreshed here because the renderer only updates them after this callback.
     if (!labels) return;
+    camera.updateMatrixWorld();
     for (let color = 0; color < labels.length; color++) {
       const row = labels[color] ?? [];
       for (let horse = 0; horse < row.length; horse++) {
@@ -165,7 +167,7 @@ export default function SceneContent({
           el.style.display = 'none';
           continue;
         }
-        projected.setFromMatrixPosition(group.matrixWorld);
+        group.getWorldPosition(projected);
         projected.y += LABEL_HEIGHT;
         projected.project(camera);
         if (projected.z > 1) {

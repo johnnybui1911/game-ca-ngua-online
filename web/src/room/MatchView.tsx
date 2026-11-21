@@ -139,7 +139,8 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError 
   const canRoll = myTurn && !paused && game?.phase === 'roll';
   useMusic('game');
   useGameSounds(batches, myTurn && !paused, seconds, room.turnDeadline);
-  const shake = useShakeToRoll(canRoll, () => send({ t: 'roll' }));
+  const dialogOpen = menuOpen || renaming || confirmLeave || confirmClose;
+  const shake = useShakeToRoll(canRoll && !dialogOpen, () => send({ t: 'roll' }));
   if (!game) return null;
 
   const turnSeat = room.seats.find((s) => s.color === game.turn);
@@ -241,7 +242,7 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError 
             </button>
           )}
           {canRoll && shake.supported && !shake.enabled && (
-            <button type="button" className="btn btn-secondary" data-testid="enable-shake" onClick={shake.enable}>
+            <button type="button" className="btn btn-secondary" data-testid="enable-shake" onClick={() => shake.setEnabled(true)}>
               Bật lắc để đổ
             </button>
           )}
@@ -284,6 +285,17 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError 
           <div className="card dialog" role="dialog" aria-modal="true" aria-labelledby="menu-title" data-testid="match-menu">
             <h2 id="menu-title">Menu</h2>
             <SoundSwitches />
+            {shake.supported && (
+              <label className="shake-switch">
+                <input
+                  type="checkbox"
+                  data-testid="shake-toggle"
+                  checked={shake.enabled}
+                  onChange={(e) => shake.setEnabled(e.target.checked)}
+                />
+                Lắc máy để đổ xúc xắc
+              </label>
+            )}
             <div className="dialog-actions">
               {mySeat && (
                 <button

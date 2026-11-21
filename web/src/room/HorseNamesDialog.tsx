@@ -14,9 +14,13 @@ interface Props {
 /** Renames the four horses of the local player's colour; an empty field keeps the number. */
 export function HorseNamesDialog({ color, names, send, onClose }: Props) {
   const [draft, setDraft] = useState(() => Array.from({ length: HORSES_PER_COLOR }, (_, i) => names[i] ?? ''));
+  // Same measure as the server: characters (code points) after NFC, so emoji and NFD input count fairly.
+  const tooLong = draft.map((n) => [...n.trim().normalize('NFC')].length > MAX_HORSE_NAME);
+  const invalid = tooLong.some(Boolean);
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
+    if (invalid) return;
     send({ t: 'horseNames', names: draft.map((n) => n.trim()) });
     onClose();
   };
@@ -37,7 +41,7 @@ export function HorseNamesDialog({ color, names, send, onClose }: Props) {
               <input
                 data-testid={`horse-name-${i}`}
                 value={value}
-                maxLength={MAX_HORSE_NAME}
+                aria-invalid={tooLong[i]}
                 placeholder={`Quân ${i + 1}`}
                 aria-label={`Tên quân ${i + 1}`}
                 onChange={(e) => setDraft((d) => d.map((n, j) => (j === i ? e.target.value : n)))}
@@ -45,8 +49,13 @@ export function HorseNamesDialog({ color, names, send, onClose }: Props) {
             </label>
           ))}
         </div>
+        {invalid && (
+          <p className="form-error" role="alert" data-testid="horse-names-error">
+            Tên quân tối đa {MAX_HORSE_NAME} ký tự.
+          </p>
+        )}
         <div className="dialog-actions">
-          <button type="submit" className="btn btn-primary" data-testid="horse-names-save">
+          <button type="submit" className="btn btn-primary" data-testid="horse-names-save" disabled={invalid}>
             Lưu tên
           </button>
           <button type="button" className="btn btn-secondary" data-testid="horse-names-cancel" onClick={onClose}>
