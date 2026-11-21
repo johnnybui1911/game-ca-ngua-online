@@ -1,6 +1,6 @@
 ---
 title: Quick emotes (preset chat bubbles)
-status: proposed
+status: accepted
 ---
 
 # Quick emotes (preset chat bubbles)
@@ -43,7 +43,7 @@ Free text or user-supplied emoji, history or replay of emotes, emotes in the lob
 10. With PR #16's effects sound on, another player's emote plays one soft sound; with effects off it is silent.
 11. `npm run typecheck`, `npm test` and `npm run e2e` pass, including the new unit and e2e tests.
 
-## Decisions taken as defaults
+## Decisions
 
 - Eight emotes, ids `taunt`, `mercy`, `six`, `nice`, `laugh`, `hurry`, `sorry`, `unlucky` (copy in phase 1). The catalogue lives in `shared/emotes.ts`; the wire carries `id` only.
 - Server message `{ t: 'emote', seat, id }` where `seat` is the sender's index in `room.seats`, derived by the server from the socket's user. The sender receives it too (one rendering path).
@@ -53,14 +53,16 @@ Free text or user-supplied emoji, history or replay of emotes, emotes in the lob
 - Display in the HUD tile and the waiting-room seat only.
 - No analytics counter.
 
-## Open questions for the user
+## Resolved questions
 
-1. Should CPU seats react (for example a CPU with a "😈 Đá nè!" after it kicks a horse)? Default: no. It is cheap (server picks an id on a `kicked` event, same broadcast) but it changes the feel of playing the CPU and needs rate limiting per event.
-2. Also show the bubble over the player's horses in 3D? Default: no, HUD only. PR #16's horse-name labels are a DOM layer positioned each frame (`GameScene.tsx`), so it is feasible later at the cost of overlapping name labels and more per-frame work.
-3. Count emotes in the daily funnel (`shared/analytics.ts`, `daily_events`)? Default: no. Each `countEvent` is a D1 upsert, i.e. a row written per emote; the alternative is a once-per-match `match_with_emotes` event (at most one write per match). Decide whether the number is worth any D1 writes.
-4. Emote set and copy: is the list of eight right, and should "😂" stay emoji-only? (Rules are not touched; this is only copy.)
-5. Should a muted player still see their own bubbles? Default: yes, own bubbles always show so the tap has feedback.
-6. Should emotes be sendable while the host has paused the game? Default: yes.
+All answered by the user; the defaults above stand.
+
+1. CPU seats do not react with emotes.
+2. No 3D bubbles over horses; HUD tile and waiting-room seat only.
+3. No analytics counter.
+4. The eight emotes and their copy are approved as written ("😂" stays emoji-only).
+5. A player who hid emotes still sees their own bubbles.
+6. Emotes are sendable while the game is paused.
 
 ## Composition with PR #16 (assumed merged first)
 
