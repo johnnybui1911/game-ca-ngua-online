@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import type { SignUpRequest } from '../../../shared/protocol';
+import type { MeResponse, SignUpRequest } from '../../../shared/protocol';
 import { api, ApiRequestError } from '../api';
 import { ProviderButtons } from './ProviderButtons';
 import { useSession } from './session-context';
@@ -9,7 +9,7 @@ import { useSession } from './session-context';
  * Shows a short confirmation once the session is no longer a guest's.
  */
 export function SaveAccountBlock({ returnTo, onDismiss }: { returnTo: string; onDismiss: () => void }) {
-  const { user, guest, refresh } = useSession();
+  const { user, guest, adopt } = useSession();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -36,11 +36,12 @@ export function SaveAccountBlock({ returnTo, onDismiss }: { returnTo: string; on
     setError(null);
     setBusy(true);
     try {
-      await api('/api/auth/signup', {
+      const me = await api<MeResponse>('/api/auth/signup', {
         method: 'POST',
         body: { email, password, displayName: user?.displayName ?? '' } satisfies SignUpRequest,
       });
-      await refresh();
+      // The answer already describes the upgraded session; no second request that could fail.
+      adopt(me);
     } catch (err) {
       setError(err instanceof ApiRequestError ? err.message : 'Có lỗi xảy ra, vui lòng thử lại.');
       setBusy(false);
@@ -50,7 +51,7 @@ export function SaveAccountBlock({ returnTo, onDismiss }: { returnTo: string; on
   return (
     <section className="save-account" aria-labelledby="save-account-title" data-testid="save-account">
       <h3 id="save-account-title">Lưu tài khoản</h3>
-      <p>Giữ tên và chỗ ngồi của bạn, lần sau vào lại không cần nhập tên.</p>
+      <p>Lưu bằng email để giữ tên và chỗ ngồi của bạn, lần sau vào lại không cần nhập tên.</p>
       <form className="form" onSubmit={(e) => void submit(e)} noValidate>
         <div className="field">
           <label htmlFor="save-email">Email</label>

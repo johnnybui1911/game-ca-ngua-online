@@ -13,6 +13,8 @@ interface Session {
   signOut: () => Promise<void>;
   /** Creates a guest user with this name and signs in as it. Throws `ApiRequestError`. */
   playAsGuest: (displayName: string) => Promise<void>;
+  /** Takes over the session state from an auth response that already describes it. */
+  adopt: (me: MeResponse) => void;
 }
 
 const NONE: Record<OAuthProvider, boolean> = { google: false, facebook: false, x: false };
@@ -45,13 +47,17 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     setState({ ready: true, user: me.user, providers: me.providers });
   }, []);
 
+  const adopt = useCallback((me: MeResponse) => {
+    setState({ ready: true, user: me.user, providers: me.providers });
+  }, []);
+
   useEffect(() => {
     void refresh();
   }, [refresh]);
 
   const value = useMemo(
-    () => ({ ...state, guest: state.user?.guest === true, refresh, signOut, playAsGuest }),
-    [state, refresh, signOut, playAsGuest],
+    () => ({ ...state, guest: state.user?.guest === true, refresh, signOut, playAsGuest, adopt }),
+    [state, refresh, signOut, playAsGuest, adopt],
   );
   return <SessionContext value={value}>{children}</SessionContext>;
 }

@@ -196,8 +196,9 @@ authRoutes.get('/oauth/:provider/callback', async (c) => {
     const current = await getSessionAccount(c.req.raw, c.env);
     const guestId = current?.guest ? current.id : null;
     const userId = await resolveOAuthUser(c.env, provider, profile, guestId);
-    if (guestId && userId !== guestId) await deleteGuest(c.env, guestId);
+    // The new session exists before the guest goes, so a failure never leaves the player with neither.
     c.header('Set-Cookie', await createSession(c.env, userId), { append: true });
+    if (guestId && userId !== guestId) await deleteGuest(c.env, guestId);
     c.header('Set-Cookie', cookieHeader(OAUTH_COOKIE, '', { maxAge: 0, path: OAUTH_COOKIE_PATH }), {
       append: true,
     });

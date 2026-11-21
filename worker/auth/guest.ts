@@ -21,12 +21,31 @@ export function guestLimit(raw: string | undefined): number {
 export const windowStart = (now: number) => now - GUEST_WINDOW_MS;
 
 /**
+ * The unit the creation limit applies to. An IPv6 subscriber usually controls a whole
+ * /64, so every address in it counts as one; an IPv4 address counts as itself.
+ */
+export function addressKey(address: string | null): string {
+  if (!address) return NO_ADDRESS;
+  if (!address.includes(':')) return address;
+  const [head = '', tail = ''] = address.toLowerCase().split('::');
+  const left = head === '' ? [] : head.split(':');
+  const right = tail === '' ? [] : tail.split(':');
+  const groups = address.includes('::')
+    ? [...left, ...new Array<string>(Math.max(0, 8 - left.length - right.length)).fill('0'), ...right]
+    : left;
+  return groups
+    .slice(0, 4)
+    .map((g) => g.replace(/^0+(?=.)/, ''))
+    .join(':');
+}
+
+/**
  * Records one guest creation for the request's address unless the address already made
  * `limit` of them within the window. Counting and inserting are one statement, so
- * concurrent requests cannot overshoot. Only a hash of the address is stored.
+ * concurrent requests cannot overshoot. Only a hash of the address key is stored.
  */
 export async function claimGuestSlot(env: Env, request: Request, now = Date.now()): Promise<void> {
-  const addr = await sha256Hex(`guest-limit:${request.headers.get('CF-Connecting-IP') ?? NO_ADDRESS}`);
+  const addr = await sha256Hex(`guest-limit:${addressKey(request.headers.get('CF-Connecting-IP'))}`);
   const limit = guestLimit(env.GUEST_LIMIT_PER_HOUR);
   const [, claimed] = await env.DB.batch([
     env.DB.prepare('DELETE FROM guest_creations WHERE created_at <= ?').bind(windowStart(now)),
@@ -59,7 +78,14 @@ export async function createGuest(env: Env, displayName: string): Promise<string
   return id;
 }
 
-/** Deletes a guest user (sessions and links cascade). Does nothing for a registered user. */
+/**
+ * Deletes a guest user (sessions and links cascade). Does nothing for a registered user.
+ * Never throws: a guest left behind is removed later by the cleanup in `createGuest`.
+ */
 export async function deleteGuest(env: Env, userId: string): Promise<void> {
-  await env.DB.prepare('DELETE FROM users WHERE id = ? AND is_guest = 1').bind(userId).run();
+  try {
+    await env.DB.prepare('DELETE FROM users WHERE id = ? AND is_guest = 1').bind(userId).run();
+  } catch (e) {
+    console.error('guest delete failed', e);
+  }
 }

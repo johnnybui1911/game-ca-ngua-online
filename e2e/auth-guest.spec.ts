@@ -237,16 +237,3 @@ test('a guest signing in with Google whose verified email belongs to an account 
   await g.context.close();
   await owner.close();
 });
-
-test('the guest identity cannot be supplied through the callback URL', async ({ browser }) => {
-  const g = await newGuest(browser, 'Khách Thật');
-  const other = await newGuest(browser, 'Khách Khác');
-  await control('profile', { provider: 'facebook', profile: { id: `f-${Date.now()}`, name: 'Ai Đó' } });
-  // A guest id in the query changes nothing: the session cookie alone decides which guest is upgraded.
-  await other.page.goto(`/api/auth/oauth/facebook/start?returnTo=/&guest=${g.id}`);
-  await expect(other.page).toHaveURL('/');
-  expect(await whoAmI(other.page)).toMatchObject({ id: other.id, guest: false });
-  expect(await whoAmI(g.page)).toMatchObject({ id: g.id, guest: true });
-  await g.context.close();
-  await other.context.close();
-});

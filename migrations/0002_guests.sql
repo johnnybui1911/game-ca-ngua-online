@@ -7,3 +7,6 @@ CREATE TABLE guest_creations (
 );
 
 CREATE INDEX guest_creations_addr_time ON guest_creations (addr_hash, created_at);
+
+-- Guest cleanup looks up guests by age without scanning registered users.
+CREATE INDEX users_guests_by_age ON users (created_at) WHERE is_guest = 1;
