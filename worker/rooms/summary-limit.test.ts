@@ -55,6 +55,27 @@ describe('allowSummaryLookup', () => {
     expect(warn).toHaveBeenCalledTimes(1);
   });
 
+  it('fails open and warns once when the binding throws', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const env = asEnv({
+      async limit() {
+        throw new Error('limiter down');
+      },
+    });
+    expect(await allowSummaryLookup(env, from('203.0.113.7'))).toBe(true);
+    expect(await allowSummaryLookup(env, from('203.0.113.7'))).toBe(true);
+    expect(warn).toHaveBeenCalledTimes(1);
+  });
+
+  it('skips the limiter entirely when ROOM_SUMMARY_LIMIT_OFF is 1', async () => {
+    const { binding, calls } = fakeLimiter(0);
+    const env = { ROOM_SUMMARY_LIMITER: binding, ROOM_SUMMARY_LIMIT_OFF: '1' } as unknown as Env;
+    expect(await allowSummaryLookup(env, from('203.0.113.7'))).toBe(true);
+    expect(calls).toEqual([]);
+    const other = { ROOM_SUMMARY_LIMITER: binding, ROOM_SUMMARY_LIMIT_OFF: '0' } as unknown as Env;
+    expect(await allowSummaryLookup(other, from('203.0.113.7'))).toBe(false);
+  });
+
   it('does not count a request that carries no client address', async () => {
     const { binding, calls } = fakeLimiter(0);
     expect(await allowSummaryLookup(asEnv(binding), from())).toBe(true);
