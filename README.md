@@ -24,7 +24,18 @@ Production: <https://ca-ngua-online.johnny-bui1911.workers.dev>
 - `shared/`: mô hình bàn cờ, luật chơi (`shared/game/`) và hợp đồng HTTP/WebSocket (`shared/protocol.ts`) dùng chung cho client và server.
 - `migrations/`: schema D1. `e2e/`: Playwright và máy chủ OAuth giả lập.
 
-Luật chơi được mô tả tại `shared/game/types.ts`.
+Luật chơi được mô tả tại `shared/game/types.ts`, gồm luật thường và biến thể "ván nhanh". Nội dung luật hiển thị trong phòng nằm ở `shared/rules-text.ts`.
+
+### Cài đặt ván
+
+Chủ phòng chọn ở phòng chờ (chỉ đổi được khi phòng đang chờ, giữ nguyên qua "chơi lại"); người khác thấy giá trị hiện tại ở dạng chỉ đọc.
+
+- **Thời gian mỗi lượt**: 10, 15, 20, 30 (mặc định) hoặc 60 giây. Hết giờ, máy chủ chơi thay. Người chơi bị hết giờ 2 lượt liên tiếp thì chuyển sang chơi tự động ("Tự động"): máy chủ chơi thay họ cho tới khi họ bấm "Tôi đã quay lại" hoặc tự đổ xúc xắc, đi quân.
+- **Ván nhanh** (luật biến thể N3): mỗi màu có sẵn 1 ngựa ở ô xuất phát; chuồng đích của một màu bị khóa cho tới khi màu đó đá được ít nhất 1 ngựa đối thủ (đá khi ra chuồng cũng tính); ngựa đầu tiên của bất kỳ màu nào lên chuồng thắng ngay. Các luật còn lại giữ nguyên. Ván nhanh cũng tự đi khi chỉ có một nước, và máy chủ cùng hoạt ảnh chạy nhanh hơn. Bật ván nhanh khi thời gian mỗi lượt còn 30 giây thì tự chọn 20 giây. Ván thường không đổi luật.
+- **Tự đổ xúc xắc**: máy chủ đổ giúp người đến lượt sau 1,5 giây; không tính là bỏ lượt.
+
+Số liệu đo nhịp ván (số thao tác, commit, phút theo nhịp máy chủ) nằm ở `plans/20261121-turn-timer-quick-mode/plan.md`; chạy lại bằng `PACING_REPORT=1 npx vitest run shared/game/pacing.test.ts`.
+
 
 ## Phát triển
 
@@ -60,8 +71,15 @@ npm run deploy
 Worker đếm tổng theo ngày (UTC) vào bảng D1 `daily_events` (`day`, `event`, `source`, `n`), không lưu id, địa chỉ hay tên người chơi. Danh sách sự kiện và nguồn nằm ở `shared/analytics.ts`.
 
 - Trình duyệt báo `visit` (mỗi tab một lần), `landing_view` (mỗi lần mở trang giới thiệu, theo nguồn của chính lần ghé đó) và `invite_shared` (sao chép hoặc chia sẻ link phòng) qua `POST /api/events`.
-- Worker tự đếm `guest_started`, `signed_up` (đăng ký email), `account_saved` (khách lưu tài khoản), `room_created`; phòng đếm `match_started_solo` (1 người + máy), `match_started_group` (từ 2 người), `match_finished` với nguồn `-`; ván có ít nhất một ghế máy còn đếm `cpu_match_easy`, `cpu_match_normal` hoặc `cpu_match_hard` theo mức của phòng.
+- Worker tự đếm `guest_started`, `signed_up` (đăng ký email), `account_saved` (khách lưu tài khoản), `room_created`; phòng đếm `match_started_solo` (1 người + máy), `match_started_group` (từ 2 người), `match_finished` với nguồn `-`; ván nhanh đếm thêm (không thay) `match_started_quick` và `match_finished_quick`, nên `match_started_solo + match_started_group` vẫn là tổng số ván bắt đầu; ván có ít nhất một ghế máy còn đếm `cpu_match_easy`, `cpu_match_normal` hoặc `cpu_match_hard` theo mức của phòng.
 - Nguồn lấy từ `?utm_source=` của lần ghé đầu tiên (cookie `ca_src`, 30 ngày); link mời trong phòng tự gắn `utm_source=invite`. Nguồn ngoài danh sách thành `other`, không có thì là `direct`.
+
+So tỉ lệ hoàn tất của ván nhanh với ván thường:
+
+```sh
+npx wrangler d1 execute DB --remote --command \
+  "SELECT event, SUM(n) FROM daily_events WHERE event IN ('match_started_solo','match_started_group','match_finished','match_started_quick','match_finished_quick') GROUP BY event"
+```
 
 Xem số liệu production:
 

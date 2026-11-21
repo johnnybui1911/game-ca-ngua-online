@@ -37,6 +37,23 @@ describe('CPU strength (always on, fixed seeds)', () => {
   });
 });
 
+describe('CPU strength in quick matches (always on, fixed seeds)', () => {
+  const rate = (a: CpuLevel, b: CpuLevel, N: number) => {
+    const r = runMatchup(a, b, TWO, N, FIXED_SEED, 'quick');
+    return r.wins / r.games;
+  };
+
+  it('Hard beats Normal', () => {
+    expect(rate('hard', 'normal', 1000)).toBeGreaterThanOrEqual(0.55);
+  }, 30_000);
+  it('Normal beats Easy', () => {
+    expect(rate('normal', 'easy', 600)).toBeGreaterThanOrEqual(0.6);
+  });
+  it('Hard beats Easy', () => {
+    expect(rate('hard', 'easy', 600)).toBeGreaterThanOrEqual(0.7);
+  });
+});
+
 describe('Hard decision cost', () => {
   it('stays within budget', () => {
     const rand = mulberry32(7);

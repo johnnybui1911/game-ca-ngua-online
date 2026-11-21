@@ -18,6 +18,12 @@ export const DIE_HALF = 0.32;
 export const BATCH_BUDGET = 0.6;
 /** Batches allowed to wait behind the one playing; more than this snaps to the latest state. */
 export const MAX_WAITING = 2;
+/**
+ * Quick match: seconds one animated segment (a roll or a move) may take. Kept below the server's
+ * `quickSegmentMs` of 400 ms, the pace at which it commits one segment, so a batch never outlasts
+ * the interval to the next one. Raise both together, never one alone.
+ */
+export const QUICK_SEGMENT_SECONDS = 0.35;
 export const CELEBRATION_SECONDS = 3.4;
 
 const ROLL_SECONDS = 0.5;
@@ -97,6 +103,11 @@ const dieYaw = (value: DiceValue) => 0.3 + value * 0.45;
 
 const TAU = Math.PI * 2;
 
+export interface DirectorOptions {
+  /** When set, a batch lasts at most this many seconds per roll and move segment instead of `BATCH_BUDGET`. */
+  budgetPerSegment?: number;
+}
+
 export class Director {
   private queue: Batch[] = [];
   private run: Run | null = null;
@@ -107,6 +118,7 @@ export class Director {
   constructor(
     private readonly view: SceneView,
     private readonly onBusyChange?: (busy: boolean) => void,
+    private readonly options: DirectorOptions = {},
   ) {}
 
   /** Show `game` immediately without celebrating a finished game (mount, reload). */
@@ -220,7 +232,7 @@ export class Director {
       }
     }
     const total = segs.reduce((sum, s) => sum + s.dur, 0);
-    const budget = BATCH_BUDGET * Math.max(1, actions);
+    const budget = (this.options.budgetPerSegment ?? BATCH_BUDGET) * Math.max(1, actions);
     if (total > budget) {
       const scale = budget / total;
       for (const s of segs) {

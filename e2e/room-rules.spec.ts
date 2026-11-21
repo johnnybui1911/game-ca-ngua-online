@@ -20,6 +20,12 @@ test('the rules sheet opens during a match without pausing the turn clock', asyn
   const page = a.page;
   await expect(page.getByTestId('roll-button')).toBeVisible();
 
+  // Checked first, while the turn is fresh: later the turn clock may run out and hand the turn to B.
+  await b.page.getByTestId('rules-button').click();
+  await expect(b.page.getByTestId('rules-sheet')).toBeVisible();
+  await expect(b.page.getByTestId('rules-countdown')).toHaveCount(0);
+  await b.page.keyboard.press('Escape');
+
   const button = page.getByTestId('rules-button');
   await expect(button).toHaveAccessibleName('Luật chơi');
   await button.click();
@@ -35,16 +41,12 @@ test('the rules sheet opens during a match without pausing the turn clock', asyn
   await page.keyboard.press('Escape');
   await expect(sheet).toBeHidden();
 
-  // Reachable from the menu; the other player's sheet has no countdown while it is not their turn.
+  // Reachable from the menu.
   await page.getByTestId('match-menu-button').click();
   await page.getByTestId('menu-rules').click();
   await expect(sheet).toBeVisible();
   await sheet.getByRole('button', { name: 'Đóng' }).click();
   await expect(sheet).toBeHidden();
-
-  await b.page.getByTestId('rules-button').click();
-  await expect(b.page.getByTestId('rules-sheet')).toBeVisible();
-  await expect(b.page.getByTestId('rules-countdown')).toHaveCount(0);
   await a.context.close();
   await b.context.close();
 });

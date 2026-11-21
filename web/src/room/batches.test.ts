@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createGame } from '../../../shared/game/engine';
 import type { GameEvent } from '../../../shared/game/types';
-import { SEAT_COLORS, type RoomSnapshot } from '../../../shared/protocol';
+import { DEFAULT_ROOM_SETTINGS, SEAT_COLORS, type RoomSnapshot } from '../../../shared/protocol';
 import { appendBatch, MAX_BATCHES, unconsumed, type StateBatch } from './batches';
 
 const ev = (n: number): GameEvent => ({ type: 'rolled', color: 0, dice: ((n % 6) + 1) as 1, legalHorses: [] });
@@ -18,6 +18,7 @@ function batch(seq: number, events: GameEvent[] = [], code = 'ABC234'): StateBat
     turnDeadline: null,
     paused: false,
     cpuLevel: 'normal',
+    settings: DEFAULT_ROOM_SETTINGS,
     seq,
   };
   return { room, events };

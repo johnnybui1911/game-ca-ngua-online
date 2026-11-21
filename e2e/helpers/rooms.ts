@@ -74,6 +74,14 @@ export async function startAutoPlayer(page: Page): Promise<void> {
   });
 }
 
+/** Closes the first-quick-match card when it is on screen (a fresh browser context always shows it once). */
+export async function dismissQuickIntro(page: Page): Promise<void> {
+  const ok = page.getByTestId('quick-intro-ok');
+  await expect(ok).toBeVisible();
+  await ok.click();
+  await expect(page.getByTestId('quick-intro')).toBeHidden();
+}
+
 export const GAME_TIMEOUT = 8 * 60_000;
 
 /**

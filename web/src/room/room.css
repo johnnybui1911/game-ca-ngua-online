@@ -607,3 +607,129 @@
   flex-basis: 100%;
   margin: 0;
 }
+
+/* ---- waiting room: game settings ---- */
+
+.game-settings {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-3);
+  padding: var(--space-3);
+  background: rgb(255 255 255 / 55%);
+  border: 2px solid var(--wood-300);
+  border-radius: var(--radius-md);
+}
+
+.game-settings h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  min-height: 44px;
+}
+
+.setting-select {
+  min-width: 120px;
+  min-height: 44px;
+  padding: 0 var(--space-3);
+  font: inherit;
+  color: var(--ink);
+  background: #fff;
+  border: 2px solid var(--wood-500);
+  border-radius: var(--radius-sm);
+}
+
+.setting-block {
+  display: grid;
+  gap: 2px;
+}
+
+.setting-switch {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 44px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.setting-switch input {
+  width: 22px;
+  height: 22px;
+}
+
+.setting-help {
+  margin: 0;
+  font-size: var(--text-sm);
+}
+
+.link-button {
+  display: inline;
+  min-height: 44px;
+  padding: 0 var(--space-1);
+  font: inherit;
+  font-weight: 700;
+  color: var(--ink);
+  text-decoration: underline;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+/* ---- match: quick match cues ---- */
+
+.hud-player-quick {
+  flex-wrap: wrap;
+}
+
+.lock-badge {
+  flex-basis: 100%;
+  font-size: 0.7rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.badge-quick {
+  background: var(--wood-500);
+  color: #fff;
+}
+
+.need-kick {
+  margin: 0;
+  padding: var(--space-1) var(--space-2);
+  font-weight: 700;
+  background: var(--danger-bg);
+  color: var(--danger);
+  border-radius: var(--radius-sm);
+}
+
+.autopilot-banner {
+  display: grid;
+  gap: var(--space-2);
+  justify-items: start;
+  padding: var(--space-2);
+  background: var(--wood-100);
+  border: 2px solid var(--wood-500);
+  border-radius: var(--radius-sm);
+  font-weight: 700;
+}
+
+.quick-intro {
+  text-align: left;
+}
+
+.quick-intro h2 {
+  text-align: center;
+}
+
+.quick-intro-lines {
+  margin: 0;
+  padding-left: 1.25rem;
+  display: grid;
+  gap: var(--space-2);
+}

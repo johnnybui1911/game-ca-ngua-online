@@ -7,7 +7,10 @@ import type { StateBatch } from '../room/batches';
  * DOM controls (roll button, turn banner, dialogs); the scene owns the canvas.
  */
 export interface GameSceneProps {
-  /** Latest snapshot. `room.game` is non-null whenever the scene is mounted. */
+  /**
+   * Latest snapshot. `room.game` is non-null whenever the scene is mounted. `room.settings.quick` sets the
+   * animation pace; a quick game (`room.game.variant`) also shows a lock on each closed home column.
+   */
   room: RoomSnapshot;
   /**
    * Server state messages in `seq` order, newest last (its `room` is the `room` prop). Several can

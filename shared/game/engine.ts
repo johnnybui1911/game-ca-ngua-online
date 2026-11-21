@@ -12,6 +12,7 @@ import {
   type GameEvent,
   type GameState,
   type HorsePos,
+  type RuleVariant,
   type RulesEngine,
   type StepResult,
 } from './types';
@@ -49,12 +50,21 @@ function occupant(
   return null;
 }
 
-/** Where `horse` of the current colour ends up with `dice`; null if the move is illegal. */
+/** Whether `color`'s home column is closed: a quick game in which that colour has not kicked yet. Classic never locks. */
+export function isLocked(state: Pick<GameState, 'variant' | 'unlocked'>, color: Color): boolean {
+  return state.variant === 'quick' && state.unlocked?.[color] !== true;
+}
+
+/**
+ * Where `horse` of `color` ends up with `dice`; null if the move is illegal.
+ * `locked` closes the home column (see `isLocked`): a horse on the gate cannot climb.
+ */
 export function landingFor(
   horses: HorsePos[][],
   color: Color,
   horse: number,
   dice: DiceValue,
+  locked = false,
 ): Landing | null {
   const pos = at(at(horses, color), horse);
 
@@ -75,6 +85,7 @@ export function landingFor(
   }
 
   if (pos === POS_GATE) {
+    if (locked) return null;
     // Climbing from the gate: home steps 1..dice must be free of own horses.
     for (let step = 1; step <= dice; step++) {
       if (at(horses, color).includes(POS_GATE + step)) return null;
@@ -93,29 +104,37 @@ export function landingFor(
   return { to, kicked: { color: blocker.color, horse: blocker.horse, from: blocker.pos } };
 }
 
-export function legalHorsesFor(horses: HorsePos[][], color: Color, dice: DiceValue): number[] {
+export function legalHorsesFor(horses: HorsePos[][], color: Color, dice: DiceValue, locked = false): number[] {
   const out: number[] = [];
   for (let horse = 0; horse < HORSES_PER_COLOR; horse++) {
-    if (landingFor(horses, color, horse, dice) !== null) out.push(horse);
+    if (landingFor(horses, color, horse, dice, locked) !== null) out.push(horse);
   }
   return out;
 }
 
-export function createGame(colors: Color[]): GameState {
+export function createGame(colors: Color[], variant: RuleVariant = 'classic'): GameState {
   const sorted = [...colors].sort((a, b) => a - b);
   if (sorted.length < 2 || sorted.length > 4) throw new Error('A game needs 2 to 4 colours');
   for (let i = 0; i < sorted.length; i++) {
     if (!COLORS.includes(at(sorted, i))) throw new Error(`Invalid colour ${String(at(sorted, i))}`);
     if (i > 0 && sorted[i] === sorted[i - 1]) throw new Error('Colours must be distinct');
   }
+  const horses = COLORS.map(() => new Array<HorsePos>(HORSES_PER_COLOR).fill(POS_STABLE));
+  if (variant === 'classic') {
+    return { colors: sorted, horses, turn: at(sorted, 0), phase: 'roll', dice: null, legalHorses: [], winner: null };
+  }
+  // Quick: one horse per playing colour starts on its entry cell, and every home column starts locked.
+  for (const color of sorted) at(horses, color)[0] = POS_START;
   return {
     colors: sorted,
-    horses: COLORS.map(() => new Array<HorsePos>(HORSES_PER_COLOR).fill(POS_STABLE)),
+    horses,
     turn: at(sorted, 0),
     phase: 'roll',
     dice: null,
     legalHorses: [],
     winner: null,
+    variant,
+    unlocked: COLORS.map(() => false),
   };
 }
 
@@ -134,7 +153,7 @@ function passTurn(state: GameState, dice: DiceValue, events: GameEvent[]): GameS
 
 export function applyRoll(state: GameState, dice: DiceValue): StepResult {
   if (state.phase !== 'roll') throw new Error('Cannot roll outside the roll phase');
-  const legalHorses = legalHorsesFor(state.horses, state.turn, dice);
+  const legalHorses = legalHorsesFor(state.horses, state.turn, dice, isLocked(state, state.turn));
   const events: GameEvent[] = [{ type: 'rolled', color: state.turn, dice, legalHorses }];
   if (legalHorses.length > 0) {
     return {
@@ -157,7 +176,7 @@ export function applyMove(state: GameState, horse: number): StepResult {
   if (!state.legalHorses.includes(horse)) throw new Error(`Horse ${horse} has no legal move`);
   const dice = state.dice;
   const color = state.turn;
-  const landing = landingFor(state.horses, color, horse, dice);
+  const landing = landingFor(state.horses, color, horse, dice, isLocked(state, color));
   if (landing === null) throw new Error(`Horse ${horse} has no legal move`);
 
   const horses = cloneHorses(state.horses);
@@ -170,7 +189,11 @@ export function applyMove(state: GameState, horse: number): StepResult {
     { type: 'moved', color, horse, from, to: landing.to, kicked: landing.kicked },
   ];
   const moved: GameState = { ...state, horses };
-  if (row.every(isHome)) {
+  if (state.variant === 'quick' && landing.kicked) {
+    moved.unlocked = COLORS.map((c) => state.unlocked?.[c] === true || c === color);
+  }
+  // Classic: all four horses home. Quick: the first horse of any colour to enter its home column.
+  if (state.variant === 'quick' ? isHome(landing.to) : row.every(isHome)) {
     events.push({ type: 'won', color });
     return {
       state: { ...moved, phase: 'finished', dice: null, legalHorses: [], winner: color },
@@ -178,6 +201,26 @@ export function applyMove(state: GameState, horse: number): StepResult {
     };
   }
   return { state: passTurn(moved, dice, events), events };
+}
+
+/**
+ * A roll and, when `autoMove` and exactly one horse can move, that forced move in the same step
+ * (events `rolled`, `moved`, then `turn` or `won`). With two or more legal horses the player still
+ * chooses; with none the turn passes as in `applyRoll`. No rule differs from applying the two steps.
+ */
+export function rollAndSettle(state: GameState, dice: DiceValue, autoMove: boolean): StepResult {
+  const rolled = applyRoll(state, dice);
+  const only = rolled.state.legalHorses[0];
+  if (!autoMove || rolled.state.phase !== 'move' || rolled.state.legalHorses.length !== 1 || only === undefined) return rolled;
+  const moved = applyMove(rolled.state, only);
+  return { state: moved.state, events: [...rolled.events, ...moved.events] };
+}
+
+/** Animated segments in `events`: one per roll and one per move. */
+export function segmentsOf(events: readonly GameEvent[]): number {
+  let n = 0;
+  for (const e of events) if (e.type === 'rolled' || e.type === 'moved') n++;
+  return n;
 }
 
 export const engine: RulesEngine = { createGame, applyRoll, applyMove, chooseCpuMove };
