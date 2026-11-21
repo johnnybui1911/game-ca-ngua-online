@@ -31,7 +31,7 @@
   - `parseClientMessage`: `case 'cpuLevel': { const level = parseCpuLevel(msg.level); if (!level) throw new RoomError('bad_message', 'Độ khó không hợp lệ.'); return { t: 'cpuLevel', level }; }`.
   - `handle`: `case 'cpuLevel'`: `needHostBudget(); if (room.status !== 'waiting') throw new RoomError('bad_state', 'Chỉ đổi độ khó khi đang chờ.'); if (levelOf(room) === msg.level) return; room.cpuLevel = msg.level; await this.commit([]);`
   - `alarm()`: compute `const seat = room.seats[currentSeatIndex(room)]?.occupant ?? null;` before the move and call `chooseCpuMove(game, levelForOccupant(room, seat))`. No `rand` argument (default `Math.random`; the alarm may be retried by the platform, a different random Easy move after a retry is harmless because the game state is only committed once).
-  - `start` (after `commit`): if any seat holds a CPU, `this.count(\`cpu_match_${levelOf(room)}\`)` (widen `count`'s parameter type to the `ServerEvent` members it uses).
+  - `start` (after `commit`): if any seat holds a CPU, `this.count(`cpu_match_${levelOf(room)}`)` (widen `count`'s parameter type to the `ServerEvent` members it uses).
   - `create()` unchanged (the field stays absent until the host changes it, so new rooms and old rooms are indistinguishable); `leave()` unchanged (`setOccupant(seat, { kind: 'cpu', name })` from PR #16; the level is resolved at play time from the room, so nothing to carry).
   - `rematch` unchanged: it keeps `cpuLevel`.
 - `shared/analytics.ts`: add `'cpu_match_easy' | 'cpu_match_normal' | 'cpu_match_hard'` to `ServerEvent`.
