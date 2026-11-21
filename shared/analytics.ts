@@ -15,7 +15,10 @@ export type ServerEvent =
   | 'room_created'
   | 'match_started_solo'
   | 'match_started_group'
-  | 'match_finished';
+  | 'match_finished'
+  | 'cpu_match_easy'
+  | 'cpu_match_normal'
+  | 'cpu_match_hard';
 
 export type FunnelEvent = ClientEvent | ServerEvent;
 

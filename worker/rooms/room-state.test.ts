@@ -7,6 +7,9 @@ import {
   cleanHorseNames,
   drawDie,
   dueDelay,
+  levelForOccupant,
+  levelOf,
+  parseCpuLevel,
   nextCpuName,
   nextWake,
   pickHost,
@@ -329,5 +332,39 @@ describe('horse names', () => {
     expect(toSnapshot(r, new Set()).seats[0]?.horseNames).toEqual(['A', 'B', 'C', 'D']);
     setOccupant(seat, { kind: 'cpu', name: 'Máy 1' });
     expect(toSnapshot(r, new Set()).seats[0]?.horseNames).toEqual(['', '', '', '']);
+  });
+});
+
+describe('cpu level', () => {
+  it('reads an absent or unrecognised stored value as Thường', () => {
+    expect(levelOf(room())).toBe('normal');
+    expect(levelOf(room({ cpuLevel: 'easy' }))).toBe('easy');
+    expect(levelOf(room({ cpuLevel: 'hard' }))).toBe('hard');
+    expect(levelOf(room({ cpuLevel: 'normal' }))).toBe('normal');
+    for (const garbage of ['ultra', 7, null]) {
+      expect(levelOf(room({ cpuLevel: garbage as never }))).toBe('normal');
+    }
+  });
+
+  it('plays a CPU seat at the room level and a seated human at Thường', () => {
+    const r = room({ cpuLevel: 'hard' });
+    expect(levelForOccupant(r, { kind: 'cpu', name: 'Máy 1' })).toBe('hard');
+    expect(levelForOccupant(r, { kind: 'human', user: ann })).toBe('normal');
+    expect(levelForOccupant(r, null)).toBe('normal');
+  });
+
+  it('parses only the three known levels', () => {
+    expect(parseCpuLevel('easy')).toBe('easy');
+    expect(parseCpuLevel('normal')).toBe('normal');
+    expect(parseCpuLevel('hard')).toBe('hard');
+    for (const bad of ['ultra', 'Hard', '', 1, null, undefined, {}]) expect(parseCpuLevel(bad)).toBeNull();
+  });
+
+  it('shows in the snapshot, and a room stored without the field still snapshots as Thường', () => {
+    expect(toSnapshot(room(), new Set()).cpuLevel).toBe('normal');
+    expect(toSnapshot(room({ cpuLevel: 'hard' }), new Set()).cpuLevel).toBe('hard');
+    const stored = JSON.parse(JSON.stringify(room())) as RoomState;
+    expect('cpuLevel' in stored).toBe(false);
+    expect(toSnapshot(stored, new Set()).cpuLevel).toBe('normal');
   });
 });

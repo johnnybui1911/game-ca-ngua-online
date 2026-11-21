@@ -10,6 +10,8 @@ Luật chơi: nút tròn "?" ở thanh trạng thái khi đang chơi, mục "Lu�
 
 Biểu cảm nhanh: người đã có chỗ ngồi bấm "💬 Biểu cảm" ở phòng chờ hoặc trong ván (kể cả khi tạm dừng) để gửi một trong 8 biểu cảm có sẵn; mọi người trong phòng thấy bong bóng cạnh chỗ ngồi của người gửi trong 3 giây, không có chữ tự do. Có thể ẩn biểu cảm của người khác bằng "Ẩn biểu cảm" (lưu trong trình duyệt, bong bóng của chính mình vẫn hiện). Danh sách cố định nằm ở `shared/emotes.ts`; `RoomDO` chỉ chuyển tiếp tin `emote` tới các kết nối đang mở, không ghi vào storage, không đổi `seq`, không phát lại khi kết nối lại, và giới hạn mỗi người dùng 3 biểu cảm liên tiếp rồi 1 biểu cảm mỗi 2 giây (`EMOTE_BURST`, `EMOTE_REFILL_PER_SEC` trong `worker/rooms/constants.ts`; vượt mức thì bị bỏ qua, không báo lỗi).
 
+Độ khó máy: chủ phòng chọn "Độ khó máy" ở phòng chờ (Dễ / Thường / Khó, mặc định Thường); người khác trong phòng thấy mức đang chọn, ghế máy ghi "Máy · Khó" và huy hiệu trong ván ghi "CPU · Khó". Mức áp dụng cho mọi máy trong phòng, kể cả máy vào chơi thay người rời phòng giữa ván; người còn ngồi ghế nhưng hết giờ hoặc mất kết nối vẫn được máy đánh hộ ở mức Thường. Chỉ đổi được khi phòng đang chờ (sau ván, "Chơi lại" giữ nguyên mức). Dễ chơi nước của mức Thường 25% số lượt, còn lại chọn ngẫu nhiên một nước đi hợp lệ; Thường ưu tiên đá quân, vào chuồng đích, xuất quân, quân đi xa nhất; Khó chấm điểm từng nước (đá quân xa nhất, tránh bị đá, đặt quân sẵn sàng đá, không chiếm bậc thấp của đường về đích, nhường ô xuất quân) chỉ dựa trên vị trí công khai và nước đi hiện tại, không biết trước xúc xắc. Đo sức mạnh các mức bằng giả lập: `CPU_BENCH=1 npx vitest run shared/game/cpu-bench.test.ts --silent=false` (đặt `CPU_BENCH_GAMES` để đổi số ván mỗi cặp, mặc định 1000).
+
 Âm thanh: nhạc nền ở các màn hình vào game, sảnh và phòng chờ, nhạc khác khi đang chơi, tiếng xúc xắc, tiếng vó ngựa theo từng ô quân đi (thêm tiếng va khi đá quân), và chuông báo khi tới lượt mình (thêm một lần khi còn 10 giây). Tất cả được tổng hợp bằng Web Audio trong `web/src/audio/`, không có tệp âm thanh; bật/tắt nhạc và hiệu ứng ở nút loa (hoặc "Menu" khi đang chơi), lựa chọn lưu trong trình duyệt.
 
 Production: <https://ca-ngua-online.johnny-bui1911.workers.dev>
@@ -42,7 +44,7 @@ npm test                   # vitest: luật chơi, auth, trạng thái phòng, l
 npm run e2e                # Playwright, tự khởi động server ở cổng 5173 (và OAuth giả lập ở 5199)
 ```
 
-`scene-dev.html` (chỉ có khi chạy `npm run dev`) phát một ván toàn CPU để xem và chỉnh bàn cờ 3D.
+`scene-dev.html` (chỉ có khi chạy `npm run dev`) phát một ván toàn CPU để xem và chỉnh bàn cờ 3D; thêm `?level=easy|normal|hard` để xem các CPU chơi ở mức đó.
 
 ## Deploy
 
@@ -58,7 +60,7 @@ npm run deploy
 Worker đếm tổng theo ngày (UTC) vào bảng D1 `daily_events` (`day`, `event`, `source`, `n`), không lưu id, địa chỉ hay tên người chơi. Danh sách sự kiện và nguồn nằm ở `shared/analytics.ts`.
 
 - Trình duyệt báo `visit` (mỗi tab một lần), `landing_view` (mỗi lần mở trang giới thiệu, theo nguồn của chính lần ghé đó) và `invite_shared` (sao chép hoặc chia sẻ link phòng) qua `POST /api/events`.
-- Worker tự đếm `guest_started`, `signed_up` (đăng ký email), `account_saved` (khách lưu tài khoản), `room_created`; phòng đếm `match_started_solo` (1 người + máy), `match_started_group` (từ 2 người), `match_finished` với nguồn `-`.
+- Worker tự đếm `guest_started`, `signed_up` (đăng ký email), `account_saved` (khách lưu tài khoản), `room_created`; phòng đếm `match_started_solo` (1 người + máy), `match_started_group` (từ 2 người), `match_finished` với nguồn `-`; ván có ít nhất một ghế máy còn đếm `cpu_match_easy`, `cpu_match_normal` hoặc `cpu_match_hard` theo mức của phòng.
 - Nguồn lấy từ `?utm_source=` của lần ghé đầu tiên (cookie `ca_src`, 30 ngày); link mời trong phòng tự gắn `utm_source=invite`. Nguồn ngoài danh sách thành `other`, không có thì là `direct`.
 
 Xem số liệu production:

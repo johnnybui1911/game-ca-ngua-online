@@ -5,6 +5,8 @@ import { SoundButton, useMusic } from '../audio/SoundControls';
 import { inviteLink, reportInviteShared } from '../analytics';
 import { useLobby } from '../lobby/LobbyProvider';
 import { COLOR_NAMES, COLOR_VARS } from './colors';
+import { CpuLevelControl } from './CpuLevelControl';
+import { CPU_LEVEL_LABELS, cpuLevelOf } from './cpu-levels';
 import { EmoteBubble, EmoteLive } from './EmoteBubble';
 import { EmotePicker } from './EmotePicker';
 import type { EmoteBySeat } from './emote-feed';
@@ -100,6 +102,8 @@ export function WaitingView({ room, myId, send, actionError, emotes, offline }: 
           </p>
         </header>
 
+        <CpuLevelControl room={room} isHost={isHost} offline={offline} send={send} />
+
         <ul className="seat-list" data-testid="seat-list">
           {room.seats.map((seat, i) => {
             const occ = seat.occupant;
@@ -114,7 +118,7 @@ export function WaitingView({ room, myId, send, actionError, emotes, offline }: 
                   </strong>
                   <span className="muted" data-testid={`seat-${i}-state`}>
                     {occ === null && 'Chờ người chơi'}
-                    {occ?.kind === 'cpu' && 'Máy'}
+                    {occ?.kind === 'cpu' && `Máy · ${CPU_LEVEL_LABELS[cpuLevelOf(room)]}`}
                     {occ?.kind === 'human' && (occ.connected ? 'Đang kết nối' : 'Mất kết nối')}
                     {occ?.kind === 'human' && occ.user.id === room.hostId && ' · Chủ phòng'}
                   </span>
