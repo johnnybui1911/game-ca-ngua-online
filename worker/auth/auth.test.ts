@@ -54,6 +54,9 @@ describe('displayNameFromProfile', () => {
     expect(displayNameFromProfile('x')).toBe('Người chơi');
     expect(displayNameFromProfile(undefined)).toBe('Người chơi');
     expect(displayNameFromProfile('  Lan   Anh ')).toBe('Lan Anh');
+    const cut = 'A'.repeat(22) + '👨\u200D👩';
+    expect(displayNameFromProfile(cut)).toBe('A'.repeat(22) + '👨');
+    expect(displayNameFromProfile('A'.repeat(21) + '👨\u200D👩')).toBe('A'.repeat(21) + '👨\u200D👩');
   });
 });
 
