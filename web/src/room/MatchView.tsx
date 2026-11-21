@@ -145,9 +145,12 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
   const finished = game?.phase === 'finished';
   const paused = room.paused;
   const myTurn = game !== null && myColor !== null && game.turn === myColor && !finished;
-  const canRoll = myTurn && !paused && game?.phase === 'roll';
+  // The server reports a CPU's roll and move together with the turn passing to us; the roll button
+  // and the chime wait until the board has shown that turn.
+  const [boardBusy, setBoardBusy] = useState(false);
+  const canRoll = myTurn && !paused && game?.phase === 'roll' && !boardBusy;
   useMusic('game');
-  useGameSounds(batches, myTurn && !paused, seconds, room.turnDeadline);
+  useGameSounds(batches, myTurn && !paused && !boardBusy, seconds, room.turnDeadline);
   const dialogOpen = menuOpen || renaming || rulesOpen || confirmLeave || confirmClose;
   // Changes with every roll the server reports, so each roll chance allows one shake-roll.
   const lastRolledSeq = [...batches].reverse().find((b) => b.events.some((e) => e.type === 'rolled'))?.room.seq ?? null;
@@ -191,6 +194,7 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
             batches={batches}
             myColor={myColor}
             insets={hud.insets}
+            onBusyChange={setBoardBusy}
             onPickHorse={(horse) => {
               if (myTurn && !paused && game.phase === 'move' && game.legalHorses.includes(horse)) send({ t: 'move', horse });
             }}
