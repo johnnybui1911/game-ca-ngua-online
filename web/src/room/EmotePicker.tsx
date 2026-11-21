@@ -32,11 +32,16 @@ export function EmotePicker({ send, offline }: Props) {
         className="btn btn-secondary"
         data-testid="emote-open"
         aria-expanded={open}
+        aria-label="Biểu cảm"
         disabled={disabled}
         title={locked ? 'Chờ một chút rồi gửi tiếp nhé' : offline ? 'Đang mất kết nối' : undefined}
         onClick={() => setOpen((o) => !o)}
       >
-        💬 Biểu cảm
+        <span aria-hidden="true">💬</span>
+        <span className="emote-open-label" aria-hidden="true">
+          {' '}
+          Biểu cảm
+        </span>
       </button>
       {open && !disabled && (
         <div className="emote-grid" role="group" aria-label="Biểu cảm nhanh">

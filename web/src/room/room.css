@@ -531,3 +531,10 @@
   width: 20px;
   height: 20px;
 }
+
+/* Narrow phones: the emote button shows only its icon so the turn actions stay on one line. */
+@media (max-width: 420px) {
+  .emote-open-label {
+    display: none;
+  }
+}
