@@ -18,6 +18,7 @@ import { createSceneState } from './scene-state';
 import type { SceneState } from './scene-state';
 import { unconsumed } from '../room/batches';
 import type { GameSceneProps, HorseLabelElements } from './props';
+import RenderPipeline from './render/RenderPipeline';
 import { sound } from '../audio/sound';
 import { KickCamera, SHAKE_SECONDS } from './motion/kick-camera';
 import { motionSetting } from './motion/motion-setting';
@@ -69,7 +70,6 @@ const MAX_CAMERA_DT = 0.1;
 function Rig({ myColor, insets, kickCamera }: { myColor: Color | null; insets: HudInsets; kickCamera: KickCamera }) {
   const camera = useThree((s) => s.camera) as PerspectiveCamera;
   const size = useThree((s) => s.size);
-  const setFrameloop = useThree((s) => s.setFrameloop);
   // The player's own framing, saved while a close-up or shake has moved the camera away from it.
   const framing = useMemo(
     () => ({ away: false, position: new Vector3(), quaternion: new Quaternion(), closeUp: [0, 0, 0, 0, 0, 0], shake: [0, 0] }),
@@ -126,14 +126,6 @@ function Rig({ myColor, insets, kickCamera }: { myColor: Color | null; insets: H
     seat.current = { color, fit };
     controls.current?.update();
   }, [camera, color, fit, aspect]);
-
-  // No rendering while the tab is hidden.
-  useEffect(() => {
-    const onVisibility = () => setFrameloop(document.hidden ? 'never' : 'always');
-    document.addEventListener('visibilitychange', onVisibility);
-    onVisibility();
-    return () => document.removeEventListener('visibilitychange', onVisibility);
-  }, [setFrameloop]);
 
   return (
     <OrbitControls
@@ -256,28 +248,7 @@ export default function SceneContent({
 
   return (
     <>
-      <hemisphereLight args={['#fff1dc', '#7a5a40', 1.15]} />
-      <directionalLight
-        position={[6, 15, 9]}
-        intensity={2.3}
-        color="#fff0d8"
-        castShadow
-        shadow-mapSize={[1024, 1024]}
-        shadow-camera-left={-11}
-        shadow-camera-right={11}
-        shadow-camera-top={11}
-        shadow-camera-bottom={-11}
-        shadow-camera-near={2}
-        shadow-camera-far={40}
-        shadow-bias={-0.0004}
-        shadow-normalBias={0.02}
-      />
-      <directionalLight position={[-9, 7, -7]} intensity={0.55} color="#c9d8ff" />
-
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.72, 0]} receiveShadow>
-        <planeGeometry args={[90, 90]} />
-        <shadowMaterial opacity={0.38} />
-      </mesh>
+      <RenderPipeline />
 
       <Board assets={assets} state={state} colors={game.colors} />
       {lockedColors.length > 0 && <LockMarkers assets={assets} locked={lockedColors} />}
