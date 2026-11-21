@@ -1,6 +1,6 @@
 ---
 title: Guest-first play with a sign-up prompt after the match
-status: in-progress
+status: completed
 ---
 
 # Guest-first play with a sign-up prompt after the match
