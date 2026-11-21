@@ -9,7 +9,8 @@ interface Session {
   /** True when signed in as a guest (a name and a session, no account yet). */
   guest: boolean;
   providers: Record<OAuthProvider, boolean>;
-  refresh: () => Promise<void>;
+  /** Re-reads the session and returns the user now signed in, or null. */
+  refresh: () => Promise<MeUser | null>;
   signOut: () => Promise<void>;
   /** Creates a guest user with this name and signs in as it. Throws `ApiRequestError`. */
   playAsGuest: (displayName: string) => Promise<void>;
@@ -28,12 +29,14 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     providers: NONE,
   });
 
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async (): Promise<MeUser | null> => {
     try {
       const me = await api<MeResponse>('/api/auth/me');
       setState({ ready: true, user: me.user, providers: me.providers });
+      return me.user;
     } catch {
       setState((s) => ({ ...s, ready: true, user: null }));
+      return null;
     }
   }, []);
 

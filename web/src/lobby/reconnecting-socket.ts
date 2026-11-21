@@ -1,7 +1,6 @@
-export type SocketStatus = 'connecting' | 'open' | 'reconnecting';
+import { CLOSE_SIGNED_OUT } from '../../../shared/protocol';
 
-/** Close code for a socket whose login session has ended (signed out, expired, or its user deleted). */
-export const CLOSE_SIGNED_OUT = 4006;
+export type SocketStatus = 'connecting' | 'open' | 'reconnecting';
 
 /** Close codes the room server uses to say "do not reconnect". */
 export const STOP_CODES: ReadonlySet<number> = new Set([4001, 4002, 4003, 4004, 4005, CLOSE_SIGNED_OUT]);

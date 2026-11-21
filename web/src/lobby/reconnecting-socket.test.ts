@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { CLOSE_SIGNED_OUT, STOP_CODES, backoffDelay } from './reconnecting-socket';
+import { CLOSE_SIGNED_OUT } from '../../../shared/protocol';
+import { STOP_CODES, backoffDelay } from './reconnecting-socket';
 
 describe('backoffDelay', () => {
   it('grows exponentially and is capped', () => {
