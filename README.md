@@ -87,3 +87,18 @@ Xem số liệu production:
 npx wrangler d1 execute DB --remote --command \
   "SELECT day, event, source, n FROM daily_events WHERE day >= date('now','-7 day') ORDER BY day, event, source"
 ```
+
+## Góp ý của người chơi
+
+`POST /api/feedback` (cùng origin, JSON) lưu góp ý vào bảng D1 `feedback`: loại (`idea`, `visual`, `rules`, `ui`, `bug`), nội dung 2–2000 ký tự (văn bản thuần), liên hệ (tuỳ chọn), mã phòng, đường dẫn, kích thước màn hình, trình duyệt, `user_id` khi đã đăng nhập (kể cả khách) và `client_key` (băm địa chỉ, không lưu IP). Mỗi máy gửi tối đa 5 góp ý / 10 phút và 30 / ngày, vượt thì trả 429. Kiểu dữ liệu dùng chung nằm ở `shared/feedback.ts`.
+
+Đọc góp ý trên Cloudflare Dashboard: **Workers & Pages → D1 → `ca-ngua-online` → Tables → `feedback`** (tab Data).
+
+Hoặc bằng dòng lệnh:
+
+```sh
+npx wrangler d1 execute DB --remote --command \
+  "SELECT id, datetime(created_at/1000,'unixepoch') AS luc, category, message, contact, room_code, viewport FROM feedback ORDER BY id DESC LIMIT 50"
+```
+
+Production cần chạy `npm run db:migrate:remote` để có bảng `feedback` (bước deploy đã làm việc này). Cục bộ: `npm run db:migrate:local`, rồi thêm `--local` thay cho `--remote`.
