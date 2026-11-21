@@ -2,6 +2,7 @@
  * Wire contract between the web client and the worker: HTTP JSON bodies and
  * WebSocket messages. Both sides import these types; neither redefines them.
  */
+import type { EmoteId } from './emotes';
 import type { Color, GameEvent, GameState } from './game/types';
 
 // ---------------------------------------------------------------- accounts
@@ -156,7 +157,9 @@ export type RoomClientMessage =
   /** Host only: continue a paused game; the player on turn keeps the time that was left. */
   | { t: 'resume' }
   /** Host only: close the room for everyone and cancel the game. */
-  | { t: 'closeRoom' };
+  | { t: 'closeRoom' }
+  /** Any seated player, any room status: show a preset emote to everyone in the room. Not stored. */
+  | { t: 'emote'; id: EmoteId };
 
 export type RoomServerMessage =
   /**
@@ -165,7 +168,9 @@ export type RoomServerMessage =
    * clock, so a client derives its offset from `serverNow` instead of trusting its own time.
    */
   | { t: 'state'; room: RoomSnapshot; events: GameEvent[]; serverNow: number }
-  | { t: 'error'; code: string; message: string };
+  | { t: 'error'; code: string; message: string }
+  /** Relayed emote; `seat` indexes `RoomSnapshot.seats`. Never part of a snapshot and never replayed on reconnect. */
+  | { t: 'emote'; seat: number; id: EmoteId };
 
 // ------------------------------------------------------ session end
 

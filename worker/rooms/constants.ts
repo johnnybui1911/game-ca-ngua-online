@@ -66,3 +66,6 @@ export const MAX_LOBBY_LIST = 50;
 /** State-changing host messages (add or remove a CPU, rematch): a burst, then a steady rate, per user across reconnects. */
 export const HOST_ACTION_BURST = 4;
 export const HOST_ACTION_REFILL_PER_SEC = 2;
+/** Emotes are broadcast only: a burst, then one every 2 s, per user across sockets and reconnects. */
+export const EMOTE_BURST = 3;
+export const EMOTE_REFILL_PER_SEC = 0.5;

@@ -10,6 +10,9 @@ import { unconsumed, type StateBatch } from './batches';
 import { secondsLeft } from './countdown';
 import { lastRollAfter, type LastRoll } from './last-roll';
 import { COLOR_NAMES, COLOR_VARS } from './colors';
+import { EmoteBubble, EmoteLive } from './EmoteBubble';
+import { EmotePicker } from './EmotePicker';
+import type { EmoteBySeat } from './emote-feed';
 import { HorseNamesDialog } from './HorseNamesDialog';
 import { describeMove } from './move-text';
 import { useShakeToRoll } from './shake';
@@ -28,6 +31,9 @@ interface Props {
   myId: string;
   send: (msg: RoomClientMessage) => void;
   actionError: string | null;
+  emotes: EmoteBySeat;
+  /** The socket is not open. */
+  offline: boolean;
 }
 
 function seatName(seat: Seat | undefined): string {
@@ -116,7 +122,7 @@ function useGameSounds(batches: StateBatch[], myTurn: boolean, seconds: number |
   }, [myTurn, seconds, deadline]);
 }
 
-export function MatchView({ room, batches, clockOffset, myId, send, actionError }: Props) {
+export function MatchView({ room, batches, clockOffset, myId, send, actionError, emotes, offline }: Props) {
   const navigate = useNavigate();
   const [confirmLeave, setConfirmLeave] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -211,10 +217,13 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError 
                 <span className="hud-home" title="Quân đã về đích">
                   {home}/{HORSES_PER_COLOR}
                 </span>
+                <EmoteBubble seat={room.seats.indexOf(s)} emote={emotes[room.seats.indexOf(s)]} mine={s === mySeat} />
               </li>
             );
           })}
       </ul>
+
+      <EmoteLive emotes={emotes} mySeat={mySeat ? room.seats.indexOf(mySeat) : -1} nameOf={(i) => seatName(room.seats[i])} />
 
       <section className="hud-bottom" aria-label="Điều khiển" ref={hud.bottomRef}>
         <div className="hud-line">
@@ -262,6 +271,7 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError 
                 {describeMove(game, horse, turnNames)}
               </button>
             ))}
+          <EmotePicker send={send} offline={offline} />
           <button type="button" className="btn btn-secondary" data-testid="match-menu-button" onClick={() => setMenuOpen(true)}>
             Menu
           </button>
