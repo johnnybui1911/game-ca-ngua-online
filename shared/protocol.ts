@@ -85,7 +85,30 @@ export interface Seat {
   occupant: SeatOccupant | null;
   /** Names of this colour's four horses; '' means the default name, its number (index + 1). */
   horseNames: string[];
+  /** The seat's human has missed turns in a row and the server plays for them until they come back ("Tự động"). */
+  auto: boolean;
 }
+
+/** Turn time choices the host has, in seconds per action. */
+export const TURN_SECONDS_OPTIONS = [10, 15, 20, 30, 60] as const;
+export type TurnSeconds = (typeof TURN_SECONDS_OPTIONS)[number];
+
+/** Host-chosen settings of a room, changed only while it is waiting. */
+export interface RoomSettings {
+  /** Time a human has per action before the server plays for them. */
+  turnSeconds: TurnSeconds;
+  /**
+   * Ván nhanh: quick rule variant (each colour starts with a horse out, a home column opens only after a kick,
+   * the first horse home wins) plus a faster pace (forced single moves play themselves, quicker CPU and animation).
+   */
+  quick: boolean;
+  /** The server rolls for a human on turn after a short pause. */
+  autoRoll: boolean;
+}
+
+export const DEFAULT_ROOM_SETTINGS: RoomSettings = { turnSeconds: 30, quick: false, autoRoll: false };
+/** Time preselected when the host turns Ván nhanh on while the turn time is still the default. */
+export const QUICK_TURN_SECONDS: TurnSeconds = 20;
 
 /** Longest horse name, in characters, after cleaning. */
 export const MAX_HORSE_NAME = 12;
@@ -110,6 +133,8 @@ export interface RoomSnapshot {
   paused: boolean;
   /** CPU difficulty of the whole room; changed by the host while waiting. */
   cpuLevel: CpuLevel;
+  /** Host-chosen settings (turn time, quick match, auto-roll). */
+  settings: RoomSettings;
   /** Increases by one with every snapshot the room broadcasts. */
   seq: number;
 }
@@ -147,6 +172,8 @@ export type RoomClientMessage =
   | { t: 'removeCpu'; seat: number }
   /** Host only, while waiting: how well every CPU of the room plays. */
   | { t: 'cpuLevel'; level: CpuLevel }
+  /** Host only, while waiting: turn time, quick match and auto-roll, all at once. */
+  | { t: 'settings'; settings: RoomSettings }
   /** Host only: start when at least two seats are occupied. */
   | { t: 'start' }
   | { t: 'roll' }
@@ -163,6 +190,8 @@ export type RoomClientMessage =
   | { t: 'resume' }
   /** Host only: close the room for everyone and cancel the game. */
   | { t: 'closeRoom' }
+  /** The sender ends their own autopilot and plays again. */
+  | { t: 'back' }
   /** Any seated player, any room status: show a preset emote to everyone in the room. Not stored. */
   | { t: 'emote'; id: EmoteId };
 

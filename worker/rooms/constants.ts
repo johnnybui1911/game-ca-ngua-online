@@ -3,8 +3,12 @@ import type { Env } from '../env';
 export interface Timings {
   /** Pause before a CPU (or a CPU standing in for a human) plays its next action. */
   cpuDelayMs: number;
-  /** Time a connected human has per action before the server plays for them. */
-  turnMs: number;
+  /** Milliseconds per second of the host's turn-time choice; shortened in fast mode so timeouts are testable. */
+  turnUnitMs: number;
+  /** After this long into an action the server rolls for a human whose room has auto-roll on. */
+  autoRollMs: number;
+  /** Pace of automatic play in a quick match, per animated segment (a roll or a move) of the last commit. */
+  quickSegmentMs: number;
   /** How long a disconnected human may hold up a game before a CPU plays for them. */
   playingDisconnectMs: number;
   /** How long a disconnected human keeps a seat while the room is waiting or finished. */
@@ -15,9 +19,14 @@ export interface Timings {
   lobbySweepMs: number;
 }
 
+/** A connected human who lets this many actions in a row run out of time is played for until they come back. */
+export const IDLE_AUTOPLAY_AFTER = 2;
+
 const NORMAL: Timings = {
   cpuDelayMs: 700,
-  turnMs: 30_000,
+  turnUnitMs: 1_000,
+  autoRollMs: 1_500,
+  quickSegmentMs: 400,
   playingDisconnectMs: 3_000,
   waitingDisconnectMs: 30_000,
   idleCloseMs: 10 * 60_000,
@@ -26,12 +35,19 @@ const NORMAL: Timings = {
 
 const FAST: Timings = {
   cpuDelayMs: 25,
-  turnMs: 20_000,
+  turnUnitMs: 400,
+  autoRollMs: 20,
+  quickSegmentMs: 15,
   playingDisconnectMs: 400,
   waitingDisconnectMs: 8_000,
   idleCloseMs: 10 * 60_000,
   lobbySweepMs: 3_000,
 };
+
+/** Timings of one room: the base ones plus the time a connected human has per action, from the room's settings. */
+export interface RoomTimings extends Timings {
+  turnMs: number;
+}
 
 /** `ROOM_FAST_TIMERS` comes only from a local `.dev.vars.<env>` file; no request can set it. */
 export function timingsFor(env: Env): Timings {

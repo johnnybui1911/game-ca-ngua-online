@@ -1,6 +1,9 @@
 import { HORSES_PER_COLOR, type Color, type DiceValue } from '../../shared/game/types';
 import {
+  DEFAULT_ROOM_SETTINGS,
   MAX_HORSE_NAME,
+  TURN_SECONDS_OPTIONS,
+  type RoomSettings,
   type PublicUser,
   type RoomSnapshot,
   type RoomStatus,
@@ -10,10 +13,10 @@ import {
   type SeatOccupant,
 } from '../../shared/protocol';
 import type { GameEvent, GameState } from '../../shared/game/types';
-import { applyMove, applyRoll } from '../../shared/game/engine';
+import { applyMove, rollAndSettle, segmentsOf } from '../../shared/game/engine';
 import { chooseCpuMove } from '../../shared/game/cpu';
 import { DEFAULT_CPU_LEVEL, isCpuLevel, type CpuLevel } from '../../shared/game/cpu-level';
-import type { Timings } from './constants';
+import { IDLE_AUTOPLAY_AFTER, type RoomTimings, type Timings } from './constants';
 import { sanitizeText } from '../auth/validate';
 
 /** Occupant as persisted: connection state is derived from open sockets, never stored. */
@@ -23,6 +26,8 @@ export interface StoredSeat {
   occupant: StoredOccupant | null;
   /** Set by the occupant; absent means every horse has its default name. */
   horseNames?: string[];
+  /** Turns in a row this seat's connected human let run out; absent means 0. Reaching `IDLE_AUTOPLAY_AFTER` puts the seat on autopilot. */
+  misses?: number;
 }
 
 /** Everything a room needs to survive eviction. Deadlines are absolute epoch ms. */
@@ -50,12 +55,51 @@ export interface RoomState {
   pausedAt?: number | null;
   /** Absent in rooms stored before the setting existed: Thường. */
   cpuLevel?: CpuLevel;
+  /** Absent in rooms stored before the settings existed, and in rooms whose host never changed them: the defaults. */
+  settings?: RoomSettings;
 }
 
 /** Seats a new occupant (or empties the seat); horse names belong to the previous occupant and are dropped. */
 export function setOccupant(seat: StoredSeat, occupant: StoredOccupant | null): void {
   seat.occupant = occupant;
   delete seat.horseNames;
+  delete seat.misses;
+}
+
+/** The room's settings; an absent stored value reads as the defaults. */
+export function settingsOf(state: RoomState): RoomSettings {
+  return state.settings ?? DEFAULT_ROOM_SETTINGS;
+}
+
+/** Settings from a client message, or null unless it is exactly `{turnSeconds, quick, autoRoll}` with allowed values. */
+export function parseRoomSettings(raw: unknown): RoomSettings | null {
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return null;
+  const o = raw as Record<string, unknown>;
+  if (Object.keys(o).length !== 3) return null;
+  const { turnSeconds, quick, autoRoll } = o;
+  const turn = TURN_SECONDS_OPTIONS.find((n) => n === turnSeconds);
+  if (turn === undefined || typeof quick !== 'boolean' || typeof autoRoll !== 'boolean') return null;
+  return { turnSeconds: turn, quick, autoRoll };
+}
+
+/** The base timings with this room's turn time: `turnSeconds` of `turnUnitMs` each. */
+export function timingsOf(state: RoomState, base: Timings): RoomTimings {
+  return { ...base, turnMs: settingsOf(state).turnSeconds * base.turnUnitMs };
+}
+
+/** Pause before the server plays for a CPU, autopilot or takeover: `segments` animated segments of the last commit in a quick match. */
+export function paceMs(state: RoomState, timings: Timings, segments = 1): number {
+  return settingsOf(state).quick ? timings.quickSegmentMs * Math.max(1, segments) : timings.cpuDelayMs;
+}
+
+/** A seated human who has let `IDLE_AUTOPLAY_AFTER` turns in a row run out; the server plays for them. */
+export function isAutopilot(seat: StoredSeat | undefined): boolean {
+  return seat?.occupant?.kind === 'human' && (seat.misses ?? 0) >= IDLE_AUTOPLAY_AFTER;
+}
+
+/** Forgets every seat's missed turns (a new game starts clean). */
+export function clearMisses(state: RoomState): void {
+  for (const seat of state.seats) delete seat.misses;
 }
 
 /**
@@ -134,52 +178,83 @@ export function isConnected(connected: ReadonlySet<string>, occupant: StoredOccu
 }
 
 /** When the server should next play for the colour on turn, given who is connected. */
-export function dueDelay(state: RoomState, connected: ReadonlySet<string>, timings: Timings): number | null {
-  const i = currentSeatIndex(state);
-  const occupant = state.seats[i]?.occupant ?? null;
+export function dueDelay(state: RoomState, connected: ReadonlySet<string>, timings: RoomTimings, segments = 1): number | null {
+  const seat = state.seats[currentSeatIndex(state)];
+  const occupant = seat?.occupant ?? null;
   if (occupant === null) return null;
-  if (occupant.kind === 'cpu') return timings.cpuDelayMs;
-  return connected.has(occupant.user.id)
-    ? timings.turnMs
-    : Math.max(timings.cpuDelayMs, timings.playingDisconnectMs);
+  const pace = paceMs(state, timings, segments);
+  if (occupant.kind === 'cpu') return pace;
+  if (!connected.has(occupant.user.id)) return Math.max(pace, timings.playingDisconnectMs);
+  if (isAutopilot(seat)) return pace;
+  return settingsOf(state).autoRoll && state.game?.phase === 'roll' ? Math.min(timings.turnMs, timings.autoRollMs) : timings.turnMs;
 }
 
-/** Starts the clock for the action now beginning: sets `dueAt` and the fixed `actionDueAt`. */
-export function planTurn(state: RoomState, connected: ReadonlySet<string>, now: number, timings: Timings): void {
-  const delay = dueDelay(state, connected, timings);
-  const occupant = state.seats[currentSeatIndex(state)]?.occupant ?? null;
+/**
+ * Starts the clock for the action now beginning: sets `dueAt` and the fixed `actionDueAt`.
+ * `segments` is how many animated segments the commit that led here carried (see `segmentsOf`).
+ */
+export function planTurn(
+  state: RoomState,
+  connected: ReadonlySet<string>,
+  now: number,
+  timings: RoomTimings,
+  segments = 1,
+): void {
+  const delay = dueDelay(state, connected, timings, segments);
+  const seat = state.seats[currentSeatIndex(state)];
   state.dueAt = delay === null ? null : now + delay;
-  state.actionDueAt = occupant?.kind === 'human' ? now + timings.turnMs : null;
+  state.actionDueAt = seat?.occupant?.kind === 'human' && !isAutopilot(seat) ? now + timings.turnMs : null;
 }
 
-/** True when the server plays for the colour on turn: a CPU seat, or a human with no open socket. */
+/**
+ * When the server plays for a connected human who is on turn, re-derived from the fixed action deadline:
+ * the deadline itself, or the auto-roll moment of an action that began `turnMs` before it.
+ */
+function humanDue(state: RoomState, timings: RoomTimings): number | null {
+  const end = state.actionDueAt;
+  if (end == null) return state.dueAt;
+  if (settingsOf(state).autoRoll && state.game?.phase === 'roll') return Math.min(end, end - timings.turnMs + timings.autoRollMs);
+  return end;
+}
+
+/** True when the server plays for the colour on turn: a CPU seat, a human on autopilot, or a human with no open socket. */
 export function isAutomatedActor(state: RoomState, connected: ReadonlySet<string>): boolean {
-  const occupant = state.seats[currentSeatIndex(state)]?.occupant ?? null;
-  return occupant !== null && (occupant.kind === 'cpu' || !isConnected(connected, occupant));
+  const seat = state.seats[currentSeatIndex(state)];
+  const occupant = seat?.occupant ?? null;
+  return occupant !== null && (occupant.kind === 'cpu' || !isConnected(connected, occupant) || isAutopilot(seat));
 }
 
 /**
  * Plays the action that is due and re-plans the clock. An automated actor in the roll phase
  * rolls and moves in one step (one commit, one alarm); the clients animate both from one batch,
- * so the next action waits one extra `cpuDelayMs`. A connected human whose clock ran out is only
- * rolled for and keeps their own turn clock for the move. Returns null when no action applies.
+ * so the next action waits one extra `cpuDelayMs` (a quick match paces by `quickSegmentMs` per animated
+ * segment instead). A connected human whose clock ran out is only rolled for and keeps their own turn
+ * clock for the move; in a quick match a roll with a single legal horse plays that move too.
+ * A connected human whose own deadline had passed misses the turn; an auto-roll, an autopilot
+ * action, a takeover for a disconnected human and a CPU action never count as one.
+ * Returns null when no action applies.
  */
 export function playDueAction(
   state: RoomState,
   connected: ReadonlySet<string>,
   now: number,
-  timings: Timings,
+  timings: RoomTimings,
   draw: () => DiceValue = drawDie,
 ): { events: GameEvent[]; finished: boolean } | null {
   const game = state.game;
   if (!game) return null;
+  const seat = state.seats[currentSeatIndex(state)];
+  const occupant = seat?.occupant ?? null;
   // The colour on turn does not change between the roll and its move.
-  const level = levelForOccupant(state, state.seats[currentSeatIndex(state)]?.occupant ?? null);
+  const level = levelForOccupant(state, occupant);
+  const quick = settingsOf(state).quick;
+  const missed =
+    occupant?.kind === 'human' && isConnected(connected, occupant) && !isAutopilot(seat) && state.actionDueAt != null && now >= state.actionDueAt;
   let result;
   let combined = false;
   if (game.phase === 'roll') {
     const automated = isAutomatedActor(state, connected);
-    result = applyRoll(game, draw());
+    result = rollAndSettle(game, draw(), quick);
     if (automated && result.state.phase === 'move' && result.state.turn === game.turn) {
       const moved = applyMove(result.state, chooseCpuMove(result.state, level));
       result = { state: moved.state, events: [...result.events, ...moved.events] };
@@ -190,6 +265,7 @@ export function playDueAction(
   } else {
     return null;
   }
+  if (missed && seat) seat.misses = (seat.misses ?? 0) + 1;
   state.game = result.state;
   if (result.state.phase === 'finished') {
     state.status = 'finished';
@@ -197,10 +273,10 @@ export function playDueAction(
     state.actionDueAt = null;
     return { events: result.events, finished: true };
   }
-  planTurn(state, connected, now, timings);
+  planTurn(state, connected, now, timings, segmentsOf(result.events));
   // The clients animate both actions from one batch; the next automated action waits for that.
-  // A connected human's clock is unaffected.
-  if (combined && state.dueAt !== null && isAutomatedActor(state, connected)) state.dueAt += timings.cpuDelayMs;
+  // A connected human's clock is unaffected. A quick match already paces by the segments of the batch.
+  if (combined && !quick && state.dueAt !== null && isAutomatedActor(state, connected)) state.dueAt += timings.cpuDelayMs;
   return { events: result.events, finished: false };
 }
 
@@ -212,7 +288,7 @@ export function reconcileConnections(
   state: RoomState,
   connected: ReadonlySet<string>,
   now: number,
-  timings: Timings,
+  timings: RoomTimings,
 ): void {
   const was = new Set(Object.keys(state.disconnectedSince));
   for (const user of humanUsers(state)) {
@@ -240,7 +316,7 @@ export function reconcileConnections(
     const id = turnSeat.user.id;
     if (connected.has(id) && was.has(id)) {
       // Back before the clock ran out: the action keeps the deadline it started with.
-      state.dueAt = state.actionDueAt ?? state.dueAt;
+      state.dueAt = humanDue(state, timings);
     } else if (!connected.has(id) && !was.has(id)) {
       const grace = now + Math.max(timings.cpuDelayMs, timings.playingDisconnectMs);
       state.dueAt = Math.min(state.dueAt ?? Infinity, grace);
@@ -265,7 +341,7 @@ export function reconcileConnections(
  * length: the player on turn finds the time their action had left. A human on turn who is not
  * connected gets the short takeover delay, as on any disconnect.
  */
-export function resumeGame(state: RoomState, connected: ReadonlySet<string>, now: number, timings: Timings): void {
+export function resumeGame(state: RoomState, connected: ReadonlySet<string>, now: number, timings: RoomTimings): void {
   const since = state.pausedAt;
   if (since == null) return;
   state.pausedAt = null;
@@ -275,7 +351,7 @@ export function resumeGame(state: RoomState, connected: ReadonlySet<string>, now
   const turnSeat = state.seats[currentSeatIndex(state)]?.occupant;
   if (turnSeat?.kind !== 'human') return;
   if (connected.has(turnSeat.user.id)) {
-    state.dueAt = state.actionDueAt ?? state.dueAt;
+    state.dueAt = humanDue(state, timings);
   } else {
     const grace = now + Math.max(timings.cpuDelayMs, timings.playingDisconnectMs);
     state.dueAt = Math.min(state.dueAt ?? Infinity, grace);
@@ -316,12 +392,13 @@ export function toSnapshot(state: RoomState, connected: ReadonlySet<string>): Ro
     color: s.color,
     occupant: publicOccupant(s.occupant, connected),
     horseNames: s.horseNames ?? Array.from({ length: HORSES_PER_COLOR }, () => ''),
+    auto: isAutopilot(s),
   }));
   const paused = isPaused(state);
   const turnSeat = state.seats[currentSeatIndex(state)]?.occupant ?? null;
   const turnDeadline =
-    state.status === 'playing' && !paused && state.dueAt !== null && turnSeat?.kind === 'human' && connected.has(turnSeat.user.id)
-      ? state.dueAt
+    state.status === 'playing' && !paused && state.actionDueAt != null && turnSeat?.kind === 'human' && connected.has(turnSeat.user.id)
+      ? state.actionDueAt
       : null;
   return {
     code: state.code,
@@ -334,6 +411,7 @@ export function toSnapshot(state: RoomState, connected: ReadonlySet<string>): Ro
     turnDeadline,
     paused,
     cpuLevel: levelOf(state),
+    settings: settingsOf(state),
     seq: state.seq,
   };
 }
