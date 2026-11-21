@@ -146,8 +146,11 @@
   overscroll-behavior: contain;
   padding: var(--space-2) calc(var(--space-2) + env(safe-area-inset-right)) calc(var(--space-2) + env(safe-area-inset-bottom))
     calc(var(--space-2) + env(safe-area-inset-left));
-  /* No fill mode: once in place the panel has no transform, so fixed dialogs inside it still cover the screen. */
-  animation: shell-sheet-in var(--dur-slower) var(--ease-out);
+  /*
+   * Short, so the panel's controls are at rest almost at once. No fill mode: once in place the
+   * panel has no transform, so fixed dialogs inside it still cover the screen.
+   */
+  animation: shell-sheet-in var(--dur-base) var(--ease-out);
 }
 
 .shell-panel-body {
@@ -177,14 +180,14 @@
 @keyframes shell-sheet-in {
   from {
     opacity: 0;
-    transform: translateY(32px);
+    transform: translateY(20px);
   }
 }
 
 @keyframes shell-side-in {
   from {
     opacity: 0;
-    transform: translateX(32px);
+    transform: translateX(20px);
   }
 }
 
@@ -303,7 +306,7 @@
   padding: var(--space-4) calc(var(--space-3) + env(safe-area-inset-right)) calc(var(--space-4) + env(safe-area-inset-bottom))
     calc(var(--space-3) + env(safe-area-inset-left));
   pointer-events: none;
-  animation: home-band-in var(--dur-slower) var(--ease-out);
+  animation: home-band-in var(--dur-base) var(--ease-out);
 }
 
 .home-band > * {
@@ -313,7 +316,7 @@
 @keyframes home-band-in {
   from {
     opacity: 0;
-    transform: translateY(16px);
+    transform: translateY(12px);
   }
 }
 

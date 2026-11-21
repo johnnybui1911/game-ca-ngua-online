@@ -41,7 +41,10 @@ export default function PersistentScene() {
       live = false;
     };
   }, [code, host]);
-  const playing = match !== null && released === code ? match : null;
+  // With nothing to wait for the match takes the board in this very render: the showcase is never
+  // built just to be replaced (it would cost a software renderer the board twice).
+  const immediate = code !== null && released !== code && (host?.matchTransitions().length ?? 0) === 0;
+  const playing = match !== null && (released === code || immediate) ? match : null;
 
   // A software renderer cannot afford a moving background: after its first match (the shell
   // gives it no canvas before) it shows still pictures between matches.
