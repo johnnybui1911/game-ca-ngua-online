@@ -68,6 +68,11 @@
   transform: scale(1.08);
 }
 
+/* The poster is the backdrop for good (no canvas on this device yet): show more of it. */
+.shell-scene[data-load='poster'] .shell-poster-image {
+  filter: blur(3px) brightness(0.6) saturate(1.1);
+}
+
 .shell-poster-card {
   position: relative;
   display: grid;

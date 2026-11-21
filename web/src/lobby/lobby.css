@@ -17,6 +17,16 @@
   overflow-wrap: anywhere;
 }
 
+.lobby-header > .ui-btn--secondary {
+  padding: 0 var(--space-4);
+}
+
+@media (max-width: 420px) {
+  .lobby-who h1 {
+    font-size: var(--text-md);
+  }
+}
+
 .lobby-who .muted {
   margin: 0;
   font-size: var(--text-sm);

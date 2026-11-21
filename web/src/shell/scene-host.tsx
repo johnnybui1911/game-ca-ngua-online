@@ -28,7 +28,11 @@ export type MatchTransition = () => void | Promise<void>;
 /** Longest the board waits for the transitions before a match takes it anyway. */
 export const MATCH_TRANSITION_LIMIT_MS = 2500;
 
-export type SceneLoad = 'loading' | 'building' | 'ready' | 'unavailable';
+/**
+ * How far the board is: its code is `loading`, the canvas is `building` its first picture, `ready`;
+ * `poster` when the still picture stands in for it (see `SceneLayer`), `unavailable` without WebGL.
+ */
+export type SceneLoad = 'loading' | 'building' | 'ready' | 'poster' | 'unavailable';
 
 export interface SceneHostApi {
   /** Registers (or, with null, withdraws) the stage of the screen identified by `id`; the newest registration wins. */

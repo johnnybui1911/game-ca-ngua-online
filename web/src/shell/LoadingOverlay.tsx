@@ -1,17 +1,17 @@
 import type { SceneLoad } from './scene-host';
 
-const PROGRESS: Record<Exclude<SceneLoad, 'ready'>, string> = {
+const PROGRESS: Record<Exclude<SceneLoad, 'ready' | 'poster'>, string> = {
   loading: 'Đang tải bàn cờ 3D… (1/2)',
   building: 'Đang dựng bàn cờ… (2/2)',
   unavailable: 'Thiết bị này không hiển thị được bàn cờ 3D.',
 };
 
-/** A still picture of the board with the loading progress, shown until the canvas has drawn. */
+/** A still picture of the board, with the loading progress while a canvas is on its way; it stays when none is. */
 export function LoadingOverlay({ load }: { load: SceneLoad }) {
   return (
     <div className="shell-poster" data-testid="scene-loading" data-load={load} aria-hidden={load === 'ready'}>
       <img className="shell-poster-image" src="/board.jpg" alt="" width={800} height={420} />
-      {load !== 'ready' && (
+      {load !== 'ready' && load !== 'poster' && (
         <div className="shell-poster-card" role="status">
           <span className="brand" aria-hidden="true">
             <span className="pawn pawn-red" />

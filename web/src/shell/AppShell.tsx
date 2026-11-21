@@ -1,10 +1,12 @@
-import { Component, Suspense, lazy, useEffect } from 'react';
+import { Component, Suspense, lazy, useEffect, useState } from 'react';
 import type { CSSProperties, ReactNode } from 'react';
 import { Outlet, useLocation } from 'react-router';
 import { SoundPlacement } from '../audio/SoundControls';
 import { entered } from './entered';
 import { LoadingOverlay } from './LoadingOverlay';
+import { useQuality } from '../scene/render/QualityProvider';
 import { SceneHostProvider, useSceneHost, useSceneHostState } from './scene-host';
+import type { SceneLoad } from './scene-host';
 import { CreatorLogoSlot, FeedbackSlot, SoundSlot } from './slots';
 import './shell.css';
 
@@ -27,16 +29,28 @@ class SceneBoundary extends Component<{ children: ReactNode; onFail: () => void 
 function SceneLayer() {
   const host = useSceneHost();
   const { load, match } = useSceneHostState();
+  const { webgl } = useQuality();
+  // A software rasteriser builds and draws the board on the CPU, which stalls the page for
+  // seconds: it gets the poster until a match needs the real board. Once created the canvas stays.
+  const wanted = webgl === 'gpu' || (webgl === 'software' && match !== null);
+  const [created, setCreated] = useState(wanted);
+  useEffect(() => {
+    if (wanted) setCreated(true);
+  }, [wanted]);
+  const mounted = created || wanted;
+  const shown: SceneLoad = mounted ? load : webgl === 'none' ? 'unavailable' : 'poster';
   return (
-    <div className="shell-scene" data-testid="scene-host" data-load={load} data-match={match ? '' : undefined}>
+    <div className="shell-scene" data-testid="scene-host" data-load={shown} data-match={match ? '' : undefined}>
       <div className="shell-canvas">
-        <SceneBoundary onFail={() => host?.setLoad('unavailable')}>
-          <Suspense fallback={null}>
-            <PersistentScene />
-          </Suspense>
-        </SceneBoundary>
+        {mounted && (
+          <SceneBoundary onFail={() => host?.setLoad('unavailable')}>
+            <Suspense fallback={null}>
+              <PersistentScene />
+            </Suspense>
+          </SceneBoundary>
+        )}
       </div>
-      <LoadingOverlay load={load} />
+      <LoadingOverlay load={shown} />
     </div>
   );
 }

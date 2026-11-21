@@ -43,7 +43,8 @@ export default function PersistentScene() {
   }, [code, host]);
   const playing = match !== null && released === code ? match : null;
 
-  // A software renderer cannot afford a moving background: outside a match it shows still pictures.
+  // A software renderer cannot afford a moving background: after its first match (the shell
+  // gives it no canvas before) it shows still pictures between matches.
   const activity = match !== null ? 'full' : webgl === 'software' ? 'paused' : stage.activity;
   useEffect(() => {
     setActivity(activity);
@@ -51,15 +52,14 @@ export default function PersistentScene() {
   useEffect(() => () => setActivity('full'), [setActivity]);
 
   useEffect(() => {
-    host?.setLoad(webgl === 'none' ? 'unavailable' : 'building');
-  }, [host, webgl]);
+    host?.setLoad('building');
+  }, [host]);
 
   const idle = useMemo(idleShowcase, []);
   const shown = showcase ?? idle;
   const batches = useMemo(() => showcaseBatches(shown), [shown]);
   const latest = batches[batches.length - 1];
 
-  if (webgl === 'none') return null;
   if (playing) {
     return (
       <SceneCanvas

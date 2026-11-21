@@ -40,34 +40,41 @@ test('private room: a signed-out visitor registers from the entry screen link an
   await guestContext.close();
 });
 
-test('one board for the whole visit: home, name, lobby, waiting room and match share a single canvas', async ({ browser }) => {
+test('one board for the whole visit: matches, the lobby and the waiting room between them share a single canvas', async ({ browser }) => {
   const context = await browser.newContext({ baseURL: ORIGIN, locale: 'vi-VN', viewport: { width: 360, height: 520 } });
   const page = await context.newPage();
   const canvases = page.locator('[data-testid=scene-host] canvas');
   /** Canvases created since the page loaded; a remount on a route change would raise it. */
   const mounts = () => page.evaluate(() => document.documentElement.dataset.sceneMounts);
+  const playAgainstCpu = async () => {
+    await page.getByTestId('create-seats').selectOption('2');
+    await page.getByTestId('create-submit').click();
+    await expect(page).toHaveURL(/\/r\/[A-Z0-9]{6}$/);
+    await page.getByTestId('add-cpu-1').click();
+    await page.getByTestId('start-button').click();
+    await expect(page.getByTestId('hud')).toBeVisible();
+    // The match plays on the shared board: the roll button opens once the board has shown the turn.
+    await expect(page.getByTestId('roll-button')).toBeEnabled();
+    await expect(page.locator('[data-testid=scene-host][data-load=ready]')).toBeVisible();
+  };
 
+  // The whole way in from the home page. (Without a GPU, as in this suite, the board waits for
+  // the first match behind its poster; with one it is there from the home page on.)
   await page.goto('/');
-  await expect(page.locator('[data-testid=scene-host][data-load=ready]')).toBeVisible();
-  await expect(canvases).toHaveCount(1);
   await page.getByTestId('play-now').click();
   await page.getByTestId('guest-name').fill('Khách Một Bàn');
   await page.getByTestId('guest-submit').click();
   await expect(page.getByTestId('greeting')).toBeVisible();
-  await page.getByTestId('create-seats').selectOption('2');
-  await page.getByTestId('create-submit').click();
-  await expect(page).toHaveURL(/\/r\/[A-Z0-9]{6}$/);
-  await page.getByTestId('add-cpu-1').click();
-  await page.getByTestId('start-button').click();
-  await expect(page.getByTestId('hud')).toBeVisible();
-  // The match plays on the same board: the roll button opens once it has shown the turn.
-  await expect(page.getByTestId('roll-button')).toBeEnabled();
+  await playAgainstCpu();
   await expect(canvases).toHaveCount(1);
   expect(await mounts()).toBe('1');
 
+  // Back to the lobby, through a second waiting room and into a second match: still that canvas.
   await page.getByTestId('leave-room').click();
   await page.getByTestId('leave-confirm').click();
   await expect(page.getByTestId('greeting')).toBeVisible();
+  await expect(canvases).toHaveCount(1);
+  await playAgainstCpu();
   await expect(canvases).toHaveCount(1);
   expect(await mounts()).toBe('1');
   await context.close();
