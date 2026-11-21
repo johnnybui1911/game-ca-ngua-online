@@ -16,6 +16,7 @@ function batch(seq: number, events: GameEvent[] = [], code = 'ABC234'): StateBat
     seats: [],
     game: createGame(SEAT_COLORS[2]!),
     turnDeadline: null,
+    paused: false,
     seq,
   };
   return { room, events };

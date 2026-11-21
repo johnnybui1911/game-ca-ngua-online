@@ -39,9 +39,10 @@ function snapshot(step: Step, players: number): RoomSnapshot {
     visibility: 'private',
     hostId: 'dev',
     status: step.game.phase === 'finished' ? 'finished' : 'playing',
-    seats: colors.map((color) => ({ color, occupant: { kind: 'cpu' as const, name: `CPU ${color}` } })),
+    seats: colors.map((color) => ({ color, occupant: { kind: 'cpu' as const, name: `CPU ${color}` }, horseNames: ['', '', '', ''] })),
     game: step.game,
     turnDeadline: null,
+    paused: false,
     seq: step.seq,
   };
 }

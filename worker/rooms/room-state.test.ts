@@ -4,6 +4,7 @@ import { ROOM_CODE_ALPHABET, ROOM_CODE_LENGTH } from '../../shared/protocol';
 import type { Timings } from './constants';
 import { generateRoomCode, isRoomCode } from './room-code';
 import {
+  cleanHorseNames,
   drawDie,
   dueDelay,
   nextCpuName,
@@ -11,6 +12,8 @@ import {
   pickHost,
   planTurn,
   reconcileConnections,
+  resumeGame,
+  setOccupant,
   toSnapshot,
   toSummary,
   type RoomState,
@@ -249,5 +252,82 @@ describe('reconcileConnections', () => {
     r.seats[0]!.occupant = null;
     reconcileConnections(r, new Set(['u2']), 0, T);
     expect(r.hostId).toBe('u2');
+  });
+});
+
+describe('host pause', () => {
+  const playing = (over: Partial<RoomState> = {}) =>
+    room({ status: 'playing', game: createGame([0, 2]), ...over });
+
+  it('stops automatic play and the visible countdown while paused', () => {
+    const r = playing();
+    planTurn(r, new Set(['u1', 'u2']), 0, T);
+    r.pausedAt = 5_000;
+    expect(nextWake(r, T)).toBeNull();
+    const snap = toSnapshot(r, new Set(['u1', 'u2']));
+    expect(snap.paused).toBe(true);
+    expect(snap.turnDeadline).toBeNull();
+  });
+
+  it('resumes with the time the action had left when the pause began', () => {
+    const r = playing();
+    planTurn(r, new Set(['u1', 'u2']), 0, T);
+    r.pausedAt = 5_000;
+    resumeGame(r, new Set(['u1', 'u2']), 65_000, T);
+    expect(r.pausedAt).toBeNull();
+    expect(r.dueAt).toBe(90_000);
+    expect(r.actionDueAt).toBe(90_000);
+    expect(nextWake(r, T)).toBe(90_000);
+  });
+
+  it('does not also count a stretch with nobody connected inside the pause', () => {
+    const r = playing();
+    planTurn(r, new Set(['u1', 'u2']), 0, T);
+    r.pausedAt = 5_000;
+    reconcileConnections(r, new Set(), 10_000, T);
+    reconcileConnections(r, new Set(['u1', 'u2']), 20_000, T);
+    expect(r.dueAt).toBe(30_000);
+    resumeGame(r, new Set(['u1', 'u2']), 25_000, T);
+    expect(r.dueAt).toBe(50_000);
+  });
+
+  it('gives a human on turn who is gone at resume only the short takeover delay', () => {
+    const r = playing();
+    planTurn(r, new Set(['u1', 'u2']), 0, T);
+    r.pausedAt = 5_000;
+    resumeGame(r, new Set(['u2']), 60_000, T);
+    expect(r.dueAt).toBe(63_000);
+    expect(r.actionDueAt).toBe(85_000);
+  });
+
+  it('hands the host role over when the host stays away through a pause', () => {
+    const r = playing({ pausedAt: 0 });
+    reconcileConnections(r, new Set(['u2']), 1_000, T);
+    expect(nextWake(r, T)).toBe(1_000 + T.waitingDisconnectMs);
+    reconcileConnections(r, new Set(['u2']), 1_000 + T.waitingDisconnectMs, T);
+    expect(r.hostId).toBe('u2');
+  });
+});
+
+describe('horse names', () => {
+  it('cleans four names and keeps empty ones as the default', () => {
+    expect(cleanHorseNames(['  Xích  Thố ', '', 'a\u200Bb', '🐴'])).toEqual(['Xích Thố', '', 'ab', '🐴']);
+  });
+
+  it('rejects a wrong shape or a name over the limit', () => {
+    expect(cleanHorseNames(['a', 'b', 'c'])).toBeNull();
+    expect(cleanHorseNames(['a', 'b', 'c', 1])).toBeNull();
+    expect(cleanHorseNames('abcd')).toBeNull();
+    expect(cleanHorseNames(['x'.repeat(13), '', '', ''])).toBeNull();
+    expect(cleanHorseNames(['x'.repeat(12), '', '', ''])).not.toBeNull();
+  });
+
+  it('drops the names when the seat changes hands and shows defaults in the snapshot', () => {
+    const r = room();
+    const seat = r.seats[0]!;
+    seat.horseNames = ['A', 'B', 'C', 'D'];
+    expect(toSnapshot(r, new Set()).seats[0]?.horseNames).toEqual(['A', 'B', 'C', 'D']);
+    setOccupant(seat, { kind: 'cpu', name: 'Máy 1' });
+    expect(toSnapshot(r, new Set()).seats[0]?.horseNames).toEqual(['', '', '', '']);
   });
 });
