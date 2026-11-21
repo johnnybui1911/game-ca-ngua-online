@@ -1,6 +1,7 @@
 import { Hono, type Context, type MiddlewareHandler } from 'hono';
 import type { GuestRequest, MeResponse, MeUser, SignInRequest, SignUpRequest } from '../../shared/protocol';
 import type { Env } from '../env';
+import { claimAttempts, clientKey, releaseAttempts, tooManySignins, tooManySignups } from './attempt-limit';
 import {
   createPasswordUser,
   findUserByEmail,
@@ -86,6 +87,7 @@ authRoutes.post('/signup', requireSameOrigin, async (c) => {
   const email = normalizeEmail(body.email);
   const password = checkPassword(body.password);
   const displayName = checkDisplayName(body.displayName);
+  await claimAttempts(c.env, [{ kind: 'signup-addr', subject: clientKey(c.req.raw) }], tooManySignups);
   const current = await getSessionAccount(c.req.raw, c.env);
   if (current?.guest) {
     // Upgrade in place: the user id and the session stay, so the guest keeps its seat.
@@ -116,11 +118,21 @@ authRoutes.post('/signin', requireSameOrigin, async (c) => {
     throw failure;
   }
   const password = typeof body.password === 'string' ? body.password : '';
+  // Claimed before any hashing and released once the password proves right, so only failures stay counted.
+  const claims = await claimAttempts(
+    c.env,
+    [
+      { kind: 'signin-email', subject: email },
+      { kind: 'signin-addr', subject: clientKey(c.req.raw) },
+    ],
+    tooManySignins,
+  );
   const user = await findUserByEmail(c.env, email);
   // Verify against a dummy hash for unknown or password-less accounts so the response time is alike.
   const stored = user?.password_hash ?? (await DUMMY_HASH_PROMISE());
   const ok = await verifyPassword(password, stored);
   if (!user || !user.password_hash || !ok) throw failure;
+  await releaseAttempts(c.env, claims);
   const current = await getSessionAccount(c.req.raw, c.env);
   const response = await respondSignedIn(c, user.id);
   // A guest that signs in to an existing account is replaced by it.

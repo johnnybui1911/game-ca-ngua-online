@@ -23,8 +23,20 @@ export interface Env {
    */
   OAUTH_TEST_BASE_URL?: string;
 
-  /** Guest creations allowed per client address per hour (positive integer; default 10). Local `.dev.vars.<env>` only. */
+  /** Guest creations allowed per client address per hour (positive integer; default 100). Local `.dev.vars.<env>` only. */
   GUEST_LIMIT_PER_HOUR?: string;
+
+  /** Sign-in attempts allowed per email per 15 minutes until one succeeds (positive integer; default 10). Local `.dev.vars.<env>` only. */
+  SIGNIN_EMAIL_LIMIT?: string;
+
+  /** Sign-in attempts allowed per client address per 15 minutes until one succeeds (positive integer; default 50). Local `.dev.vars.<env>` only. */
+  SIGNIN_ADDRESS_LIMIT?: string;
+
+  /** Sign-up attempts allowed per client address per hour (positive integer; default 20). Local `.dev.vars.<env>` only. */
+  SIGNUP_ADDRESS_LIMIT?: string;
+
+  /** Live sessions kept per user, oldest removed first (positive integer; default 10). Local `.dev.vars.<env>` only. */
+  SESSIONS_PER_USER?: string;
 
   /** Test-only: "1" shortens room timers (CPU pacing, turn deadline, disconnect grace). Local `.dev.vars.<env>` only. */
   ROOM_FAST_TIMERS?: string;

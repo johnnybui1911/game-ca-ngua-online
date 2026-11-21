@@ -41,6 +41,15 @@ function plausibleToken(token: string | null): token is string {
   return !!token && token.length === 43 && /^[A-Za-z0-9_-]+$/.test(token);
 }
 
+/** Live sessions kept per user; the oldest beyond this are deleted when a new one is created. */
+export const DEFAULT_SESSION_CAP = 10;
+
+/** The per-user session cap: the optional env override when it is a positive integer, else the default. */
+export function sessionCap(raw: string | undefined): number {
+  const n = raw === undefined ? NaN : Number(raw);
+  return Number.isInteger(n) && n > 0 ? n : DEFAULT_SESSION_CAP;
+}
+
 /** Stores a new session and returns the `Set-Cookie` value that carries its token. */
 export async function createSession(env: Env, userId: string): Promise<string> {
   const token = randomToken(32);
@@ -52,6 +61,10 @@ export async function createSession(env: Env, userId: string): Promise<string> {
       userId,
       now + SESSION_SECONDS * 1000,
     ),
+    env.DB.prepare(
+      `DELETE FROM sessions WHERE user_id = ?1 AND token_hash NOT IN (
+         SELECT token_hash FROM sessions WHERE user_id = ?1 ORDER BY expires_at DESC, rowid DESC LIMIT ?2)`,
+    ).bind(userId, sessionCap(env.SESSIONS_PER_USER)),
   ]);
   return cookieHeader(SESSION_COOKIE, token, { maxAge: SESSION_SECONDS });
 }
