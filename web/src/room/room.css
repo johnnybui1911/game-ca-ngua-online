@@ -318,3 +318,64 @@
   display: grid;
   gap: var(--space-2);
 }
+
+.btn-danger {
+  background: var(--danger);
+  color: #fff;
+  border-color: #7d1a14;
+}
+
+.pause-banner {
+  position: absolute;
+  z-index: 6;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: grid;
+  gap: var(--space-3);
+  justify-items: center;
+  width: min(90%, 340px);
+  padding: var(--space-4);
+  background: rgb(46 27 14 / 92%);
+  color: var(--wood-100);
+  border-radius: var(--radius-md);
+  text-align: center;
+}
+
+.horse-name-fields {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.horse-name-field {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.horse-name-number {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 3px solid;
+  border-radius: 50%;
+  font-weight: 700;
+}
+
+.horse-name-field input {
+  flex: 1;
+  min-width: 0;
+  min-height: var(--touch);
+  padding: 0 var(--space-3);
+  font: inherit;
+  color: var(--ink);
+  background: #fff;
+  border: 2px solid var(--wood-300);
+  border-radius: var(--radius-sm);
+}
+
+.horse-name-field input:focus {
+  border-color: var(--focus);
+}

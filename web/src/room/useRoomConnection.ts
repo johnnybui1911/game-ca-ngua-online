@@ -10,6 +10,7 @@ export interface RoomFailure {
     | 'room_full'
     | 'game_in_progress'
     | 'room_closed'
+    | 'closed_by_host'
     | 'left'
     | 'unavailable'
     | 'too_many_connections'
@@ -36,6 +37,7 @@ const FAILURE_TEXT: Record<string, string> = {
   room_full: 'Phòng đã đầy.',
   game_in_progress: 'Ván đấu đang diễn ra, bạn không thể vào phòng này.',
   room_closed: 'Phòng đã đóng.',
+  closed_by_host: 'Chủ phòng đã đóng phòng.',
   left: 'Bạn đã rời phòng.',
   too_many_connections: 'Bạn mở phòng này ở quá nhiều tab, kết nối này đã bị đóng.',
   rate_limited: 'Bạn gửi quá nhanh nên kết nối đã bị đóng.',

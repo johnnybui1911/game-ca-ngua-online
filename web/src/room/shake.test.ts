@@ -1,0 +1,24 @@
+import { describe, expect, it } from 'vitest';
+import { createShakeDetector } from './shake';
+
+const still = { x: 0, y: 0, z: 9.8 };
+const jolt = { x: 18, y: -17, z: 9.8 };
+
+describe('createShakeDetector', () => {
+  it('fires on a jolt across two axes, not on a one-axis tilt or small movement', () => {
+    const detect = createShakeDetector(15, 1000);
+    expect(detect(still, 0)).toBe(false);
+    expect(detect({ x: 20, y: 0, z: 9.8 }, 10)).toBe(false);
+    expect(detect({ x: 26, y: 5, z: 12 }, 20)).toBe(false);
+    expect(detect({ x: 0, y: -14, z: -8 }, 30)).toBe(true);
+  });
+
+  it('rolls once per shake: jolts inside the cooldown are ignored, the next shake fires again', () => {
+    const detect = createShakeDetector(15, 1000);
+    detect(still, 0);
+    expect(detect(jolt, 100)).toBe(true);
+    expect(detect(still, 200)).toBe(false);
+    expect(detect(jolt, 900)).toBe(false);
+    expect(detect(still, 1100)).toBe(true);
+  });
+});

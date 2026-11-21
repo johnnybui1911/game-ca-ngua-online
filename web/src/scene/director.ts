@@ -35,6 +35,11 @@ export interface SceneView {
   setActive(color: Color | null): void;
   /** `t` runs 0..CELEBRATION_SECONDS; a null colour ends the effect. */
   setCelebration(color: Color | null, t: number): void;
+  /**
+   * A horse starts an animated move of `hops` cell hops, each `hopSeconds` long; when it kicks an
+   * opponent, the kick starts `kickAt` seconds from now (null without a kick). For sound.
+   */
+  moveStarted(hops: number, hopSeconds: number, kickAt: number | null): void;
 }
 
 interface Batch {
@@ -223,6 +228,7 @@ export class Director {
   private startSeg(seg: Seg): void {
     if (seg.k === 'turn') this.view.setActive(seg.color);
     else if (seg.k === 'win') this.startCelebration(seg.color);
+    else if (seg.k === 'move') this.view.moveStarted(seg.hops, seg.hopDur, seg.kicked ? seg.hopsDur : null);
   }
 
   private applySeg(seg: Seg, t: number): void {

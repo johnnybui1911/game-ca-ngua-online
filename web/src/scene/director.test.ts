@@ -26,6 +26,10 @@ class FakeView implements SceneView {
   setCelebration(color: Color | null) {
     this.celebration = color;
   }
+  moves: { hops: number; hopSeconds: number; kickAt: number | null }[] = [];
+  moveStarted(hops: number, hopSeconds: number, kickAt: number | null) {
+    this.moves.push({ hops, hopSeconds, kickAt });
+  }
 
   /** Every horse of the colours in play stands exactly where `game` says. */
   expectShows(game: GameState) {
@@ -73,6 +77,23 @@ function playActions(n: number, colors: Color[] = [0, 1, 2, 3]) {
 }
 
 describe('Director', () => {
+  it('reports each animated move once, with one hop per cell, and nothing on reset', () => {
+    let game = createGame([0, 2]);
+    game = applyRoll(game, 6).state;
+    game = applyMove(game, 0).state;
+    const afterRoll = applyRoll(game, 5);
+    const move = applyMove(afterRoll.state, afterRoll.state.legalHorses[0]!);
+    const view = new FakeView();
+    const d = new Director(view);
+    d.reset(afterRoll.state);
+    expect(view.moves).toEqual([]);
+    d.push(move.state, move.events);
+    drain(d);
+    expect(view.moves).toHaveLength(1);
+    expect(view.moves[0]).toMatchObject({ hops: 5, kickAt: null });
+    expect(view.moves[0]!.hopSeconds).toBeGreaterThan(0);
+  });
+
   it('shows the game immediately on reset', () => {
     const view = new FakeView();
     const d = new Director(view);

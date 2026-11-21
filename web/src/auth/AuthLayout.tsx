@@ -1,6 +1,8 @@
 import type { ReactNode } from 'react';
+import { SoundButton, useMusic } from '../audio/SoundControls';
 
 export function AuthLayout({ title, children }: { title: string; children: ReactNode }) {
+  useMusic('lobby');
   return (
     <main className="auth-page">
       <section className="card auth-card">
@@ -14,6 +16,7 @@ export function AuthLayout({ title, children }: { title: string; children: React
         <h1>{title}</h1>
         {children}
       </section>
+      <SoundButton />
     </main>
   );
 }

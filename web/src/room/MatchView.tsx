@@ -4,12 +4,19 @@ import { HORSES_PER_COLOR, POS_GATE } from '../../../shared/game/types';
 import { SaveAccountBlock } from '../auth/SaveAccountBlock';
 import { useSession } from '../auth/session-context';
 import type { RoomClientMessage, RoomSnapshot, Seat } from '../../../shared/protocol';
+import { sound } from '../audio/sound';
+import { SoundSwitches, useMusic } from '../audio/SoundControls';
 import { unconsumed, type StateBatch } from './batches';
 import { secondsLeft } from './countdown';
 import { lastRollAfter, type LastRoll } from './last-roll';
 import { COLOR_NAMES, COLOR_VARS } from './colors';
+import { HorseNamesDialog } from './HorseNamesDialog';
 import { describeMove } from './move-text';
+import { useShakeToRoll } from './shake';
 import { reserveInsets, type ReservedInsets } from '../scene/camera';
+
+/** Seconds left on the local player's action at which the reminder sounds. */
+const REMINDER_SECONDS = 10;
 
 const GameScene = lazy(() => import('../scene/GameScene'));
 
@@ -80,9 +87,41 @@ function useHudInsets(active: boolean) {
   return { topRef, bottomRef, insets: insets ?? { top: 0, bottom: 0 } };
 }
 
+/**
+ * Effects for what the server reports: a dice sound for every roll received after mount (a reload
+ * does not replay old ones), a chime when the turn reaches the local player, and a reminder once per
+ * action when its time is nearly up.
+ */
+function useGameSounds(batches: StateBatch[], myTurn: boolean, seconds: number | null, deadline: number | null) {
+  const consumed = useRef<number | null>(null);
+  useEffect(() => {
+    const from = consumed.current;
+    consumed.current = batches[batches.length - 1]?.room.seq ?? from;
+    if (from === null) return;
+    if (unconsumed(batches, from).some((b) => b.events.some((e) => e.type === 'rolled'))) sound.playDice();
+  }, [batches]);
+
+  const wasMyTurn = useRef(false);
+  useEffect(() => {
+    if (myTurn && !wasMyTurn.current) sound.playTurn();
+    wasMyTurn.current = myTurn;
+  }, [myTurn]);
+
+  const remindedFor = useRef<number | null>(null);
+  useEffect(() => {
+    if (!myTurn || seconds === null || deadline === null || seconds > REMINDER_SECONDS) return;
+    if (remindedFor.current === deadline) return;
+    remindedFor.current = deadline;
+    sound.playReminder();
+  }, [myTurn, seconds, deadline]);
+}
+
 export function MatchView({ room, batches, clockOffset, myId, send, actionError }: Props) {
   const navigate = useNavigate();
   const [confirmLeave, setConfirmLeave] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [renaming, setRenaming] = useState(false);
+  const [confirmClose, setConfirmClose] = useState(false);
   const { guest } = useSession();
   // Decided once per visit: stays on screen as a confirmation after the guest registers.
   const [offerSave] = useState(guest);
@@ -91,27 +130,40 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError 
   const lastRoll = useLastRoll(batches);
   const seconds = useCountdown(room.turnDeadline, clockOffset);
   const hud = useHudInsets(room.game !== null);
-  if (!game) return null;
 
   const mySeat = room.seats.find((s) => s.occupant?.kind === 'human' && s.occupant.user.id === myId);
   const myColor = mySeat?.color ?? null;
+  const finished = game?.phase === 'finished';
+  const paused = room.paused;
+  const myTurn = game !== null && myColor !== null && game.turn === myColor && !finished;
+  const canRoll = myTurn && !paused && game?.phase === 'roll';
+  useMusic('game');
+  useGameSounds(batches, myTurn && !paused, seconds, room.turnDeadline);
+  const shake = useShakeToRoll(canRoll, () => send({ t: 'roll' }));
+  if (!game) return null;
+
   const turnSeat = room.seats.find((s) => s.color === game.turn);
-  const myTurn = myColor !== null && game.turn === myColor && game.phase !== 'finished';
   const isHost = room.hostId === myId;
   const winnerSeat = game.winner === null ? undefined : room.seats.find((s) => s.color === game.winner);
-  const finished = game.phase === 'finished';
+  const turnNames = turnSeat?.horseNames;
 
   const leave = () => {
     send({ t: 'leave' });
     void navigate('/');
   };
 
+  const closeRoom = () => {
+    send({ t: 'closeRoom' });
+    void navigate('/');
+  };
+
   const turnText = finished
     ? 'Ván đấu đã kết thúc'
-    : myTurn
-      ? 'Lượt của bạn'
-      : `Lượt của ${seatName(turnSeat)}`;
-
+    : paused
+      ? 'Ván đấu đang tạm dừng'
+      : myTurn
+        ? 'Lượt của bạn'
+        : `Lượt của ${seatName(turnSeat)}`;
   return (
     <div
       className="match"
@@ -128,7 +180,7 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError 
             myColor={myColor}
             insets={hud.insets}
             onPickHorse={(horse) => {
-              if (myTurn && game.phase === 'move' && game.legalHorses.includes(horse)) send({ t: 'move', horse });
+              if (myTurn && !paused && game.phase === 'move' && game.legalHorses.includes(horse)) send({ t: 'move', horse });
             }}
           />
         </Suspense>
@@ -183,12 +235,18 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError 
         )}
 
         <div className="hud-actions">
-          {myTurn && game.phase === 'roll' && (
+          {canRoll && (
             <button type="button" className="btn btn-primary btn-roll" data-testid="roll-button" onClick={() => send({ t: 'roll' })}>
-              Đổ xúc xắc
+              {shake.enabled ? 'Đổ xúc xắc (hoặc lắc máy)' : 'Đổ xúc xắc'}
+            </button>
+          )}
+          {canRoll && shake.supported && !shake.enabled && (
+            <button type="button" className="btn btn-secondary" data-testid="enable-shake" onClick={shake.enable}>
+              Bật lắc để đổ
             </button>
           )}
           {myTurn &&
+            !paused &&
             game.phase === 'move' &&
             game.legalHorses.map((horse) => (
               <button
@@ -198,14 +256,102 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError 
                 data-testid={`move-button-${horse}`}
                 onClick={() => send({ t: 'move', horse })}
               >
-                {describeMove(game, horse)}
+                {describeMove(game, horse, turnNames)}
               </button>
             ))}
+          <button type="button" className="btn btn-secondary" data-testid="match-menu-button" onClick={() => setMenuOpen(true)}>
+            Menu
+          </button>
           <button type="button" className="btn btn-secondary btn-leave" data-testid="leave-room" onClick={() => setConfirmLeave(true)}>
             Rời phòng
           </button>
         </div>
       </section>
+
+      {paused && !finished && (
+        <div className="pause-banner" role="status" data-testid="pause-banner">
+          <strong>Chủ phòng đã tạm dừng ván đấu</strong>
+          {isHost && (
+            <button type="button" className="btn btn-primary" data-testid="resume-button" onClick={() => send({ t: 'resume' })}>
+              Tiếp tục
+            </button>
+          )}
+        </div>
+      )}
+
+      {menuOpen && (
+        <div className="dialog-backdrop">
+          <div className="card dialog" role="dialog" aria-modal="true" aria-labelledby="menu-title" data-testid="match-menu">
+            <h2 id="menu-title">Menu</h2>
+            <SoundSwitches />
+            <div className="dialog-actions">
+              {mySeat && (
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  data-testid="rename-horses"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    setRenaming(true);
+                  }}
+                >
+                  Đặt tên quân
+                </button>
+              )}
+              {isHost && !finished && (
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  data-testid={paused ? 'menu-resume' : 'pause-button'}
+                  onClick={() => {
+                    send({ t: paused ? 'resume' : 'pause' });
+                    setMenuOpen(false);
+                  }}
+                >
+                  {paused ? 'Tiếp tục ván đấu' : 'Tạm dừng ván đấu'}
+                </button>
+              )}
+              {isHost && !finished && (
+                <button
+                  type="button"
+                  className="btn btn-danger"
+                  data-testid="close-room"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    setConfirmClose(true);
+                  }}
+                >
+                  Đóng phòng
+                </button>
+              )}
+              <button type="button" className="btn btn-primary" data-testid="menu-close" onClick={() => setMenuOpen(false)}>
+                Đóng
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {renaming && mySeat && (
+        <HorseNamesDialog color={mySeat.color} names={mySeat.horseNames} send={send} onClose={() => setRenaming(false)} />
+      )}
+
+      {confirmClose && !finished && (
+        <div className="dialog-backdrop">
+          <div className="card dialog" role="dialog" aria-modal="true" aria-labelledby="close-title" data-testid="close-dialog">
+            <h2 id="close-title">Đóng phòng?</h2>
+            <p>Ván đấu sẽ bị huỷ và mọi người sẽ rời phòng.</p>
+            <div className="dialog-actions">
+              <button type="button" className="btn btn-danger" data-testid="close-confirm" onClick={closeRoom}>
+                Đóng phòng
+              </button>
+              <button type="button" className="btn btn-secondary" data-testid="close-cancel" onClick={() => setConfirmClose(false)}>
+                Huỷ
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {confirmLeave && !finished && (
         <div className="dialog-backdrop">

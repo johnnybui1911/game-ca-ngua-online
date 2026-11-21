@@ -19,6 +19,12 @@ describe('describeMove', () => {
     expect(describeMove(stateWith([10, POS_STABLE, POS_STABLE, POS_STABLE], 4), 0)).toBe('Quân 1: đi 4 ô');
   });
 
+  it('calls a renamed horse by its name and an unnamed one by its number', () => {
+    const g = stateWith([10, POS_STABLE, POS_STABLE, POS_STABLE], 4);
+    expect(describeMove(g, 0, ['Xích Thố', '', '', ''])).toBe('Xích Thố: đi 4 ô');
+    expect(describeMove(g, 0, ['', '', '', ''])).toBe('Quân 1: đi 4 ô');
+  });
+
   it('describes climbing from the gate', () => {
     expect(describeMove(stateWith([POS_STABLE, POS_STABLE, 55, POS_STABLE], 5), 2)).toBe('Quân 3: lên bậc 5');
   });
