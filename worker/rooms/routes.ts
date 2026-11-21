@@ -69,7 +69,6 @@ roomRoutes.post('/rooms', requireSameOrigin, async (c) => {
 });
 
 roomRoutes.get('/rooms/:code', async (c) => {
-  if (!(await getSessionUser(c.req.raw, c.env))) return unauthorized(c);
   const code = c.req.param('code').toUpperCase();
   if (!isRoomCode(code)) return notFound(c);
   const summary = await c.env.ROOMS.getByName(code).summary();

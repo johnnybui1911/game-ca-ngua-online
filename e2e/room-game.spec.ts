@@ -50,6 +50,9 @@ test('two humans play a full game and both see the same winner', async ({ browse
   await expect(b.page.getByTestId('win-title')).toHaveText(winner ?? '');
   await expect(a.page.getByTestId('rematch-button')).toBeVisible();
   await expect(b.page.getByTestId('await-host')).toHaveText('Chờ chủ phòng');
+  // Registered players are never offered to save an account.
+  await expect(a.page.getByTestId('save-account')).toHaveCount(0);
+  await expect(b.page.getByTestId('save-account')).toHaveCount(0);
   await a.context.close();
   await b.context.close();
 });

@@ -40,6 +40,31 @@ export async function createPasswordUser(
   return id;
 }
 
+/**
+ * Turns the guest `userId` into a registered user in place: same id, so rooms and sessions
+ * keep working. A taken email changes nothing.
+ */
+export async function upgradeGuestWithPassword(
+  env: Env,
+  userId: string,
+  email: string,
+  password: string,
+  displayName: string,
+): Promise<void> {
+  const hash = await hashPassword(password);
+  try {
+    const res = await env.DB.prepare(
+      'UPDATE users SET email = ?, password_hash = ?, display_name = ?, is_guest = 0 WHERE id = ? AND is_guest = 1',
+    )
+      .bind(email, hash, displayName, userId)
+      .run();
+    if (!res.meta.changes) throw new HttpError(409, 'not_guest', 'Tài khoản này đã được lưu.');
+  } catch (e) {
+    if (isUniqueViolation(e)) throw new HttpError(409, 'email_taken', 'Email này đã được đăng ký.');
+    throw e;
+  }
+}
+
 async function findLinkedUser(env: Env, provider: OAuthProvider, providerUserId: string) {
   const row = await env.DB.prepare(
     'SELECT user_id FROM oauth_accounts WHERE provider = ? AND provider_user_id = ?',
@@ -57,11 +82,13 @@ const linkStatement = (env: Env, provider: OAuthProvider, providerUserId: string
   );
 
 /**
- * Resolves a provider profile to a user id, creating or linking as needed.
+ * Resolves a provider profile to a user id, creating or linking as needed. When `guestId`
+ * names the caller's guest user, a profile with no account yet is linked to that guest (kept
+ * as the same user); the caller deletes the guest when the result is another id.
  *
  * - A known (provider, id) pair signs that user in.
  * - Only a Google-verified email may link to an existing email account.
- * - Otherwise a new user is created. The email is stored on it only when the
+ * - Otherwise a new user is created, or the guest is upgraded. The email is stored on it only when the
  *   provider verified it and no other user holds it; an unverified address
  *   must not reserve an email that its real owner could later sign up with.
  */
@@ -69,6 +96,7 @@ export async function resolveOAuthUser(
   env: Env,
   provider: OAuthProvider,
   profile: ProviderProfile,
+  guestId: string | null = null,
 ): Promise<string> {
   const linked = await findLinkedUser(env, provider, profile.id);
   if (linked) return linked;
@@ -101,6 +129,8 @@ export async function resolveOAuthUser(
     }
   }
 
+  if (guestId) return upgradeGuestWithProvider(env, provider, profile, guestId, verifiedEmail);
+
   const userId = crypto.randomUUID();
   const name = displayNameFromProfile(profile.name);
   const insertUser = (storedEmail: string | null) =>
@@ -120,4 +150,29 @@ export async function resolveOAuthUser(
     await env.DB.batch([insertUser(null), linkStatement(env, provider, profile.id, userId)]);
   }
   return userId;
+}
+
+/** Links the provider account to the guest and clears its guest flag; the chosen name stays. */
+async function upgradeGuestWithProvider(
+  env: Env,
+  provider: OAuthProvider,
+  profile: ProviderProfile,
+  guestId: string,
+  verifiedEmail: string | null,
+): Promise<string> {
+  const upgrade = (storedEmail: string | null) =>
+    env.DB.prepare('UPDATE users SET is_guest = 0, email = COALESCE(?, email) WHERE id = ? AND is_guest = 1').bind(
+      storedEmail,
+      guestId,
+    );
+  try {
+    await env.DB.batch([linkStatement(env, provider, profile.id, guestId), upgrade(verifiedEmail)]);
+  } catch (e) {
+    const winner = await findLinkedUser(env, provider, profile.id);
+    if (winner) return winner;
+    if (!verifiedEmail || !isUniqueViolation(e)) throw e;
+    // The email was claimed between the check and the update; keep the account without it.
+    await env.DB.batch([linkStatement(env, provider, profile.id, guestId), upgrade(null)]);
+  }
+  return guestId;
 }

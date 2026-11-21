@@ -29,6 +29,32 @@ export async function newPlayer(browser: Browser, name: string, viewport?: { wid
   return { context, page, name, id: me.user.id };
 }
 
+let nextAddress = Date.now() % 200_000_000;
+
+/** A client address never used before, so guest creation limits do not leak between tests. */
+export function freshAddress(): string {
+  nextAddress += 1;
+  return `10.${(nextAddress >> 16) & 255}.${(nextAddress >> 8) & 255}.${nextAddress & 255}`;
+}
+
+/** A guest in a fresh browser context, created through the API from its own client address. */
+export async function newGuest(browser: Browser, name: string, viewport?: { width: number; height: number }): Promise<Player> {
+  const context = await browser.newContext({
+    baseURL: ORIGIN,
+    locale: 'vi-VN',
+    viewport: viewport ?? { width: 1100, height: 800 },
+  });
+  const res = await context.request.post('/api/auth/guest', {
+    headers: { Origin: ORIGIN, 'CF-Connecting-IP': freshAddress() },
+    data: { displayName: name },
+  });
+  expect(res.status()).toBe(200);
+  const me = (await res.json()) as { user: { id: string; guest: boolean } };
+  expect(me.user.guest).toBe(true);
+  const page = await context.newPage();
+  return { context, page, name, id: me.user.id };
+}
+
 export async function createRoom(player: Player, req: Partial<CreateRoomRequest> = {}): Promise<string> {
   const res = await player.context.request.post('/api/rooms', {
     headers: { Origin: ORIGIN },
@@ -61,9 +87,10 @@ export async function startTwoPlayerGame(
   names: [string, string],
   /** Runs once both players are seated in the waiting room, before the host starts the game. */
   beforeStart?: (a: Player, b: Player, code: string) => Promise<void>,
+  make: typeof newPlayer = newPlayer,
 ) {
-  const a = await newPlayer(browser, names[0], VIEWPORT);
-  const b = await newPlayer(browser, names[1], VIEWPORT);
+  const a = await make(browser, names[0], VIEWPORT);
+  const b = await make(browser, names[1], VIEWPORT);
   const code = await createRoom(a, { name: 'Ván hai người', visibility: 'private', seats: 2 });
   await a.page.goto(`/r/${code}`);
   await b.page.goto(`/r/${code}`);

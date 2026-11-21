@@ -1,4 +1,4 @@
-import type { PublicUser } from '../../shared/protocol';
+import type { MeUser, PublicUser } from '../../shared/protocol';
 import type { Env } from '../env';
 import { toBase64 } from './password';
 
@@ -23,7 +23,7 @@ export function cookieHeader(
   return `${name}=${value}; Max-Age=${opts.maxAge}; Path=${opts.path ?? '/'}; HttpOnly; Secure; SameSite=Lax`;
 }
 
-async function sha256Hex(text: string): Promise<string> {
+export async function sha256Hex(text: string): Promise<string> {
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
   return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('');
 }
@@ -77,4 +77,18 @@ export async function getSessionUser(request: Request, env: Env): Promise<Public
     .bind(await sha256Hex(token), Date.now())
     .first<PublicUser>();
   return row ?? null;
+}
+
+/** The session's user including whether it is a guest, or null. Used by account routes only. */
+export async function getSessionAccount(request: Request, env: Env): Promise<MeUser | null> {
+  const token = readCookie(request, SESSION_COOKIE);
+  if (!plausibleToken(token)) return null;
+  const row = await env.DB.prepare(
+    `SELECT u.id AS id, u.display_name AS displayName, u.is_guest AS guest
+       FROM sessions s JOIN users u ON u.id = s.user_id
+      WHERE s.token_hash = ? AND s.expires_at > ?`,
+  )
+    .bind(await sha256Hex(token), Date.now())
+    .first<{ id: string; displayName: string; guest: number }>();
+  return row ? { id: row.id, displayName: row.displayName, guest: row.guest === 1 } : null;
 }

@@ -23,6 +23,9 @@ export interface Env {
    */
   OAUTH_TEST_BASE_URL?: string;
 
+  /** Guest creations allowed per client address per hour (positive integer; default 10). Local `.dev.vars.<env>` only. */
+  GUEST_LIMIT_PER_HOUR?: string;
+
   /** Test-only: "1" shortens room timers (CPU pacing, turn deadline, disconnect grace). Local `.dev.vars.<env>` only. */
   ROOM_FAST_TIMERS?: string;
 }
