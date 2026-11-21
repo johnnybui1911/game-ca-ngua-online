@@ -7,6 +7,7 @@ import type { CSSProperties } from 'react';
 import { PerspectiveCamera, Vector3 } from 'three';
 import { applyMove, applyRoll, createGame } from '../../../../shared/game/engine';
 import { chooseCpuMove } from '../../../../shared/game/cpu';
+import { DEFAULT_CPU_LEVEL, isCpuLevel, type CpuLevel } from '../../../../shared/game/cpu-level';
 import type { DiceValue, GameEvent, GameState } from '../../../../shared/game/types';
 import { SEAT_COLORS } from '../../../../shared/protocol';
 import type { RoomSnapshot } from '../../../../shared/protocol';
@@ -23,6 +24,12 @@ function mulberry32(seed: number): () => number {
     t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
+}
+
+/** `?level=easy|normal|hard` makes the harness CPUs play at that level (default Thường). */
+function devLevel(): CpuLevel {
+  const level = new URLSearchParams(window.location.search).get('level');
+  return isCpuLevel(level) ? level : DEFAULT_CPU_LEVEL;
 }
 
 interface Step {
@@ -43,6 +50,7 @@ function snapshot(step: Step, players: number): RoomSnapshot {
     game: step.game,
     turnDeadline: null,
     paused: false,
+    cpuLevel: devLevel(),
     seq: step.seq,
   };
 }
@@ -91,7 +99,7 @@ export default function DevApp() {
     if (game.phase === 'finished' || paused || humanTurn) return;
     const id = window.setTimeout(() => {
       if (game.phase === 'roll') roll();
-      else advance((g) => applyMove(g, chooseCpuMove(g)));
+      else advance((g) => applyMove(g, chooseCpuMove(g, devLevel())));
     }, delay);
     return () => window.clearTimeout(id);
   }, [game, paused, humanTurn, delay, roll, advance, step.seq]);

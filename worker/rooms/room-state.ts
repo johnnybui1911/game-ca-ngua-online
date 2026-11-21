@@ -12,6 +12,7 @@ import {
 import type { GameEvent, GameState } from '../../shared/game/types';
 import { applyMove, applyRoll } from '../../shared/game/engine';
 import { chooseCpuMove } from '../../shared/game/cpu';
+import { DEFAULT_CPU_LEVEL, isCpuLevel, type CpuLevel } from '../../shared/game/cpu-level';
 import type { Timings } from './constants';
 import { sanitizeText } from '../auth/validate';
 
@@ -47,6 +48,8 @@ export interface RoomState {
   noHumanConnectedSince: number | null;
   /** When the host paused the running game; null or absent while it runs. */
   pausedAt?: number | null;
+  /** Absent in rooms stored before the setting existed: Thường. */
+  cpuLevel?: CpuLevel;
 }
 
 /** Seats a new occupant (or empties the seat); horse names belong to the previous occupant and are dropped. */
@@ -69,6 +72,21 @@ export function cleanHorseNames(raw: unknown): string[] | null {
     out.push(name);
   }
   return out;
+}
+
+/** The room's CPU level; an absent or unrecognised stored value reads as the default. */
+export function levelOf(state: RoomState): CpuLevel {
+  return isCpuLevel(state.cpuLevel) ? state.cpuLevel : DEFAULT_CPU_LEVEL;
+}
+
+/** Level the server plays a seat at: a CPU seat uses the room level; a seated human auto-played to avoid a stall uses the default. */
+export function levelForOccupant(state: RoomState, occupant: StoredOccupant | null): CpuLevel {
+  return occupant?.kind === 'cpu' ? levelOf(state) : DEFAULT_CPU_LEVEL;
+}
+
+/** A level from a client message, or null when it is not one of the known levels. */
+export function parseCpuLevel(raw: unknown): CpuLevel | null {
+  return isCpuLevel(raw) ? raw : null;
 }
 
 export function isPaused(state: RoomState): boolean {
@@ -155,18 +173,20 @@ export function playDueAction(
 ): { events: GameEvent[]; finished: boolean } | null {
   const game = state.game;
   if (!game) return null;
+  // The colour on turn does not change between the roll and its move.
+  const level = levelForOccupant(state, state.seats[currentSeatIndex(state)]?.occupant ?? null);
   let result;
   let combined = false;
   if (game.phase === 'roll') {
     const automated = isAutomatedActor(state, connected);
     result = applyRoll(game, draw());
     if (automated && result.state.phase === 'move' && result.state.turn === game.turn) {
-      const moved = applyMove(result.state, chooseCpuMove(result.state));
+      const moved = applyMove(result.state, chooseCpuMove(result.state, level));
       result = { state: moved.state, events: [...result.events, ...moved.events] };
       combined = true;
     }
   } else if (game.phase === 'move') {
-    result = applyMove(game, chooseCpuMove(game));
+    result = applyMove(game, chooseCpuMove(game, level));
   } else {
     return null;
   }
@@ -313,6 +333,7 @@ export function toSnapshot(state: RoomState, connected: ReadonlySet<string>): Ro
     game: state.game,
     turnDeadline,
     paused,
+    cpuLevel: levelOf(state),
     seq: state.seq,
   };
 }

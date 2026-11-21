@@ -5,10 +5,13 @@ import { SoundButton, useMusic } from '../audio/SoundControls';
 import { inviteLink, reportInviteShared } from '../analytics';
 import { useLobby } from '../lobby/LobbyProvider';
 import { COLOR_NAMES, COLOR_VARS } from './colors';
+import { CpuLevelControl } from './CpuLevelControl';
+import { CPU_LEVEL_LABELS, cpuLevelOf } from './cpu-levels';
 import { EmoteBubble, EmoteLive } from './EmoteBubble';
 import { EmotePicker } from './EmotePicker';
 import type { EmoteBySeat } from './emote-feed';
 import { HorseNamesDialog } from './HorseNamesDialog';
+import { RulesSheet } from './RulesSheet';
 
 const INVITE_SENT_MS = 10_000;
 
@@ -34,6 +37,7 @@ export function WaitingView({ room, myId, send, actionError, emotes, offline }: 
   const [copied, setCopied] = useState<'idle' | 'done' | 'failed'>('idle');
   const [sent, setSent] = useState<Set<string>>(new Set());
   const [renaming, setRenaming] = useState(false);
+  const [rulesOpen, setRulesOpen] = useState(false);
   useMusic('lobby');
 
   const isHost = room.hostId === myId;
@@ -98,6 +102,8 @@ export function WaitingView({ room, myId, send, actionError, emotes, offline }: 
           </p>
         </header>
 
+        <CpuLevelControl room={room} isHost={isHost} offline={offline} send={send} />
+
         <ul className="seat-list" data-testid="seat-list">
           {room.seats.map((seat, i) => {
             const occ = seat.occupant;
@@ -112,7 +118,7 @@ export function WaitingView({ room, myId, send, actionError, emotes, offline }: 
                   </strong>
                   <span className="muted" data-testid={`seat-${i}-state`}>
                     {occ === null && 'Chờ người chơi'}
-                    {occ?.kind === 'cpu' && 'Máy'}
+                    {occ?.kind === 'cpu' && `Máy · ${CPU_LEVEL_LABELS[cpuLevelOf(room)]}`}
                     {occ?.kind === 'human' && (occ.connected ? 'Đang kết nối' : 'Mất kết nối')}
                     {occ?.kind === 'human' && occ.user.id === room.hostId && ' · Chủ phòng'}
                   </span>
@@ -142,6 +148,12 @@ export function WaitingView({ room, myId, send, actionError, emotes, offline }: 
             );
           })}
         </ul>
+
+        <div className="leave-row">
+          <button type="button" className="btn btn-secondary" data-testid="waiting-rules" onClick={() => setRulesOpen(true)}>
+            Luật chơi
+          </button>
+        </div>
 
         <EmoteLive emotes={emotes} mySeat={room.seats.indexOf(mySeat!)} nameOf={(i) => seatLabel(room.seats[i])} />
         <EmotePicker send={send} offline={offline} />
@@ -216,6 +228,7 @@ export function WaitingView({ room, myId, send, actionError, emotes, offline }: 
           </button>
         </div>
       </section>
+      {rulesOpen && <RulesSheet secondsLeft={null} onClose={() => setRulesOpen(false)} />}
       {renaming && mySeat && (
         <HorseNamesDialog color={mySeat.color} names={mySeat.horseNames} send={send} onClose={() => setRenaming(false)} />
       )}

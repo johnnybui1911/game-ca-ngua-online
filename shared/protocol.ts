@@ -3,6 +3,7 @@
  * WebSocket messages. Both sides import these types; neither redefines them.
  */
 import type { EmoteId } from './emotes';
+import type { CpuLevel } from './game/cpu-level';
 import type { Color, GameEvent, GameState } from './game/types';
 
 // ---------------------------------------------------------------- accounts
@@ -107,6 +108,8 @@ export interface RoomSnapshot {
   turnDeadline: number | null;
   /** True while the host has paused the running game. */
   paused: boolean;
+  /** CPU difficulty of the whole room; changed by the host while waiting. */
+  cpuLevel: CpuLevel;
   /** Increases by one with every snapshot the room broadcasts. */
   seq: number;
 }
@@ -142,6 +145,8 @@ export type RoomClientMessage =
   | { t: 'addCpu'; seat: number }
   /** Host only, while waiting: remove the CPU from a seat. */
   | { t: 'removeCpu'; seat: number }
+  /** Host only, while waiting: how well every CPU of the room plays. */
+  | { t: 'cpuLevel'; level: CpuLevel }
   /** Host only: start when at least two seats are occupied. */
   | { t: 'start' }
   | { t: 'roll' }

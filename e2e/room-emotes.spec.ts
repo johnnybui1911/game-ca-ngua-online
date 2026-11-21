@@ -47,10 +47,13 @@ async function rawPair(a: Player, b: Player, code: string) {
 test('an emote shows as a bubble on the sender seat for everyone, then goes away', async ({ browser }) => {
   const { a, b } = await waitingRoom(browser, ['Người Gửi', 'Người Nhận']);
   await pick(a.page, 'taunt');
-  for (const p of [a, b]) {
-    await expect(p.page.getByTestId('emote-bubble-0')).toContainText('Đá nè!');
-    await expect(p.page.getByTestId('seat-0').getByTestId('emote-bubble-0')).toHaveAttribute('aria-hidden', 'true');
-  }
+  // Both screens at once: a bubble lives about 3 s, so checking one screen after the other can miss it.
+  await Promise.all(
+    [a, b].map(async (p) => {
+      await expect(p.page.getByTestId('emote-bubble-0')).toContainText('Đá nè!');
+      await expect(p.page.getByTestId('seat-0').getByTestId('emote-bubble-0')).toHaveAttribute('aria-hidden', 'true');
+    }),
+  );
   await expect(b.page.getByTestId('emote-live')).toHaveText('Người Gửi: 😈 Đá nè!');
   for (const p of [a, b]) await expect(p.page.getByTestId('emote-bubble-0')).toHaveCount(0, { timeout: 6000 });
   await expect(b.page.getByTestId('emote-live')).toHaveText('', { timeout: 6000 });
@@ -71,8 +74,9 @@ test('emotes work during a match, on the sender hud tile, without blocking play'
   const { a, b } = await startTwoPlayerGame(browser, ['Người Xem', 'Người Giục']);
   const bColor = await b.page.getByTestId('hud').getAttribute('data-my-color');
   await pick(b.page, 'hurry');
-  await expect(a.page.getByTestId(`hud-player-${bColor}`).getByTestId('emote-bubble-1')).toContainText('Nhanh lên');
-  await expect(b.page.getByTestId(`hud-player-${bColor}`).getByTestId('emote-bubble-1')).toContainText('Nhanh lên');
+  await Promise.all(
+    [a, b].map((p) => expect(p.page.getByTestId(`hud-player-${bColor}`).getByTestId('emote-bubble-1')).toContainText('Nhanh lên')),
+  );
   // A probe with the bubble class, since the real bubble may expire before it can be inspected.
   const pointerEvents = await a.page.evaluate(() => {
     const probe = document.createElement('span');
