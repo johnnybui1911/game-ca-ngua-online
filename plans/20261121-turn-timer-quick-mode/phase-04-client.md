@@ -13,13 +13,18 @@
 2. Match: countdown unchanged for normal play; autopilot banner and "Tôi đã quay lại"; "Tự động" tag on an autopilot seat in the seat/HUD list.
 3. Quick animation pacing that matches the server's `quickSegmentMs`.
 4. No change to the normal match look and feel.
+5. Players must always understand which mode they are in and why they won or cannot move. Four surfaces, all reading `shared/rules-text.ts` from phase 0:
+   - Mode picker: each mode shows a one-line description under its control and a "Xem luật" link that opens the rules sheet; non-host players see the same text read-only.
+   - First-match card: when a quick match starts, a three-line card states the differences ("Ván nhanh: ...") with a "Hiểu rồi" button; shown once per device per variant (`localStorage`), always reachable again through the "?" button.
+   - In-match cues, only when a rule variant is chosen: each HUD player tile shows its unlock state (🔒 "Chưa mở chuồng" / 🔓 "Đã mở chuồng"); the home column entrance in the 3D scene shows a lock while locked; when the only blocked move is the locked home entry, the HUD says why ("Cần đá 1 ngựa trước") instead of offering nothing; the win dialog names the win condition ("Thắng ván nhanh: ngựa đầu tiên lên chuồng").
+   - Landing page: a "Ván nhanh khác gì ván thường" section with a 3-4 row comparison, added once the variant ships.
 
 ## Files to change
 
 - `web/src/room/useRoomConnection.ts`: no change expected (`send` already takes `RoomClientMessage`); confirm.
 - `web/src/room/WaitingView.tsx`: a "Cài đặt ván" section above the start row, rendered for everyone from `room.settings`:
   - `data-testid="turn-seconds"`: a `<select>` (host) / text (others), options from `TURN_SECONDS_OPTIONS`, label "Thời gian mỗi lượt", values "10 giây", ... "60 giây".
-  - `data-testid="quick-toggle"`: checkbox "Ván nhanh" with hint "Tự đi khi chỉ có một nước, máy và hoạt ảnh nhanh hơn. Luật không đổi." Turning it on sends `{ t: 'settings', settings: { turnSeconds: 20, quick: true, autoRoll } }` only when the current `turnSeconds` is the default 30; turning it off keeps the chosen time.
+  - `data-testid="quick-toggle"`: checkbox "Ván nhanh" with the one-line description from `rulesFor` (pace-only default: "Tự đi khi chỉ có một nước, máy và hoạt ảnh nhanh hơn. Luật không đổi.") and a "Xem luật" link to the rules sheet. Turning it on sends `{ t: 'settings', settings: { turnSeconds: 20, quick: true, autoRoll } }` only when the current `turnSeconds` is the default 30; turning it off keeps the chosen time.
   - `data-testid="auto-roll-toggle"`: checkbox "Tự đổ xúc xắc" with hint "Máy đổ giúp sau 1,5 giây."
   - Each change sends one `settings` message with the whole object; controls are disabled while the previous change is unacknowledged or on `too_fast`; the existing `actionError` area shows server errors.
 - `web/src/room/MatchView.tsx`: when `room.settings.quick` show a small "Ván nhanh" tag in the HUD. For the local seat with `auto === true` show "Đang chơi tự động vì bạn không thao tác." with `data-testid="autopilot-banner"` and a button `data-testid="autopilot-back"` sending `{ t: 'back' }`. Other seats with `auto` get "(tự động)" in the existing seat list.

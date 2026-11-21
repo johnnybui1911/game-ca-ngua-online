@@ -43,7 +43,9 @@ Any rule change (see Open questions), per-player timers, spectators, a chess-clo
 9. After a rematch the settings are unchanged and per-game counters (missed turns) are reset.
 10. The funnel counts quick matches separately (`match_started_quick`, `match_finished_quick`) and the README documents it.
 11. PR #16 features (horse names, pause/resume, close room, sound, shake) still work in quick matches; pause freezes the quick pacing too.
-12. `npm run typecheck`, `npm test` and `npm run e2e` pass.
+12. A "?" button in the match status line (and a "Luật chơi" item in the Menu and the waiting room) opens a rules sheet at any time, showing the rules of the room's current mode (quick-match differences first); the turn clock keeps running and the sheet shows the remaining seconds on the reader's own turn. The sheet, the waiting-room mode description and the first-match card read one copy source (`shared/rules-text.ts`) that a unit test keeps identical to the landing page rules.
+13. When a rule variant is chosen, the mode picker, the first-match card, the in-match lock cues and the win dialog explain it (phase 4, requirement 5).
+14. `npm run typecheck`, `npm test` and `npm run e2e` pass.
 
 ## Decisions taken as defaults
 
@@ -58,7 +60,17 @@ Any rule change (see Open questions), per-player timers, spectators, a chess-clo
 
 ## Open questions for the user
 
-Rule-changing variants. None is implemented by this plan; each needs your decision because `shared/game/types.ts` is a confirmed decision. Numbers can be measured with the phase 1 simulator on a scratch copy once you choose.
+Rule-changing variants. None is implemented by this plan until you choose; each needs your decision because `shared/game/types.ts` is a confirmed decision. How other games do it (checked 2026-11-21): Ludo King quick mode starts with two tokens out, the first token home wins, and a player must capture one opponent token first (vendor claims 5-10 min vs 30-40 min classic); Ludo SuperStar and Party Ludo use "first token home wins" too. Vietnamese rules forbid two same-colour horses on one cell, so only one horse can start out.
+
+Candidates to measure with the phase 1 simulator, choosing the one whose 4-player median lands near 5-10 minutes:
+
+- **N1**: one horse per colour starts on its entry cell; the first horse to enter its home column wins.
+- **N2**: as N1, but the first colour with two horses in the home column wins.
+- **N3**: as N1, but a colour's home column stays locked until it has kicked at least one opponent horse (fits the "đá ngựa" pitch; needs the lock cues in phase 4).
+
+"Enters its home column" (any step) is proposed as the win point, because climbing to step 6 under rule 4 can take many extra turns. Recommendation: N3 with all four explanation surfaces, then ask 5-10 testers whether they understood why they won or lost; fall back to N1 if not.
+
+Other variants and questions:
 
 1. **2 horses per colour** instead of 4 (`HORSES_PER_COLOR` in `shared/game/types.ts`). Touches `createGame`, `legalHorsesFor`, `cpu.ts`, stable layout in `web/src/scene/layout.ts` and `Pieces.tsx`, and PR #16's four-name contract (`cleanHorseNames` requires length `HORSES_PER_COLOR`, `Seat.horseNames`). Largest effect on length.
 2. **Each colour starts with one horse already on its entry cell** (changes `createGame`, removes most of the "wait for 1 or 6" dead time).
@@ -69,7 +81,7 @@ Rule-changing variants. None is implemented by this plan; each needs your decisi
 7. Should the mode ("Ván nhanh", turn time) show in the **public lobby list**? It would add a field to `RoomSummary` and one lobby write per change.
 8. Is **autopilot after 2 missed turns** acceptable for normal matches, or only for quick ones? Should a third miss hand the seat to a CPU for good (as `leave` does)?
 
-Recommended default set if you say "just do it": everything in "Decisions taken as defaults" (all pace-only), none of the variants.
+Recommended default set if you say "just do it": the rules sheet (phase 0) and everything in "Decisions taken as defaults" (all pace-only). Rule variants only after you pick N1, N2 or N3.
 
 ## Interaction with other work
 
@@ -80,6 +92,7 @@ Recommended default set if you say "just do it": everything in "Decisions taken 
 
 | # | Phase | Brief |
 |---|---|---|
+| 0 | [Rules sheet](phase-00-rules-sheet.md) | "?" button in the HUD, Menu item and waiting-room entry open mode-aware rules at any time; one shared copy source checked against the landing page. Shippable before the other phases |
 | 1 | [Baseline measurement](phase-01-measurement.md) | Pure simulator and report of actions, commits, human prompts per match, before any change |
 | 2 | [Settings and turn timer](phase-02-settings-turn-timer.md) | `RoomSettings`, protocol, effective timings, host message, idle autopilot, tests |
 | 3 | [Quick match server](phase-03-quick-server.md) | Auto-move, auto-roll, segment-based CPU pace, tests |
