@@ -1,0 +1,100 @@
+import { useLayoutEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router';
+import { sound } from '../audio/sound';
+import { useSession } from '../auth/session-context';
+import { JoinByCodeForm, LobbyPage } from '../lobby/LobbyPage';
+import { Icon } from '../ui/Icon';
+import { entered, useEntered } from './entered';
+import { useSceneStage } from './scene-host';
+
+/** Seconds the lobby music takes to fade in after "Chơi ngay". */
+const ENTRY_FADE_SECONDS = 2.5;
+/** Up to this width the title lies across the top of the board, so the board is framed below it. */
+const NARROW_PX = 720;
+
+/** Heights of the title block and the bottom band, so the camera keeps the board between them. */
+function useHeroInsets() {
+  const titleRef = useRef<HTMLElement>(null);
+  const bandRef = useRef<HTMLDivElement>(null);
+  const [insets, setInsets] = useState({ top: 0, bottom: 0 });
+  useLayoutEffect(() => {
+    const title = titleRef.current;
+    const band = bandRef.current;
+    if (!title || !band) return;
+    const measure = () => {
+      const top = window.innerWidth <= NARROW_PX ? title.offsetHeight : 0;
+      const bottom = band.offsetHeight;
+      setInsets((prev) => (prev.top === top && prev.bottom === bottom ? prev : { top, bottom }));
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(title);
+    observer.observe(band);
+    window.addEventListener('resize', measure);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', measure);
+    };
+  }, []);
+  return { titleRef, bandRef, insets };
+}
+
+function Hero() {
+  const navigate = useNavigate();
+  const { user } = useSession();
+  const [joining, setJoining] = useState(false);
+  const { titleRef, bandRef, insets } = useHeroInsets();
+  useSceneStage({ activity: 'full', orbit: true, insets });
+
+  const play = () => {
+    sound.setTrack('lobby', ENTRY_FADE_SECONDS);
+    entered.set(true);
+    // Signed in: this page turns into the lobby. Otherwise the name comes first.
+    if (!user) void navigate('/bat-dau');
+  };
+
+  return (
+    <main className="home" data-testid="home">
+      <header className="home-title" ref={titleRef}>
+        <p className="ui-eyebrow">3D Online · Chơi cùng bạn bè</p>
+        <h1 className="ui-title">Cờ Cá Ngựa</h1>
+      </header>
+      <div className="home-band" ref={bandRef}>
+        {joining ? (
+          <div className="glass home-join" data-testid="home-join">
+            <JoinByCodeForm autoFocus />
+            <button type="button" className="ui-btn ui-btn--ghost" data-testid="home-join-cancel" onClick={() => setJoining(false)}>
+              <Icon name="close" size="sm" />
+              Đóng
+            </button>
+          </div>
+        ) : (
+          <>
+            <button type="button" className="ui-btn ui-btn--hero" data-testid="play-now" onClick={play}>
+              Chơi ngay
+            </button>
+            <nav className="home-links" aria-label="Lối tắt">
+              <a className="ui-btn ui-btn--ghost home-link" href="/co-ca-ngua-online" data-testid="home-rules">
+                <Icon name="rules" size="sm" />
+                Luật chơi
+              </a>
+              <button type="button" className="ui-btn ui-btn--ghost home-link" data-testid="home-join-open" onClick={() => setJoining(true)}>
+                Nhập mã phòng
+              </button>
+            </nav>
+          </>
+        )}
+      </div>
+    </main>
+  );
+}
+
+/** `/`: the board with "Chơi ngay" for a new visit; the lobby for a signed-in player who already entered. */
+export function HomePage() {
+  const { ready, user } = useSession();
+  const inside = useEntered();
+  if (user && inside) return <LobbyPage />;
+  // A returning player's session is still being read: no hero flashing by before the lobby.
+  if (!ready && inside) return null;
+  return <Hero />;
+}
