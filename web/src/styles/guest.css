@@ -123,3 +123,36 @@
     min-height: 44px;
   }
 }
+
+/* Visitors from a shared post see what the game looks like before choosing a name. */
+.entry-pitch {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0 0 var(--space-4);
+}
+
+.entry-pitch img {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 800 / 420;
+  object-fit: cover;
+  border-radius: var(--radius-md);
+  background: var(--wood-800);
+}
+
+.entry-pitch ul {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  text-align: left;
+}
+
+.entry-pitch li::before {
+  content: '✓';
+  margin-right: var(--space-2);
+  color: var(--felt-600);
+  font-weight: 800;
+}

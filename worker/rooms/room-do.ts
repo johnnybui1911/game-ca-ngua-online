@@ -1,4 +1,5 @@
 import { DurableObject } from 'cloudflare:workers';
+import { NO_SOURCE } from '../../shared/analytics';
 import { applyMove, applyRoll, createGame } from '../../shared/game/engine';
 import { chooseCpuMove } from '../../shared/game/cpu';
 import type { GameEvent, StepResult } from '../../shared/game/types';
@@ -10,6 +11,7 @@ import {
   type RoomSummary,
   type RoomVisibility,
 } from '../../shared/protocol';
+import { countEvent } from '../analytics/count';
 import type { Env } from '../env';
 import { KeyedTokenBuckets, TokenBucket } from './token-bucket';
 import {
@@ -321,6 +323,7 @@ export class RoomDO extends DurableObject<Env> {
         room.status = 'playing';
         planTurn(room, this.connectedUsers(), now, this.timings);
         await this.commit([]);
+        this.count(humanUsers(room).length > 1 ? 'match_started_group' : 'match_started_solo');
         return;
       }
       case 'roll': {
@@ -373,12 +376,18 @@ export class RoomDO extends DurableObject<Env> {
     room.game = result.state;
     if (result.state.phase === 'finished') {
       room.status = 'finished';
+      this.count('match_finished');
       room.dueAt = null;
       room.actionDueAt = null;
     } else {
       planTurn(room, this.connectedUsers(), Date.now(), this.timings);
     }
     await this.commit(result.events);
+  }
+
+  /** Counts a match milestone in the launch funnel without delaying the room. */
+  private count(event: 'match_started_solo' | 'match_started_group' | 'match_finished'): void {
+    this.ctx.waitUntil(countEvent(this.env, event, NO_SOURCE));
   }
 
   private async leave(userId: string): Promise<void> {
@@ -568,6 +577,7 @@ export class RoomDO extends DurableObject<Env> {
         events = result.events;
         if (result.state.phase === 'finished') {
           room.status = 'finished';
+          this.count('match_finished');
           room.dueAt = null;
           room.actionDueAt = null;
         } else {
