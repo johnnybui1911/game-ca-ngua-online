@@ -1,21 +1,25 @@
-import type { Color, DiceValue } from '../../shared/game/types';
-import type {
-  PublicUser,
-  RoomSnapshot,
-  RoomStatus,
-  RoomSummary,
-  RoomVisibility,
-  Seat,
-  SeatOccupant,
+import { HORSES_PER_COLOR, type Color, type DiceValue } from '../../shared/game/types';
+import {
+  MAX_HORSE_NAME,
+  type PublicUser,
+  type RoomSnapshot,
+  type RoomStatus,
+  type RoomSummary,
+  type RoomVisibility,
+  type Seat,
+  type SeatOccupant,
 } from '../../shared/protocol';
 import type { GameState } from '../../shared/game/types';
 import type { Timings } from './constants';
+import { sanitizeText } from '../auth/validate';
 
 /** Occupant as persisted: connection state is derived from open sockets, never stored. */
 export type StoredOccupant = { kind: 'human'; user: PublicUser } | { kind: 'cpu'; name: string };
 export interface StoredSeat {
   color: Color;
   occupant: StoredOccupant | null;
+  /** Set by the occupant; absent means every horse has its default name. */
+  horseNames?: string[];
 }
 
 /** Everything a room needs to survive eviction. Deadlines are absolute epoch ms. */
@@ -39,6 +43,34 @@ export interface RoomState {
   disconnectedSince: Record<string, number>;
   /** Since when no seated human has an open socket; null while at least one has. */
   noHumanConnectedSince: number | null;
+  /** When the host paused the running game; null or absent while it runs. */
+  pausedAt?: number | null;
+}
+
+/** Seats a new occupant (or empties the seat); horse names belong to the previous occupant and are dropped. */
+export function setOccupant(seat: StoredSeat, occupant: StoredOccupant | null): void {
+  seat.occupant = occupant;
+  delete seat.horseNames;
+}
+
+/**
+ * Four cleaned horse names from a client message, or null when the shape is wrong or a name is too
+ * long. Names are cleaned like display names; '' keeps the default name.
+ */
+export function cleanHorseNames(raw: unknown): string[] | null {
+  if (!Array.isArray(raw) || raw.length !== HORSES_PER_COLOR) return null;
+  const out: string[] = [];
+  for (const item of raw) {
+    if (typeof item !== 'string') return null;
+    const name = sanitizeText(item);
+    if ([...name].length > MAX_HORSE_NAME) return null;
+    out.push(name);
+  }
+  return out;
+}
+
+export function isPaused(state: RoomState): boolean {
+  return state.status === 'playing' && state.pausedAt != null;
 }
 
 export function seatIndexOfUser(state: RoomState, userId: string): number {
@@ -120,7 +152,8 @@ export function reconcileConnections(
   }
   const anyConnected = humanUsers(state).some((u) => connected.has(u.id));
   const pausedSince = state.noHumanConnectedSince;
-  if (anyConnected && pausedSince !== null && state.status === 'playing') {
+  const hostPaused = isPaused(state);
+  if (anyConnected && pausedSince !== null && state.status === 'playing' && !hostPaused) {
     // The game stood still while nobody was connected, so its clocks did too:
     // whoever returns finds the time their action had left when the pause began.
     const paused = now - pausedSince;
@@ -129,8 +162,9 @@ export function reconcileConnections(
   }
   state.noHumanConnectedSince = anyConnected ? null : (pausedSince ?? now);
 
+  // While the host has paused the game its clocks stand at `pausedAt`; `resumeGame` settles them.
   const turnSeat = state.seats[currentSeatIndex(state)]?.occupant;
-  if (state.status === 'playing' && turnSeat?.kind === 'human') {
+  if (state.status === 'playing' && turnSeat?.kind === 'human' && !hostPaused) {
     const id = turnSeat.user.id;
     if (connected.has(id) && was.has(id)) {
       // Back before the clock ran out: the action keeps the deadline it started with.
@@ -145,8 +179,9 @@ export function reconcileConnections(
   if (!host) {
     const next = pickHost(state);
     if (next !== null) state.hostId = next;
-  } else if (state.status !== 'playing' && !connected.has(host.id)) {
-    // Outside a game nobody else can rematch or start; a host gone past the grace hands the role over.
+  } else if ((state.status !== 'playing' || hostPaused) && !connected.has(host.id)) {
+    // Outside a running game (or in one only the host can resume) nobody else can move it on;
+    // a host gone past the grace hands the role over.
     const since = state.disconnectedSince[host.id];
     const successor = humanUsers(state).find((u) => connected.has(u.id));
     if (since !== undefined && successor && now >= since + timings.waitingDisconnectMs) state.hostId = successor.id;
@@ -154,17 +189,40 @@ export function reconcileConnections(
 }
 
 /**
+ * Continues a paused game. Its clocks stood still since `pausedAt`, so they move on by the pause
+ * length: the player on turn finds the time their action had left. A human on turn who is not
+ * connected gets the short takeover delay, as on any disconnect.
+ */
+export function resumeGame(state: RoomState, connected: ReadonlySet<string>, now: number, timings: Timings): void {
+  const since = state.pausedAt;
+  if (since == null) return;
+  state.pausedAt = null;
+  const paused = Math.max(0, now - since);
+  if (state.dueAt !== null) state.dueAt += paused;
+  if (state.actionDueAt != null) state.actionDueAt += paused;
+  const turnSeat = state.seats[currentSeatIndex(state)]?.occupant;
+  if (turnSeat?.kind !== 'human') return;
+  if (connected.has(turnSeat.user.id)) {
+    state.dueAt = state.actionDueAt ?? state.dueAt;
+  } else {
+    const grace = now + Math.max(timings.cpuDelayMs, timings.playingDisconnectMs);
+    state.dueAt = Math.min(state.dueAt ?? Infinity, grace);
+  }
+}
+
+/**
  * The one alarm time: the earliest of every pending deadline, derived purely from persisted state.
- * While no human is connected a game is frozen: only the idle close is pending.
+ * While no human is connected, or the host has paused it, a game is frozen: automatic play is not pending.
  */
 export function nextWake(state: RoomState, timings: Timings): number | null {
   const times: number[] = [];
   const attended = state.noHumanConnectedSince === null;
-  if (state.status === 'playing' && state.dueAt !== null && attended) times.push(state.dueAt);
+  const paused = isPaused(state);
+  if (state.status === 'playing' && state.dueAt !== null && attended && !paused) times.push(state.dueAt);
   if (state.status === 'waiting') {
     for (const since of Object.values(state.disconnectedSince)) times.push(since + timings.waitingDisconnectMs);
   }
-  if (state.status === 'finished' && attended) {
+  if ((state.status === 'finished' || paused) && attended) {
     const since = state.disconnectedSince[state.hostId];
     if (since !== undefined) times.push(since + timings.waitingDisconnectMs);
   }
@@ -182,10 +240,15 @@ function publicOccupant(
 }
 
 export function toSnapshot(state: RoomState, connected: ReadonlySet<string>): RoomSnapshot {
-  const seats: Seat[] = state.seats.map((s) => ({ color: s.color, occupant: publicOccupant(s.occupant, connected) }));
+  const seats: Seat[] = state.seats.map((s) => ({
+    color: s.color,
+    occupant: publicOccupant(s.occupant, connected),
+    horseNames: s.horseNames ?? Array.from({ length: HORSES_PER_COLOR }, () => ''),
+  }));
+  const paused = isPaused(state);
   const turnSeat = state.seats[currentSeatIndex(state)]?.occupant ?? null;
   const turnDeadline =
-    state.status === 'playing' && state.dueAt !== null && turnSeat?.kind === 'human' && connected.has(turnSeat.user.id)
+    state.status === 'playing' && !paused && state.dueAt !== null && turnSeat?.kind === 'human' && connected.has(turnSeat.user.id)
       ? state.dueAt
       : null;
   return {
@@ -197,6 +260,7 @@ export function toSnapshot(state: RoomState, connected: ReadonlySet<string>): Ro
     seats,
     game: state.game,
     turnDeadline,
+    paused,
     seq: state.seq,
   };
 }

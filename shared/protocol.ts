@@ -81,6 +81,16 @@ export type SeatOccupant =
 export interface Seat {
   color: Color;
   occupant: SeatOccupant | null;
+  /** Names of this colour's four horses; '' means the default name, its number (index + 1). */
+  horseNames: string[];
+}
+
+/** Longest horse name, in characters, after cleaning. */
+export const MAX_HORSE_NAME = 12;
+
+/** Label of horse `index` given the names its seat holds. */
+export function horseLabel(names: readonly string[] | undefined, index: number): string {
+  return names?.[index] || String(index + 1);
 }
 
 export interface RoomSnapshot {
@@ -92,8 +102,10 @@ export interface RoomSnapshot {
   seats: Seat[];
   /** Null while status is 'waiting'. */
   game: GameState | null;
-  /** Epoch ms at which the server plays for the current human seat; null when not applicable. */
+  /** Epoch ms at which the server plays for the current human seat; null when not applicable (or paused). */
   turnDeadline: number | null;
+  /** True while the host has paused the running game. */
+  paused: boolean;
   /** Increases by one with every snapshot the room broadcasts. */
   seq: number;
 }
@@ -136,7 +148,15 @@ export type RoomClientMessage =
   /** Host only, after a finished game: back to 'waiting' with the same seats. */
   | { t: 'rematch' }
   /** Give up the seat. During a game a CPU takes it over. */
-  | { t: 'leave' };
+  | { t: 'leave' }
+  /** Name the four horses of the sender's own colour ('' resets one to its number). */
+  | { t: 'horseNames'; names: string[] }
+  /** Host only, while playing: stop the game (no rolls, moves, CPU turns or turn clock) until resumed. */
+  | { t: 'pause' }
+  /** Host only: continue a paused game; the player on turn keeps the time that was left. */
+  | { t: 'resume' }
+  /** Host only: close the room for everyone and cancel the game. */
+  | { t: 'closeRoom' };
 
 export type RoomServerMessage =
   /**

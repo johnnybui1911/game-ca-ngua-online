@@ -2,7 +2,7 @@ import { OrbitControls } from '@react-three/drei';
 import { useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { ElementRef } from 'react';
-import type { PerspectiveCamera } from 'three';
+import { Vector3, type PerspectiveCamera } from 'three';
 import { HORSES_PER_COLOR } from '../../../shared/game/types';
 import type { Color } from '../../../shared/game/types';
 import { Assets } from './assets';
@@ -15,7 +15,8 @@ import { Celebration, Die, Horse } from './Pieces';
 import { createSceneState } from './scene-state';
 import type { SceneState } from './scene-state';
 import { unconsumed } from '../room/batches';
-import type { GameSceneProps } from './props';
+import type { GameSceneProps, HorseLabelElements } from './props';
+import { sound } from '../audio/sound';
 
 function createView(state: SceneState): SceneView {
   return {
@@ -41,6 +42,9 @@ function createView(state: SceneState): SceneView {
     setCelebration(color, t) {
       state.celebration.color = color;
       state.celebration.t = t;
+    },
+    moveStarted(hops, hopSeconds, kickAt) {
+      sound.playHooves(hops, hopSeconds, kickAt);
     },
   };
 }
@@ -100,12 +104,25 @@ function Rig({ myColor, insets }: { myColor: Color | null; insets: HudInsets }) 
   );
 }
 
-export default function SceneContent({ room, batches, myColor, onPickHorse, insets = NO_INSETS }: GameSceneProps & { insets?: HudInsets }) {
+/** Height above a horse's base at which its label sits, in board units. */
+const LABEL_HEIGHT = 1.75;
+
+export default function SceneContent({
+  room,
+  batches,
+  myColor,
+  onPickHorse,
+  insets = NO_INSETS,
+  labels,
+}: GameSceneProps & { insets?: HudInsets; labels?: HorseLabelElements }) {
   const game = room.game;
   const assets = useMemo(() => new Assets(), []);
   const state = useMemo(createSceneState, []);
   const [busy, setBusy] = useState(false);
   const director = useMemo(() => new Director(createView(state), setBusy), [state]);
+  const camera = useThree((s) => s.camera);
+  const size = useThree((s) => s.size);
+  const projected = useMemo(() => new Vector3(), []);
 
   useEffect(() => () => assets.dispose(), [assets]);
 
@@ -136,6 +153,33 @@ export default function SceneContent({ room, batches, myColor, onPickHorse, inse
     state.tap = 0.5 + 0.5 * Math.sin(state.time * 7);
     assets.haloMat.opacity = 0.55 + 0.4 * state.tap;
     director.update(dt);
+    // Labels are DOM nodes over the canvas: place each one above its horse, hidden with it.
+    // Matrices are refreshed here because the renderer only updates them after this callback.
+    if (!labels) return;
+    camera.updateMatrixWorld();
+    for (let color = 0; color < labels.length; color++) {
+      const row = labels[color] ?? [];
+      for (let horse = 0; horse < row.length; horse++) {
+        const el = row[horse];
+        const group = state.horses[color]?.[horse];
+        if (!el) continue;
+        if (!group?.visible) {
+          el.style.display = 'none';
+          continue;
+        }
+        group.getWorldPosition(projected);
+        projected.y += LABEL_HEIGHT;
+        projected.project(camera);
+        if (projected.z > 1) {
+          el.style.display = 'none';
+          continue;
+        }
+        const x = ((projected.x + 1) / 2) * size.width;
+        const y = ((1 - projected.y) / 2) * size.height;
+        el.style.display = '';
+        el.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) translate(-50%, -100%)`;
+      }
+    }
   });
 
   if (!game) return null;

@@ -11,6 +11,7 @@ import {
 import { api, ApiRequestError } from '../api';
 import { useSession } from '../auth/session-context';
 import { useLobby } from './LobbyProvider';
+import { SoundButton, useMusic } from '../audio/SoundControls';
 import { parseRoomCode } from './room-code';
 
 const SEAT_OPTIONS = Array.from({ length: MAX_SEATS - MIN_SEATS + 1 }, (_, i) => MIN_SEATS + i);
@@ -232,6 +233,7 @@ function SignOutControl() {
 export function LobbyPage() {
   const { user, guest } = useSession();
   const { online } = useLobby();
+  useMusic('lobby');
   return (
     <main className="lobby-page">
       <header className="lobby-header card">
@@ -254,6 +256,7 @@ export function LobbyPage() {
         <JoinByCodeForm />
         <RoomList />
       </div>
+      <SoundButton />
     </main>
   );
 }

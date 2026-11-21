@@ -1,10 +1,28 @@
 import { Canvas } from '@react-three/fiber';
-import { Component, useState } from 'react';
-import type { ReactNode } from 'react';
+import { Component, useRef, useState } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import { PCFShadowMap, NeutralToneMapping } from 'three';
+import { HORSES_PER_COLOR } from '../../../shared/game/types';
+import { horseLabel } from '../../../shared/protocol';
 import type { HudInsets } from './camera';
-import type { GameSceneProps } from './props';
+import { HORSE_COLORS } from './palette';
+import type { GameSceneProps, HorseLabelElements } from './props';
 import SceneContent from './SceneContent';
+
+const LABEL_STYLE: CSSProperties = {
+  position: 'absolute',
+  left: 0,
+  top: 0,
+  display: 'none',
+  padding: '1px 6px',
+  border: '2px solid',
+  borderRadius: 999,
+  background: 'rgb(251 244 230 / 88%)',
+  color: '#2a1c10',
+  font: '700 11px/1.3 system-ui, sans-serif',
+  whiteSpace: 'nowrap',
+  willChange: 'transform',
+};
 
 const UNAVAILABLE = 'Trình duyệt không hỗ trợ WebGL nên không thể hiển thị bàn cờ 3D. Hãy thử trình duyệt hoặc thiết bị khác.';
 
@@ -63,7 +81,9 @@ class CanvasBoundary extends Component<{ children: ReactNode }, { failed: boolea
 /** Mount point of the 3D board. Default export so the match page can load it lazily. */
 export default function GameScene(props: GameSceneProps & { insets?: HudInsets }) {
   const [support] = useState(detectWebgl);
+  const labels = useRef<HorseLabelElements>([[], [], [], []]);
   const software = support === 'software';
+  const game = props.room.game;
   return (
     <div
       data-testid="game-scene"
@@ -85,11 +105,30 @@ export default function GameScene(props: GameSceneProps & { insets?: HudInsets }
             gl={{ antialias: !software, alpha: true, powerPreference: 'high-performance', toneMapping: NeutralToneMapping }}
             style={{ position: 'absolute', inset: 0 }}
           >
-            <SceneContent {...props} />
+            <SceneContent {...props} labels={labels.current} />
           </Canvas>
         </CanvasBoundary>
       ) : (
         <Unavailable />
+      )}
+      {support !== 'none' && (
+        <div aria-hidden="true" style={{ position: 'absolute', inset: 0, overflow: 'hidden', pointerEvents: 'none' }}>
+          {game?.colors.flatMap((color) => {
+            const names = props.room.seats.find((s) => s.color === color)?.horseNames;
+            return Array.from({ length: HORSES_PER_COLOR }, (_, horse) => (
+              <div
+                key={`${color}-${horse}`}
+                ref={(el) => {
+                  labels.current[color]![horse] = el;
+                }}
+                data-testid={`horse-label-${color}-${horse}`}
+                style={{ ...LABEL_STYLE, borderColor: HORSE_COLORS[color] }}
+              >
+                {horseLabel(names, horse)}
+              </div>
+            ));
+          })}
+        </div>
       )}
     </div>
   );

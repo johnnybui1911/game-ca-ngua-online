@@ -4,6 +4,7 @@ import { applyMove, applyRoll, createGame } from '../../shared/game/engine';
 import { chooseCpuMove } from '../../shared/game/cpu';
 import type { GameEvent, StepResult } from '../../shared/game/types';
 import {
+  MAX_HORSE_NAME,
   CLOSE_SIGNED_OUT,
   SEAT_COLORS,
   SIGNED_OUT_CODE,
@@ -33,16 +34,20 @@ import {
   type Timings,
 } from './constants';
 import {
+  cleanHorseNames,
   currentSeatIndex,
   drawDie,
   firstEmptySeat,
   humanUsers,
+  isPaused,
   nextCpuName,
   nextWake,
   occupiedCount,
   planTurn,
   reconcileConnections,
+  resumeGame,
   seatIndexOfUser,
+  setOccupant,
   toSnapshot,
   toSummary,
   type RoomState,
@@ -98,10 +103,18 @@ function parseClientMessage(text: string): RoomClientMessage {
       return { t: msg.t, seat: int(msg.seat) };
     case 'move':
       return { t: 'move', horse: int(msg.horse) };
+    case 'horseNames': {
+      const names = cleanHorseNames(msg.names);
+      if (!names) throw new RoomError('bad_name', `Tên quân tối đa ${MAX_HORSE_NAME} ký tự.`);
+      return { t: 'horseNames', names };
+    }
     case 'start':
     case 'roll':
     case 'rematch':
     case 'leave':
+    case 'pause':
+    case 'resume':
+    case 'closeRoom':
       return { t: msg.t };
     default:
       throw new RoomError('bad_message', 'Loại tin nhắn không được hỗ trợ.');
@@ -115,6 +128,8 @@ export class RoomDO extends DurableObject<Env> {
   private readonly buckets = new WeakMap<WebSocket, TokenBucket>();
   /** Budget for host messages that write state, per user: reconnecting does not refill it. */
   private readonly hostBudget = new KeyedTokenBuckets(HOST_ACTION_BURST, HOST_ACTION_REFILL_PER_SEC);
+  /** Same budget for renaming horses, which any seated player can do. */
+  private readonly nameBudget = new KeyedTokenBuckets(HOST_ACTION_BURST, HOST_ACTION_REFILL_PER_SEC);
   private readonly timings: Timings;
   private readonly sessions: SessionGuard;
   private readonly inbox = new KeyedQueue<WebSocket>();
@@ -215,7 +230,7 @@ export class RoomDO extends DurableObject<Env> {
     const seat = firstEmptySeat(room);
     if (seat < 0) return new RoomError('room_full', 'Phòng đã đầy.');
     const target = room.seats[seat];
-    if (target) target.occupant = { kind: 'human', user };
+    if (target) setOccupant(target, { kind: 'human', user });
     return null;
   }
 
@@ -320,7 +335,7 @@ export class RoomDO extends DurableObject<Env> {
         if (room.status !== 'waiting') throw new RoomError('bad_state', 'Chỉ thêm máy khi đang chờ.');
         const seat = room.seats[msg.seat];
         if (!seat || seat.occupant !== null) throw new RoomError('bad_seat', 'Chỗ này không còn trống.');
-        seat.occupant = { kind: 'cpu', name: nextCpuName(room) };
+        setOccupant(seat, { kind: 'cpu', name: nextCpuName(room) });
         await this.commit([]);
         return;
       }
@@ -329,7 +344,7 @@ export class RoomDO extends DurableObject<Env> {
         if (room.status !== 'waiting') throw new RoomError('bad_state', 'Chỉ bỏ máy khi đang chờ.');
         const seat = room.seats[msg.seat];
         if (seat?.occupant?.kind !== 'cpu') throw new RoomError('bad_seat', 'Chỗ này không có máy.');
-        seat.occupant = null;
+        setOccupant(seat, null);
         await this.commit([]);
         return;
       }
@@ -340,6 +355,7 @@ export class RoomDO extends DurableObject<Env> {
         const colors = room.seats.filter((s) => s.occupant !== null).map((s) => s.color);
         room.game = createGame(colors);
         room.status = 'playing';
+        room.pausedAt = null;
         planTurn(room, this.connectedUsers(), now, this.timings);
         await this.commit([]);
         this.count(humanUsers(room).length > 1 ? 'match_started_group' : 'match_started_solo');
@@ -371,6 +387,34 @@ export class RoomDO extends DurableObject<Env> {
       case 'leave':
         await this.leave(user.userId);
         return;
+      case 'horseNames': {
+        if (!this.nameBudget.take(user.userId, now)) throw new RoomError('too_fast', 'Bạn thao tác quá nhanh, vui lòng chậm lại.');
+        const seat = room.seats[seatIndexOfUser(room, user.userId)];
+        if (!seat) throw new RoomError('not_seated', 'Bạn không có chỗ trong phòng này.');
+        if (msg.names.every((n) => n === '')) delete seat.horseNames;
+        else seat.horseNames = msg.names;
+        await this.commit([]);
+        return;
+      }
+      case 'pause': {
+        needHostBudget();
+        if (room.status !== 'playing') throw new RoomError('bad_state', 'Chỉ tạm dừng được khi ván đang chơi.');
+        if (isPaused(room)) throw new RoomError('bad_state', 'Ván đấu đang tạm dừng.');
+        room.pausedAt = now;
+        await this.commit([]);
+        return;
+      }
+      case 'resume': {
+        needHostBudget();
+        if (!isPaused(room)) throw new RoomError('bad_state', 'Ván đấu không tạm dừng.');
+        resumeGame(room, this.connectedUsers(), now, this.timings);
+        await this.commit([]);
+        return;
+      }
+      case 'closeRoom':
+        needHost();
+        await this.closeRoom('closed_by_host', 'Chủ phòng đã đóng phòng.');
+        return;
     }
   }
 
@@ -379,6 +423,7 @@ export class RoomDO extends DurableObject<Env> {
     const room = this.room;
     const game = room?.game;
     if (!room || !game || room.status !== 'playing') throw new RoomError('bad_state', 'Ván đấu chưa bắt đầu.');
+    if (isPaused(room)) throw new RoomError('paused', 'Chủ phòng đã tạm dừng ván đấu.');
     const occupant = room.seats[currentSeatIndex(room)]?.occupant;
     if (occupant?.kind !== 'human' || occupant.user.id !== user.userId) {
       throw new RoomError('not_your_turn', 'Chưa đến lượt của bạn.');
@@ -415,7 +460,7 @@ export class RoomDO extends DurableObject<Env> {
     const i = seatIndexOfUser(room, userId);
     const seat = room.seats[i];
     if (!seat) return;
-    seat.occupant = room.status === 'playing' ? { kind: 'cpu', name: nextCpuName(room) } : null;
+    setOccupant(seat, room.status === 'playing' ? { kind: 'cpu', name: nextCpuName(room) } : null);
     delete room.disconnectedSince[userId];
     for (const ws of this.ctx.getWebSockets()) {
       const u = ws.deserializeAttachment() as SocketUser | null;
@@ -424,7 +469,9 @@ export class RoomDO extends DurableObject<Env> {
       ws.close(CLOSE_LEFT, 'left');
     }
     if (room.status === 'playing' && currentSeatIndex(room) === i) {
-      room.dueAt = Math.min(room.dueAt ?? Infinity, Date.now() + this.timings.cpuDelayMs);
+      // While paused the clocks stand at the pause start; resuming moves them on from there.
+      const from = isPaused(room) ? (room.pausedAt ?? Date.now()) : Date.now();
+      room.dueAt = Math.min(room.dueAt ?? Infinity, from + this.timings.cpuDelayMs);
       room.actionDueAt = null;
     }
     await this.commit([]);
@@ -495,13 +542,13 @@ export class RoomDO extends DurableObject<Env> {
     return true;
   }
 
-  private async closeRoom(): Promise<void> {
+  private async closeRoom(code = 'room_closed', message = 'Phòng đã đóng.'): Promise<void> {
     const room = this.room;
     if (!room) return;
     this.room = null;
     for (const ws of this.ctx.getWebSockets()) {
       try {
-        this.send(ws, { t: 'error', code: 'room_closed', message: 'Phòng đã đóng.' });
+        this.send(ws, { t: 'error', code, message });
         ws.close(CLOSE_ROOM_CLOSED, 'closed');
       } catch {
         // already closed
@@ -589,13 +636,13 @@ export class RoomDO extends DurableObject<Env> {
       for (const [userId, since] of Object.entries(room.disconnectedSince)) {
         if (now < since + this.timings.waitingDisconnectMs) continue;
         const seat = room.seats[seatIndexOfUser(room, userId)];
-        if (seat) seat.occupant = null;
+        if (seat) setOccupant(seat, null);
         delete room.disconnectedSince[userId];
         vacated = true;
       }
       if (vacated) reconcileConnections(room, connected, now, this.timings);
-    } else if (room.status === 'playing' && room.noHumanConnectedSince === null && room.dueAt !== null && now >= room.dueAt && room.game) {
-      // With nobody watching the game stays frozen; it resumes when a human reconnects.
+    } else if (room.status === 'playing' && !isPaused(room) && room.noHumanConnectedSince === null && room.dueAt !== null && now >= room.dueAt && room.game) {
+      // With nobody watching, or paused by the host, the game stays frozen.
       const game = room.game;
       const result =
         game.phase === 'roll'

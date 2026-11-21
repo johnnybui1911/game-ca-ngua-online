@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
-import type { RoomClientMessage, RoomSnapshot } from '../../../shared/protocol';
+import { horseLabel, type RoomClientMessage, type RoomSnapshot } from '../../../shared/protocol';
+import { SoundButton, useMusic } from '../audio/SoundControls';
 import { inviteLink, reportInviteShared } from '../analytics';
 import { useLobby } from '../lobby/LobbyProvider';
 import { COLOR_NAMES, COLOR_VARS } from './colors';
+import { HorseNamesDialog } from './HorseNamesDialog';
 
 const INVITE_SENT_MS = 10_000;
 
@@ -19,8 +21,11 @@ export function WaitingView({ room, myId, send, actionError }: Props) {
   const { online, invite } = useLobby();
   const [copied, setCopied] = useState<'idle' | 'done' | 'failed'>('idle');
   const [sent, setSent] = useState<Set<string>>(new Set());
+  const [renaming, setRenaming] = useState(false);
+  useMusic('lobby');
 
   const isHost = room.hostId === myId;
+  const mySeat = room.seats.find((s) => s.occupant?.kind === 'human' && s.occupant.user.id === myId);
   const link = inviteLink(room.code);
   const occupied = room.seats.filter((s) => s.occupant !== null).length;
   const seatedIds = new Set(
@@ -84,13 +89,14 @@ export function WaitingView({ room, myId, send, actionError }: Props) {
         <ul className="seat-list" data-testid="seat-list">
           {room.seats.map((seat, i) => {
             const occ = seat.occupant;
+            const mine = occ?.kind === 'human' && occ.user.id === myId;
             return (
               <li className="seat" key={i} data-testid={`seat-${i}`}>
                 <span className="seat-dot" style={{ background: COLOR_VARS[seat.color] }} title={COLOR_NAMES[seat.color]} />
                 <div className="seat-info">
                   <strong data-testid={`seat-${i}-name`}>
                     {occ === null ? 'Chỗ trống' : occ.kind === 'cpu' ? occ.name : occ.user.displayName}
-                    {occ?.kind === 'human' && occ.user.id === myId ? ' (bạn)' : ''}
+                    {mine ? ' (bạn)' : ''}
                   </strong>
                   <span className="muted" data-testid={`seat-${i}-state`}>
                     {occ === null && 'Chờ người chơi'}
@@ -98,7 +104,17 @@ export function WaitingView({ room, myId, send, actionError }: Props) {
                     {occ?.kind === 'human' && (occ.connected ? 'Đang kết nối' : 'Mất kết nối')}
                     {occ?.kind === 'human' && occ.user.id === room.hostId && ' · Chủ phòng'}
                   </span>
+                  {seat.horseNames.some((n) => n !== '') && (
+                    <span className="muted" data-testid={`seat-${i}-horses`}>
+                      Quân: {seat.horseNames.map((_, h) => horseLabel(seat.horseNames, h)).join(' · ')}
+                    </span>
+                  )}
                 </div>
+                {mine && (
+                  <button type="button" className="btn btn-secondary seat-action" data-testid="rename-horses" onClick={() => setRenaming(true)}>
+                    Đặt tên quân
+                  </button>
+                )}
                 {isHost && occ === null && (
                   <button type="button" className="btn btn-secondary seat-action" data-testid={`add-cpu-${i}`} onClick={() => send({ t: 'addCpu', seat: i })}>
                     Thêm CPU
@@ -184,6 +200,10 @@ export function WaitingView({ room, myId, send, actionError }: Props) {
           </button>
         </div>
       </section>
+      {renaming && mySeat && (
+        <HorseNamesDialog color={mySeat.color} names={mySeat.horseNames} send={send} onClose={() => setRenaming(false)} />
+      )}
+      <SoundButton />
     </main>
   );
 }

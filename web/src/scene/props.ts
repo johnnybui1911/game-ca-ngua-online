@@ -24,3 +24,6 @@ export interface GameSceneProps {
    */
   onPickHorse: (horse: number) => void;
 }
+
+/** DOM label of each horse, `[color][horse]`, owned by the scene's mount point and placed by the frame loop. */
+export type HorseLabelElements = (HTMLDivElement | null)[][];
