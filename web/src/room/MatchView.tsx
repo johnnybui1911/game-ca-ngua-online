@@ -28,6 +28,21 @@ import { reserveInsets, type ReservedInsets } from '../scene/camera';
 /** Seconds left on the local player's action at which the reminder sounds. */
 const REMINDER_SECONDS = 10;
 
+/** Longest the roll waits for the board to finish animating; a slow device must not hold the player up. */
+const MAX_BOARD_WAIT_MS = 1500;
+
+/** True while the board is still animating what the server reported, for at most MAX_BOARD_WAIT_MS per state. */
+function useBoardWait(seq: number): [boolean, (busy: boolean) => void] {
+  const [busy, setBusy] = useState(false);
+  const [expiredAt, setExpiredAt] = useState<number | null>(null);
+  useEffect(() => {
+    if (!busy) return;
+    const timer = setTimeout(() => setExpiredAt(seq), MAX_BOARD_WAIT_MS);
+    return () => clearTimeout(timer);
+  }, [busy, seq]);
+  return [busy && expiredAt !== seq, setBusy];
+}
+
 const GameScene = lazy(() => import('../scene/GameScene'));
 
 interface Props {
@@ -170,7 +185,7 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
   const myTurn = game !== null && myColor !== null && game.turn === myColor && !finished;
   // The server reports a CPU's roll and move together with the turn passing to us; the roll button
   // and the chime wait until the board has shown that turn.
-  const [boardBusy, setBoardBusy] = useState(false);
+  const [boardBusy, setBoardBusy] = useBoardWait(room.seq);
   const canRoll = myTurn && !paused && game?.phase === 'roll' && !boardBusy;
   useMusic('game');
   useGameSounds(batches, myTurn && !paused && !boardBusy, seconds, room.turnDeadline);
