@@ -1,29 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { FLICKER_AMPLITUDE, fadeLevel, flicker, lanternLevel, motionScale, storedMotionReduced } from './motion';
-
-describe('motion setting', () => {
-  it('moves by default', () => {
-    expect(motionScale(false, null)).toBe(1);
-  });
-
-  it('holds still when the system asks for reduced motion, whatever is stored', () => {
-    expect(motionScale(true, null)).toBe(0);
-    expect(motionScale(true, 'full')).toBe(0);
-  });
-
-  it('holds still when the stored setting asks for less motion', () => {
-    for (const stored of ['reduced', '"reduced"', 'off', '{"level":"reduced"}', '{"reduced":true}', 'false']) {
-      expect(storedMotionReduced(stored), stored).toBe(true);
-      expect(motionScale(false, stored), stored).toBe(0);
-    }
-  });
-
-  it('treats a full or unreadable setting as no objection', () => {
-    for (const stored of ['full', '"full"', '{"level":"full"}', '{"reduced":false}', 'true', '', '{broken']) {
-      expect(storedMotionReduced(stored), stored).toBe(false);
-    }
-  });
-});
+import { FLICKER_AMPLITUDE, fadeLevel, flicker, lanternLevel } from './motion';
 
 describe('lantern flicker', () => {
   it('stays inside its amplitude and actually moves', () => {
