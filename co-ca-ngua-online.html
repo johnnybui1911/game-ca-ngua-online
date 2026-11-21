@@ -6,7 +6,9 @@
     <title>Cờ cá ngựa online 3D, đúng luật Việt Nam, chơi ngay không cần tải</title>
     <meta name="description" content="Chơi cờ cá ngựa online miễn phí trên trình duyệt: bàn cờ 3D, đúng luật cá ngựa Việt Nam, nhập tên là chơi, gửi link rủ bạn bè hoặc chơi cùng máy. Không cài app, không quảng cáo." />
     <link rel="canonical" href="https://ca-ngua-online.johnny-bui1911.workers.dev/co-ca-ngua-online" />
-    <meta name="theme-color" content="#2e1b0e" />
+    <meta name="theme-color" content="#120b08" />
+    <link rel="preload" as="image" href="/landing/hero-poster.jpg" media="(min-width: 768px)" fetchpriority="high" />
+    <link rel="preload" as="image" href="/landing/hero-mobile.jpg" media="(max-width: 767.98px)" fetchpriority="high" />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Cờ Cá Ngựa 3D Online" />
     <meta property="og:locale" content="vi_VN" />
@@ -50,105 +52,142 @@
     </script>
   </head>
   <body class="landing">
+    <svg class="lp-sprite" aria-hidden="true" focusable="false">
+      <symbol id="i-play" viewBox="0 0 24 24"><path d="M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-12 7A2 2 0 0 1 5 19z" /></symbol>
+      <symbol id="i-book" viewBox="0 0 24 24"><path d="M12 5v16" /><path d="M20.001 19A2 2 0 0022 17V5a2 2 0 00-1.999-2L16 3.002A5 5 0 0012 5a5 5 0 00-4-2H4a2 2 0 00-2 2v12a2 2 0 001.999 2H8a5 5 0 014 2 5 5 0 014-2z" /></symbol>
+      <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="5" /><path d="M20 21a8 8 0 0 0-16 0" /></symbol>
+      <symbol id="i-door" viewBox="0 0 24 24"><path d="M10 21H2" /><path d="M10 3H7a2 2 0 00-2 2v16" /><path d="M14 12h.01" /><path d="M19 21V5a2 2 0 00-1.675-1.974l-6.163-1.013A1 1 0 0010 3v18a1 1 0 001.124.992z" /><path d="M22 21h-3" /></symbol>
+      <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" /><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" /></symbol>
+      <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5" /></symbol>
+      <symbol id="i-chevron" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6" /></symbol>
+    </svg>
+    <div class="lp-backdrop" aria-hidden="true"></div>
+
     <header class="lp-hero">
-      <div class="lp-wrap lp-hero-grid">
-        <div class="lp-hero-text">
-          <div class="lp-dots" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
-          <h1>Cờ cá ngựa online, đúng luật Việt Nam</h1>
-          <p class="lp-lead">Bàn cờ 3D chơi ngay trên trình duyệt. Nhập tên là chơi, gửi link rủ cả nhóm, thiếu người thì có máy chơi cùng.</p>
-          <div class="lp-cta-row">
-            <a class="lp-btn lp-btn-primary" href="/" data-testid="landing-play">Chơi ngay</a>
-            <a class="lp-btn lp-btn-ghost" href="#luat-choi">Xem luật chơi</a>
-          </div>
-          <p class="lp-note">Miễn phí · Không cài app · Không quảng cáo</p>
+      <div class="lp-hero-media">
+        <picture>
+          <source media="(max-width: 767.98px)" srcset="/landing/hero-mobile.jpg" width="780" height="1560" />
+          <img class="lp-hero-poster" src="/landing/hero-poster.jpg" width="1280" height="720" fetchpriority="high" alt="Bàn cờ cá ngựa 3D với ngựa đỏ, xanh dương, vàng, xanh lá và xúc xắc" />
+        </picture>
+        <video class="lp-hero-video" muted loop playsinline preload="none" disablepictureinpicture aria-hidden="true" tabindex="-1">
+          <source src="/landing/hero.webm" type="video/webm" />
+          <source src="/landing/hero.mp4" type="video/mp4" />
+        </video>
+      </div>
+      <div class="lp-wrap lp-hero-text">
+        <div class="lp-dots" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
+        <h1>Cờ cá ngựa online, đúng luật Việt Nam</h1>
+        <p class="lp-lead">Bàn cờ 3D chơi ngay trên trình duyệt. Nhập tên là chơi, gửi link rủ cả nhóm, thiếu người thì có máy chơi cùng.</p>
+        <div class="lp-cta-row">
+          <a class="lp-btn lp-btn-primary" href="/" data-testid="landing-play"><svg class="lp-icon" aria-hidden="true"><use href="#i-play" /></svg>Chơi ngay</a>
+          <a class="lp-btn lp-btn-ghost" href="#luat-choi"><svg class="lp-icon" aria-hidden="true"><use href="#i-book" /></svg>Xem luật chơi</a>
         </div>
-        <img class="lp-hero-img" src="/board.jpg" width="800" height="420" alt="Bàn cờ cá ngựa 3D với ngựa đỏ, xanh dương, vàng, xanh lá và xúc xắc" />
+        <p class="lp-note"><span><svg class="lp-icon" aria-hidden="true"><use href="#i-check" /></svg>Miễn phí</span><span class="lp-sep"> · </span><span><svg class="lp-icon" aria-hidden="true"><use href="#i-check" /></svg>Không cài app</span><span class="lp-sep"> · </span><span><svg class="lp-icon" aria-hidden="true"><use href="#i-check" /></svg>Không quảng cáo</span></p>
       </div>
     </header>
 
     <main>
       <section class="lp-section lp-wrap" aria-labelledby="cach-choi">
-        <h2 id="cach-choi">Vào ván trong 3 bước</h2>
-        <ol class="lp-steps">
-          <li><strong>Nhập tên</strong><span>Không cần email hay mật khẩu. Muốn giữ tên thì lưu tài khoản sau ván.</span></li>
-          <li><strong>Tạo phòng</strong><span>Chọn 2, 3 hoặc 4 chỗ, phòng công khai hoặc riêng tư. Chỗ trống có thể thêm máy.</span></li>
-          <li><strong>Gửi link</strong><span>Bấm Sao chép link hoặc Chia sẻ, dán vào Zalo, Messenger. Bạn bè mở link là vào đúng phòng.</span></li>
-        </ol>
+        <div class="lp-panel">
+          <h2 id="cach-choi">Vào ván trong 3 bước</h2>
+          <ol class="lp-steps">
+            <li><span class="lp-step-icon" aria-hidden="true"><svg class="lp-icon"><use href="#i-user" /></svg></span><strong>Nhập tên</strong><span>Không cần email hay mật khẩu. Muốn giữ tên thì lưu tài khoản sau ván.</span></li>
+            <li><span class="lp-step-icon" aria-hidden="true"><svg class="lp-icon"><use href="#i-door" /></svg></span><strong>Tạo phòng</strong><span>Chọn 2, 3 hoặc 4 chỗ, phòng công khai hoặc riêng tư. Chỗ trống có thể thêm máy.</span></li>
+            <li><span class="lp-step-icon" aria-hidden="true"><svg class="lp-icon"><use href="#i-link" /></svg></span><strong>Gửi link</strong><span>Bấm Sao chép link hoặc Chia sẻ, dán vào Zalo, Messenger. Bạn bè mở link là vào đúng phòng.</span></li>
+          </ol>
+        </div>
       </section>
 
-      <section class="lp-section lp-alt" aria-labelledby="luat-choi">
-        <div class="lp-wrap lp-two">
-          <div>
-            <h2 id="luat-choi">Luật cá ngựa Việt Nam</h2>
-            <ol class="lp-rules">
-              <li><strong>Ra chuồng</strong> khi tung được 1 hoặc 6. Ô xuất phát có ngựa đối thủ thì đá nó về chuồng; có ngựa cùng màu thì không ra được.</li>
-              <li><strong>Đi đúng số nút</strong> vừa tung. Không được nhảy qua bất kỳ con ngựa nào trên đường.</li>
-              <li><strong>Đá ngựa:</strong> dừng đúng ô có ngựa đối thủ thì ngựa đó bị đá về chuồng.</li>
-              <li><strong>Lên chuồng:</strong> đứng ở cửa chuồng, tung n thì lên bậc n nếu các bậc thấp hơn không có ngựa nhà. Đang ở bậc k, phải tung đúng k+1 mới lên tiếp.</li>
-              <li><strong>Tung 1 hoặc 6</strong> được tung thêm lượt nữa.</li>
-              <li>Có nước đi hợp lệ thì bắt buộc phải đi.</li>
-              <li><strong>Thắng:</strong> màu đầu tiên đưa đủ 4 ngựa lên chuồng.</li>
-            </ol>
-            <p class="lp-muted">Khác với Ludo quốc tế (chỉ ra chuồng bằng 6, có ô an toàn, được đi qua ngựa khác), đây là luật cá ngựa quen thuộc ở Việt Nam. Máy chủ tung xúc xắc và kiểm tra nước đi nên không ai gian lận được.</p>
+      <section class="lp-section lp-wrap" aria-labelledby="luat-choi">
+        <div class="lp-panel">
+          <h2 id="luat-choi">Luật cá ngựa Việt Nam</h2>
+          <ol class="lp-rules">
+            <li><strong>Ra chuồng</strong> khi tung được 1 hoặc 6. Ô xuất phát có ngựa đối thủ thì đá nó về chuồng; có ngựa cùng màu thì không ra được.</li>
+            <li><strong>Đi đúng số nút</strong> vừa tung. Không được nhảy qua bất kỳ con ngựa nào trên đường.</li>
+            <li><strong>Đá ngựa:</strong> dừng đúng ô có ngựa đối thủ thì ngựa đó bị đá về chuồng.</li>
+            <li><strong>Lên chuồng:</strong> đứng ở cửa chuồng, tung n thì lên bậc n nếu các bậc thấp hơn không có ngựa nhà. Đang ở bậc k, phải tung đúng k+1 mới lên tiếp.</li>
+            <li><strong>Tung 1 hoặc 6</strong> được tung thêm lượt nữa.</li>
+            <li>Có nước đi hợp lệ thì bắt buộc phải đi.</li>
+            <li><strong>Thắng:</strong> màu đầu tiên đưa đủ 4 ngựa lên chuồng.</li>
+          </ol>
+          <div class="lp-figs">
+            <figure>
+              <img src="/landing/rule-ra-chuong.webp" width="800" height="600" loading="lazy" decoding="async" alt="Tung được 6, một ngựa đỏ ra khỏi chuồng và đứng ở ô xuất phát" />
+              <figcaption><strong>Ra chuồng</strong>Tung 1 hoặc 6 để đưa ngựa ra ô xuất phát.</figcaption>
+            </figure>
+            <figure>
+              <img src="/landing/rule-da-ngua.webp" width="800" height="600" loading="lazy" decoding="async" alt="Ngựa đỏ dừng đúng ô của ngựa xanh dương, ngựa xanh bị đá bay về chuồng" />
+              <figcaption><strong>Đá ngựa</strong>Dừng đúng ô của đối thủ, ngựa đó về chuồng.</figcaption>
+            </figure>
+            <figure>
+              <img src="/landing/rule-ve-dich.webp" width="800" height="600" loading="lazy" decoding="async" alt="Ba ngựa đỏ đứng trên các bậc 4, 5 và 6 của chuồng đích" />
+              <figcaption><strong>Về đích</strong>Lên chuồng từng bậc, đủ 4 ngựa là thắng.</figcaption>
+            </figure>
           </div>
-          <img class="lp-phone" src="/match-mobile.jpg" width="390" height="844" loading="lazy" alt="Màn hình một ván cờ cá ngựa trên điện thoại, đến lượt người chơi đổ xúc xắc" />
+          <p class="lp-muted">Khác với Ludo quốc tế (chỉ ra chuồng bằng 6, có ô an toàn, được đi qua ngựa khác), đây là luật cá ngựa quen thuộc ở Việt Nam. Máy chủ tung xúc xắc và kiểm tra nước đi nên không ai gian lận được.</p>
         </div>
       </section>
 
       <section class="lp-section lp-wrap" aria-labelledby="van-nhanh">
-        <h2 id="van-nhanh">Ván nhanh khác gì ván thường</h2>
-        <div class="lp-table-wrap">
-          <table class="lp-table">
-            <thead>
-              <tr><th scope="col"></th><th scope="col">Ván thường</th><th scope="col">Ván nhanh</th></tr>
-            </thead>
-            <tbody>
-              <tr><th scope="row">Lúc bắt đầu</th><td>Cả 4 ngựa ở trong chuồng, chờ tung 1 hoặc 6</td><td>Mỗi màu có sẵn 1 ngựa ở ô xuất phát</td></tr>
-              <tr><th scope="row">Lên chuồng đích</th><td>Đến cửa chuồng là lên được</td><td>Phải đá được ít nhất 1 ngựa đối thủ mới mở chuồng đích</td></tr>
-              <tr><th scope="row">Thắng</th><td>Đưa đủ 4 ngựa lên chuồng</td><td>Ngựa đầu tiên lên chuồng thắng ngay</td></tr>
-              <tr><th scope="row">Nhịp chơi</th><td>Tự chọn ngựa mọi lúc</td><td>Chỉ có một nước đi thì máy đi giúp, máy chơi nhanh hơn</td></tr>
-            </tbody>
-          </table>
+        <div class="lp-panel">
+          <h2 id="van-nhanh">Ván nhanh khác gì ván thường</h2>
+          <div class="lp-table-wrap">
+            <table class="lp-table">
+              <thead>
+                <tr><th scope="col"></th><th scope="col">Ván thường</th><th scope="col">Ván nhanh</th></tr>
+              </thead>
+              <tbody>
+                <tr><th scope="row">Lúc bắt đầu</th><td>Cả 4 ngựa ở trong chuồng, chờ tung 1 hoặc 6</td><td>Mỗi màu có sẵn 1 ngựa ở ô xuất phát</td></tr>
+                <tr><th scope="row">Lên chuồng đích</th><td>Đến cửa chuồng là lên được</td><td>Phải đá được ít nhất 1 ngựa đối thủ mới mở chuồng đích</td></tr>
+                <tr><th scope="row">Thắng</th><td>Đưa đủ 4 ngựa lên chuồng</td><td>Ngựa đầu tiên lên chuồng thắng ngay</td></tr>
+                <tr><th scope="row">Nhịp chơi</th><td>Tự chọn ngựa mọi lúc</td><td>Chỉ có một nước đi thì máy đi giúp, máy chơi nhanh hơn</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="lp-muted">Chủ phòng bật "Ván nhanh" ở phòng chờ. Chủ phòng cũng chọn thời gian mỗi lượt từ 10 đến 60 giây.</p>
         </div>
-        <p class="lp-muted">Chủ phòng bật "Ván nhanh" ở phòng chờ. Chủ phòng cũng chọn thời gian mỗi lượt từ 10 đến 60 giây.</p>
       </section>
 
       <section class="lp-section lp-wrap" aria-labelledby="vi-sao">
-        <h2 id="vi-sao">Vì sao chơi ở đây</h2>
-        <div class="lp-table-wrap">
-          <table class="lp-table">
-            <thead>
-              <tr><th scope="col"></th><th scope="col">Cờ Cá Ngựa 3D Online</th><th scope="col">App cài trên điện thoại</th></tr>
-            </thead>
-            <tbody>
-              <tr><th scope="row">Cài đặt</th><td>Không, mở link là chơi</td><td>Tải app, thường hàng trăm MB</td></tr>
-              <tr><th scope="row">Rủ bạn</th><td>Một link dán vào bất kỳ nhóm chat nào</td><td>Bạn bè cũng phải cài app</td></tr>
-              <tr><th scope="row">Quảng cáo, mua vật phẩm</th><td>Không có</td><td>Thường có</td></tr>
-              <tr><th scope="row">Luật</th><td>Cá ngựa Việt Nam</td><td>Tuỳ app</td></tr>
-              <tr><th scope="row">Chat trong ván</th><td>Chưa có</td><td>Nhiều app có</td></tr>
-              <tr><th scope="row">Số người một bàn</th><td>2 đến 4</td><td>Có app cho 5 đến 6</td></tr>
-            </tbody>
-          </table>
+        <div class="lp-panel">
+          <h2 id="vi-sao">Vì sao chơi ở đây</h2>
+          <div class="lp-table-wrap">
+            <table class="lp-table lp-table-ours">
+              <thead>
+                <tr><th scope="col"></th><th scope="col">Cờ Cá Ngựa 3D Online</th><th scope="col">App cài trên điện thoại</th></tr>
+              </thead>
+              <tbody>
+                <tr><th scope="row">Cài đặt</th><td>Không, mở link là chơi</td><td>Tải app, thường hàng trăm MB</td></tr>
+                <tr><th scope="row">Rủ bạn</th><td>Một link dán vào bất kỳ nhóm chat nào</td><td>Bạn bè cũng phải cài app</td></tr>
+                <tr><th scope="row">Quảng cáo, mua vật phẩm</th><td>Không có</td><td>Thường có</td></tr>
+                <tr><th scope="row">Luật</th><td>Cá ngựa Việt Nam</td><td>Tuỳ app</td></tr>
+                <tr><th scope="row">Chat trong ván</th><td>Chưa có</td><td>Nhiều app có</td></tr>
+                <tr><th scope="row">Số người một bàn</th><td>2 đến 4</td><td>Có app cho 5 đến 6</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="lp-muted">Game đang ở bản chơi thử: còn thiếu vài tính năng và sẽ được bổ sung dần.</p>
         </div>
-        <p class="lp-muted">Game đang ở bản chơi thử: còn thiếu vài tính năng và sẽ được bổ sung dần.</p>
       </section>
 
-      <section class="lp-section lp-alt" aria-labelledby="hoi-dap">
-        <div class="lp-wrap">
+      <section class="lp-section lp-wrap" aria-labelledby="hoi-dap">
+        <div class="lp-panel">
           <h2 id="hoi-dap">Câu hỏi thường gặp</h2>
-          <details><summary>Chơi cờ cá ngựa online ở đây có mất tiền không?</summary><p>Không. Game miễn phí, không quảng cáo và không bán vật phẩm.</p></details>
-          <details><summary>Có cần tải app hay đăng ký không?</summary><p>Không. Game chạy ngay trên trình duyệt của điện thoại hoặc máy tính. Bạn chỉ cần nhập một cái tên là chơi.</p></details>
-          <details><summary>Một mình có chơi được không?</summary><p>Được. Tạo phòng rồi thêm 1 đến 3 máy vào các chỗ trống và bấm Bắt đầu.</p></details>
-          <details><summary>Chơi với bạn bè như thế nào?</summary><p>Tạo phòng, bấm Sao chép link hoặc Chia sẻ rồi gửi vào nhóm chat. Bạn bè mở link, nhập tên là vào đúng phòng.</p></details>
-          <details><summary>Bao nhiêu người chơi được một ván?</summary><p>Từ 2 đến 4 người, có thể kết hợp người và máy.</p></details>
-          <details><summary>Rớt mạng giữa ván thì sao?</summary><p>Máy sẽ chơi thay để ván không bị dừng. Mở lại link phòng là bạn trở về đúng chỗ ngồi.</p></details>
+          <details><summary>Chơi cờ cá ngựa online ở đây có mất tiền không?<svg class="lp-icon" aria-hidden="true"><use href="#i-chevron" /></svg></summary><p>Không. Game miễn phí, không quảng cáo và không bán vật phẩm.</p></details>
+          <details><summary>Có cần tải app hay đăng ký không?<svg class="lp-icon" aria-hidden="true"><use href="#i-chevron" /></svg></summary><p>Không. Game chạy ngay trên trình duyệt của điện thoại hoặc máy tính. Bạn chỉ cần nhập một cái tên là chơi.</p></details>
+          <details><summary>Một mình có chơi được không?<svg class="lp-icon" aria-hidden="true"><use href="#i-chevron" /></svg></summary><p>Được. Tạo phòng rồi thêm 1 đến 3 máy vào các chỗ trống và bấm Bắt đầu.</p></details>
+          <details><summary>Chơi với bạn bè như thế nào?<svg class="lp-icon" aria-hidden="true"><use href="#i-chevron" /></svg></summary><p>Tạo phòng, bấm Sao chép link hoặc Chia sẻ rồi gửi vào nhóm chat. Bạn bè mở link, nhập tên là vào đúng phòng.</p></details>
+          <details><summary>Bao nhiêu người chơi được một ván?<svg class="lp-icon" aria-hidden="true"><use href="#i-chevron" /></svg></summary><p>Từ 2 đến 4 người, có thể kết hợp người và máy.</p></details>
+          <details><summary>Rớt mạng giữa ván thì sao?<svg class="lp-icon" aria-hidden="true"><use href="#i-chevron" /></svg></summary><p>Máy sẽ chơi thay để ván không bị dừng. Mở lại link phòng là bạn trở về đúng chỗ ngồi.</p></details>
         </div>
       </section>
 
-      <section class="lp-section lp-wrap lp-final">
-        <h2>Sẵn sàng đá ngựa chưa?</h2>
-        <p>Mở ván ngay, rồi gửi link cho cả nhóm.</p>
-        <a class="lp-btn lp-btn-primary" href="/" data-testid="landing-play-bottom">Chơi ngay</a>
+      <section class="lp-section lp-wrap">
+        <div class="lp-panel lp-final">
+          <h2>Sẵn sàng đá ngựa chưa?</h2>
+          <p>Mở ván ngay, rồi gửi link cho cả nhóm.</p>
+          <a class="lp-btn lp-btn-primary" href="/" data-testid="landing-play-bottom"><svg class="lp-icon" aria-hidden="true"><use href="#i-play" /></svg>Chơi ngay</a>
+        </div>
       </section>
     </main>
 
