@@ -1,6 +1,19 @@
 import { describe, expect, it } from 'vitest';
 import { COLORS } from '../../../shared/game/types';
-import { DEFAULT_POLAR, defaultPolar, fitCameraDistance, freeBand, reserveInsets, seatCameraPosition } from './camera';
+import {
+  CLOSE_UP_AIM,
+  CLOSE_UP_DOLLY,
+  CLOSE_UP_HEIGHT,
+  DEFAULT_POLAR,
+  SHAKE_AMPLITUDE,
+  closeUpFraming,
+  defaultPolar,
+  fitCameraDistance,
+  freeBand,
+  reserveInsets,
+  seatCameraPosition,
+  shakeOffset,
+} from './camera';
 import { SLAB_HALF } from './layout';
 
 /** NDC of a ground point for a camera at `pos` looking at the origin. */
@@ -126,5 +139,59 @@ describe('camera fit', () => {
       expect(reserveInsets(r, { top: 56, bottom: 120 }, 844, 390)).toEqual({ width: 844, height: 390, top: 56, bottom: 120 });
       expect(reserveInsets(r, { top: 56, bottom: 120 }, 390, 700)).toMatchObject({ top: 56, bottom: 120 });
     });
+  });
+});
+
+describe('kick close-up', () => {
+  const seat = seatCameraPosition(0, 30, DEFAULT_POLAR);
+
+  it('leaves the framing untouched at weight 0', () => {
+    // `+ 0` turns the -0 of a zero weight times a negative coordinate into 0.
+    expect(closeUpFraming([], ...seat, 5, -3, 0).map((v) => v + 0)).toEqual([...seat, 0, 0, 0]);
+  });
+
+  it('moves part of the way to the contact point and aims near it at weight 1', () => {
+    const f = closeUpFraming([], ...seat, 5, -3, 1);
+    expect(f[0]).toBeCloseTo(seat[0] + (5 - seat[0]) * CLOSE_UP_DOLLY, 9);
+    expect(f[1]).toBeCloseTo(seat[1] + (CLOSE_UP_HEIGHT - seat[1]) * CLOSE_UP_DOLLY, 9);
+    expect(f[2]).toBeCloseTo(seat[2] + (-3 - seat[2]) * CLOSE_UP_DOLLY, 9);
+    expect(f.slice(3)).toEqual([5 * CLOSE_UP_AIM, CLOSE_UP_HEIGHT * CLOSE_UP_AIM, -3 * CLOSE_UP_AIM]);
+  });
+
+  it('gets closer to the contact point as the weight grows, and never goes below the board', () => {
+    let last = Infinity;
+    for (let w = 0; w <= 1.0001; w += 0.1) {
+      const f = closeUpFraming([], ...seat, -6, 6, w);
+      const d = Math.hypot(f[0]! + 6, f[1]! - CLOSE_UP_HEIGHT, f[2]! - 6);
+      expect(d).toBeLessThan(last);
+      expect(f[1]).toBeGreaterThan(CLOSE_UP_HEIGHT);
+      last = d;
+    }
+  });
+
+  it('writes into the array it is given', () => {
+    const out = [9, 9, 9, 9, 9, 9];
+    expect(closeUpFraming(out, ...seat, 1, 1, 0.5)).toBe(out);
+  });
+});
+
+describe('camera shake', () => {
+  it('is zero before, after and without a shake', () => {
+    expect(shakeOffset([], -1, 0.26)).toEqual([0, 0]);
+    expect(shakeOffset([], 0.26, 0.26)).toEqual([0, 0]);
+    expect(shakeOffset([], 5, 0.26)).toEqual([0, 0]);
+  });
+
+  it('stays small and dies away', () => {
+    const size = (t: number) => Math.hypot(...(shakeOffset([], t, 0.26) as [number, number]));
+    let early = 0;
+    let late = 0;
+    for (let t = 0; t < 0.26; t += 0.002) {
+      expect(size(t)).toBeLessThanOrEqual(SHAKE_AMPLITUDE * Math.SQRT2);
+      if (t < 0.06) early = Math.max(early, size(t));
+      if (t > 0.2) late = Math.max(late, size(t));
+    }
+    expect(early).toBeGreaterThan(SHAKE_AMPLITUDE * 0.5);
+    expect(late).toBeLessThan(early / 8);
   });
 });

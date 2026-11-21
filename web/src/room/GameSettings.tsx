@@ -9,6 +9,7 @@ import {
 } from '../../../shared/protocol';
 import { RulesSheet } from './RulesSheet';
 import { nextSettings } from './settings';
+import { motionSetting, useMotionLevel, type MotionLevel } from '../scene/motion/motion-setting';
 
 interface Props {
   room: RoomSnapshot;
@@ -35,6 +36,8 @@ export function GameSettings({ room, isHost, offline, actionError, send }: Props
   };
 
   const summary = settings.quick ? QUICK_MODE_SUMMARY : CLASSIC_MODE_SUMMARY;
+  // Each player's own choice, kept in this browser; not a room setting.
+  const motion = useMotionLevel();
 
   return (
     <section className="game-settings" aria-labelledby="game-settings-title" data-testid="game-settings">
@@ -93,6 +96,21 @@ export function GameSettings({ room, isHost, offline, actionError, send }: Props
           <span>Tự đổ xúc xắc</span>
         </label>
         <p className="muted setting-help">Máy đổ giúp sau 1,5 giây.</p>
+      </div>
+
+      <div className="setting-row">
+        <label htmlFor="motion-level">Hoạt cảnh</label>
+        <select
+          id="motion-level"
+          className="setting-select"
+          style={{ minHeight: 48 }}
+          data-testid="motion-level"
+          value={motion}
+          onChange={(e) => motionSetting.setLevel(e.target.value as MotionLevel)}
+        >
+          <option value="full">Đầy đủ</option>
+          <option value="reduced">Giảm</option>
+        </select>
       </div>
 
       {rulesOpen && <RulesSheet settings={settings} secondsLeft={null} onClose={() => setRulesOpen(false)} />}
