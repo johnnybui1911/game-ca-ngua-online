@@ -2,6 +2,7 @@ import { Canvas } from '@react-three/fiber';
 import { Component, useState } from 'react';
 import type { ReactNode } from 'react';
 import { PCFShadowMap, NeutralToneMapping } from 'three';
+import type { HudInsets } from './camera';
 import type { GameSceneProps } from './props';
 import SceneContent from './SceneContent';
 
@@ -60,7 +61,7 @@ class CanvasBoundary extends Component<{ children: ReactNode }, { failed: boolea
 }
 
 /** Mount point of the 3D board. Default export so the match page can load it lazily. */
-export default function GameScene(props: GameSceneProps) {
+export default function GameScene(props: GameSceneProps & { insets?: HudInsets }) {
   const [support] = useState(detectWebgl);
   const software = support === 'software';
   return (

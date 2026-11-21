@@ -7,7 +7,8 @@ import { HORSES_PER_COLOR } from '../../../shared/game/types';
 import type { Color } from '../../../shared/game/types';
 import { Assets } from './assets';
 import Board from './Board';
-import { defaultPolar, fitCameraDistance, seatCameraPosition } from './camera';
+import { NO_INSETS, defaultPolar, fitCameraDistance, freeBand, seatCameraPosition } from './camera';
+import type { HudInsets } from './camera';
 import { Director } from './director';
 import type { SceneView } from './director';
 import { Celebration, Die, Horse } from './Pieces';
@@ -44,7 +45,7 @@ function createView(state: SceneState): SceneView {
   };
 }
 
-function Rig({ myColor }: { myColor: Color | null }) {
+function Rig({ myColor, insets }: { myColor: Color | null; insets: HudInsets }) {
   const camera = useThree((s) => s.camera) as PerspectiveCamera;
   const size = useThree((s) => s.size);
   const setFrameloop = useThree((s) => s.setFrameloop);
@@ -52,7 +53,14 @@ function Rig({ myColor }: { myColor: Color | null }) {
   const seat = useRef<{ color: Color; fit: number } | null>(null);
   const color: Color = myColor ?? 0;
   const aspect = size.width / Math.max(1, size.height);
-  const fit = fitCameraDistance(aspect, camera.fov);
+  const band = freeBand(insets, size.height);
+  const fit = fitCameraDistance(aspect, camera.fov, defaultPolar(aspect), band.fraction);
+
+  // Slide the picture window so the board centre (the orbit pivot) sits in the middle of the band the HUD leaves free.
+  useLayoutEffect(() => {
+    camera.setViewOffset(size.width, size.height, 0, band.shiftPx, size.width, size.height);
+    return () => camera.clearViewOffset();
+  }, [camera, size.width, size.height, band.shiftPx]);
 
   useLayoutEffect(() => {
     const prev = seat.current;
@@ -92,7 +100,7 @@ function Rig({ myColor }: { myColor: Color | null }) {
   );
 }
 
-export default function SceneContent({ room, batches, myColor, onPickHorse }: GameSceneProps) {
+export default function SceneContent({ room, batches, myColor, onPickHorse, insets = NO_INSETS }: GameSceneProps & { insets?: HudInsets }) {
   const game = room.game;
   const assets = useMemo(() => new Assets(), []);
   const state = useMemo(createSceneState, []);
@@ -176,7 +184,7 @@ export default function SceneContent({ room, batches, myColor, onPickHorse }: Ga
         )),
       )}
       <Celebration assets={assets} state={state} />
-      <Rig myColor={myColor} />
+      <Rig myColor={myColor} insets={insets} />
     </>
   );
 }

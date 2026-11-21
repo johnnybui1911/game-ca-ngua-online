@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { COLORS } from '../../../shared/game/types';
-import { DEFAULT_POLAR, defaultPolar, fitCameraDistance, seatCameraPosition } from './camera';
+import { DEFAULT_POLAR, defaultPolar, fitCameraDistance, freeBand, seatCameraPosition } from './camera';
 import { SLAB_HALF } from './layout';
 
 /** NDC of a ground point for a camera at `pos` looking at the origin. */
@@ -50,5 +50,56 @@ describe('camera fit', () => {
     expect(x).toBeCloseTo(0, 9);
     expect(z).toBeGreaterThan(0);
     expect(y).toBeCloseTo(20 * Math.cos(DEFAULT_POLAR), 9);
+  });
+
+  describe('with HUD panels reserving space', () => {
+    for (const [w, h, top, bottom] of [
+      [1280, 800, 56, 120],
+      [1440, 900, 56, 120],
+      [1920, 1080, 56, 120],
+      [1280, 800, 56, 190],
+      [390, 844, 90, 130],
+    ] as const) {
+      for (const color of COLORS) {
+        it(`keeps every slab corner inside the free band, ${w}x${h}, seat ${color}`, () => {
+          const aspect = w / h;
+          const { fraction, shiftPx } = freeBand({ top, bottom }, h);
+          const d = fitCameraDistance(aspect, 40, defaultPolar(aspect), fraction);
+          const pos = seatCameraPosition(color, d, defaultPolar(aspect));
+          // The window slides down by shiftPx, which moves the picture up by that many pixels.
+          const lift = shiftPx / (h / 2);
+          for (const sx of [-1, 1]) {
+            for (const sz of [-1, 1]) {
+              const n = project(pos, [sx * SLAB_HALF, 0, sz * SLAB_HALF], 40, aspect);
+              expect(Math.abs(n.x)).toBeLessThanOrEqual(1);
+              const ySlackBottom = (n.y + lift - (-1 + (2 * bottom) / h)) * (h / 2);
+              const ySlackTop = (1 - (2 * top) / h - (n.y + lift)) * (h / 2);
+              expect(ySlackBottom).toBeGreaterThanOrEqual(0);
+              expect(ySlackTop).toBeGreaterThanOrEqual(0);
+            }
+          }
+        });
+      }
+    }
+
+    it('is the plain fit when nothing is reserved', () => {
+      expect(freeBand({ top: 0, bottom: 0 }, 800)).toEqual({ fraction: 1, shiftPx: 0 });
+      for (const aspect of [390 / 844, 1.6, 16 / 9]) {
+        expect(fitCameraDistance(aspect, 40, defaultPolar(aspect), 1)).toBe(fitCameraDistance(aspect, 40));
+      }
+    });
+
+    it('moves the board centre toward the roomier side and pushes the camera back', () => {
+      const band = freeBand({ top: 56, bottom: 120 }, 800);
+      expect(band.fraction).toBeCloseTo(1 - 176 / 800, 9);
+      expect(band.shiftPx).toBe(32);
+      expect(fitCameraDistance(16 / 9, 40, undefined, band.fraction)).toBeGreaterThan(fitCameraDistance(16 / 9, 40));
+    });
+
+    it('never lets absurdly tall panels shrink the board away', () => {
+      const band = freeBand({ top: 500, bottom: 500 }, 800);
+      expect(band.fraction).toBeCloseTo(0.3, 9);
+      expect(Number.isFinite(fitCameraDistance(16 / 9, 40, undefined, band.fraction))).toBe(true);
+    });
   });
 });
