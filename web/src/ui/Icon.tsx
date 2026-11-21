@@ -1,21 +1,33 @@
 import {
   ArrowLeft,
   BookOpen,
+  Bot,
   Check,
+  CircleHelp,
   Copy,
   Crown,
   Dices,
+  Lock,
+  LockOpen,
   LogOut,
   Menu,
   MessageSquareText,
+  Pause,
+  Pencil,
+  Play,
   Music,
   Settings,
   Share2,
   Smile,
+  Timer,
   Trophy,
   User,
+  UserMinus,
+  UserPlus,
+  Vibrate,
   Volume2,
   VolumeX,
+  WifiOff,
   X,
   type LucideIcon,
 } from 'lucide-react';
@@ -43,6 +55,18 @@ import {
  * | crown       | host badge, winner               | Crown              |
  * | win         | win dialog / ranking             | Trophy             |
  * | check       | confirmed / copied               | Check              |
+ * | lock        | 🔒 home column locked (quick)    | Lock               |
+ * | unlock      | 🔓 home column open (quick)      | LockOpen           |
+ * | pause       | "Tạm dừng ván đấu" (host)        | Pause              |
+ * | play        | "Tiếp tục" (host)                | Play               |
+ * | timer       | turn countdown                   | Timer              |
+ * | bot         | CPU player badge                 | Bot                |
+ * | user-plus   | "Thêm CPU"                       | UserPlus           |
+ * | user-minus  | "Bỏ CPU"                         | UserMinus          |
+ * | pencil      | "Đặt tên quân"                   | Pencil             |
+ * | wifi-off    | offline player badge             | WifiOff            |
+ * | shake       | shake-to-roll                    | Vibrate            |
+ * | help        | "?" rules button in a match      | CircleHelp         |
  */
 const ICONS = {
   'sound-on': Volume2,
@@ -63,6 +87,18 @@ const ICONS = {
   crown: Crown,
   win: Trophy,
   check: Check,
+  lock: Lock,
+  unlock: LockOpen,
+  pause: Pause,
+  play: Play,
+  timer: Timer,
+  bot: Bot,
+  'user-plus': UserPlus,
+  'user-minus': UserMinus,
+  pencil: Pencil,
+  'wifi-off': WifiOff,
+  shake: Vibrate,
+  help: CircleHelp,
 } as const satisfies Record<string, LucideIcon>;
 
 export type IconName = keyof typeof ICONS;
