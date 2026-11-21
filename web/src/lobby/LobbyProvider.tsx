@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { useNavigate } from 'react-router';
 import type { LobbyClientMessage, LobbyServerMessage, PublicUser, RoomSummary } from '../../../shared/protocol';
 import { useSession } from '../auth/session-context';
-import { openReconnectingSocket, type ReconnectingSocket } from './reconnecting-socket';
+import { CLOSE_SIGNED_OUT, openReconnectingSocket, type ReconnectingSocket } from './reconnecting-socket';
 import './lobby.css';
 
 interface LobbyValue {
@@ -25,7 +25,7 @@ const MAX_TOASTS = 3;
 
 /** Keeps one lobby socket open while signed in and renders invite toasts on every page. */
 export function LobbyProvider({ children }: { children: ReactNode }) {
-  const { user } = useSession();
+  const { user, refresh } = useSession();
   const navigate = useNavigate();
   const [rooms, setRooms] = useState<RoomSummary[]>([]);
   const [online, setOnline] = useState<PublicUser[]>([]);
@@ -49,6 +49,10 @@ export function LobbyProvider({ children }: { children: ReactNode }) {
     const conn = openReconnectingSocket({
       path: '/api/lobby/ws',
       onStatus: () => undefined,
+      // The server ended this session's socket; re-read the session so the app treats the user as signed out.
+      onServerStop: (code) => {
+        if (code === CLOSE_SIGNED_OUT) void refresh();
+      },
       onMessage: (data) => {
         const msg = JSON.parse(data) as LobbyServerMessage;
         if (msg.t === 'lobby') {
@@ -68,7 +72,7 @@ export function LobbyProvider({ children }: { children: ReactNode }) {
       setRooms([]);
       setOnline([]);
     };
-  }, [userId, push]);
+  }, [userId, push, refresh]);
 
   const invite = useCallback((toUserId: string, code: string) => {
     const msg: LobbyClientMessage = { t: 'invite', toUserId, code };

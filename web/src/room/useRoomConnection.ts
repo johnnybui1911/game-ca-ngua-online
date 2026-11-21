@@ -2,7 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { RoomClientMessage, RoomServerMessage, RoomSnapshot } from '../../../shared/protocol';
 import { api, ApiRequestError } from '../api';
 import { appendBatch, type StateBatch } from './batches';
-import { openReconnectingSocket, type ReconnectingSocket, type SocketStatus } from '../lobby/reconnecting-socket';
+import { useSession } from '../auth/session-context';
+import { CLOSE_SIGNED_OUT, openReconnectingSocket, type ReconnectingSocket, type SocketStatus } from '../lobby/reconnecting-socket';
 
 export interface RoomFailure {
   code:
@@ -13,7 +14,8 @@ export interface RoomFailure {
     | 'left'
     | 'unavailable'
     | 'too_many_connections'
-    | 'rate_limited';
+    | 'rate_limited'
+    | 'signed_out';
   message: string;
 }
 
@@ -39,6 +41,7 @@ const FAILURE_TEXT: Record<string, string> = {
   left: 'Bạn đã rời phòng.',
   too_many_connections: 'Bạn mở phòng này ở quá nhiều tab, kết nối này đã bị đóng.',
   rate_limited: 'Bạn gửi quá nhanh nên kết nối đã bị đóng.',
+  signed_out: 'Phiên đăng nhập đã kết thúc.',
 };
 
 /** Room socket with reconnect; every reconnect rebuilds the view from the snapshot the server sends first. */
@@ -49,6 +52,7 @@ export function useRoomConnection(code: string): RoomConnection {
   const [failure, setFailure] = useState<RoomFailure | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const socket = useRef<ReconnectingSocket | null>(null);
+  const { refresh } = useSession();
 
   useEffect(() => {
     setStatus('connecting');
@@ -76,8 +80,14 @@ export function useRoomConnection(code: string): RoomConnection {
             : { code: 'unavailable', message: 'Không vào được phòng, vui lòng thử lại.' },
         );
       },
-      onServerStop: () =>
-        setFailure((prev) => prev ?? { code: 'room_closed', message: FAILURE_TEXT.room_closed ?? 'Phòng đã đóng.' }),
+      onServerStop: (closeCode) => {
+        if (closeCode === CLOSE_SIGNED_OUT) {
+          setFailure({ code: 'signed_out', message: FAILURE_TEXT.signed_out ?? 'Phiên đăng nhập đã kết thúc.' });
+          void refresh();
+          return;
+        }
+        setFailure((prev) => prev ?? { code: 'room_closed', message: FAILURE_TEXT.room_closed ?? 'Phòng đã đóng.' });
+      },
       onMessage: (data) => {
         const msg = JSON.parse(data) as RoomServerMessage;
         if (msg.t === 'state') {
@@ -88,6 +98,7 @@ export function useRoomConnection(code: string): RoomConnection {
           // The server ends the socket after these; do not wait for the close, which a proxy may swallow.
           setFailure({ code: msg.code as RoomFailure['code'], message: FAILURE_TEXT[msg.code] ?? msg.message });
           socket.current?.close();
+          if (msg.code === 'signed_out') void refresh();
         } else {
           setActionError(msg.message);
         }
@@ -98,7 +109,7 @@ export function useRoomConnection(code: string): RoomConnection {
       conn.close();
       socket.current = null;
     };
-  }, [code]);
+  }, [code, refresh]);
 
   const send = useCallback((msg: RoomClientMessage) => {
     socket.current?.send(JSON.stringify(msg));

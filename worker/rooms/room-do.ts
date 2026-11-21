@@ -11,12 +11,18 @@ import {
   type RoomVisibility,
 } from '../../shared/protocol';
 import type { Env } from '../env';
+import { SessionGuard, type SocketBinding } from './session-guard';
 import { KeyedTokenBuckets, TokenBucket } from './token-bucket';
 import {
+  CLOSE_SIGNED_OUT,
   HOST_ACTION_BURST,
   HOST_ACTION_REFILL_PER_SEC,
   MAX_MESSAGE_BYTES,
   MAX_SOCKETS_PER_USER,
+  SESSION_HEADER,
+  SESSION_RECHECK_MS,
+  SIGNED_OUT_CODE,
+  SIGNED_OUT_MESSAGE,
   SOCKET_BURST,
   SOCKET_REFILL_PER_SEC,
   USER_HEADER,
@@ -54,11 +60,8 @@ export interface CreateRoomInit {
   host: PublicUser;
 }
 
-interface SocketUser {
-  userId: string;
+interface SocketUser extends SocketBinding {
   displayName: string;
-  /** Connection time, to find a user's oldest socket. */
-  at: number;
 }
 
 class RoomError extends Error {
@@ -110,10 +113,12 @@ export class RoomDO extends DurableObject<Env> {
   /** Budget for host messages that write state, per user: reconnecting does not refill it. */
   private readonly hostBudget = new KeyedTokenBuckets(HOST_ACTION_BURST, HOST_ACTION_REFILL_PER_SEC);
   private readonly timings: Timings;
+  private readonly sessions: SessionGuard;
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
     this.timings = timingsFor(env);
+    this.sessions = new SessionGuard(env.DB, SESSION_RECHECK_MS);
     void ctx.blockConcurrencyWhile(async () => {
       this.room = (await ctx.storage.get<RoomState>(STORAGE_KEY)) ?? null;
     });
@@ -178,7 +183,9 @@ export class RoomDO extends DurableObject<Env> {
       return new Response(null, { status: 101, webSocket: client });
     }
     this.ctx.acceptWebSocket(server);
-    const attachment: SocketUser = { userId: user.id, displayName: user.displayName, at: Date.now() };
+    // `user` is the PublicUser stored in the room; the session hash stays on the socket only.
+    const sessionHash = request.headers.get(SESSION_HEADER) ?? undefined;
+    const attachment: SocketUser = { userId: user.id, displayName: user.displayName, at: Date.now(), sessionHash };
     server.serializeAttachment(attachment);
     this.trimSockets(user.id);
     if (!(await this.onConnectionChange(before))) this.sendState(server, [], this.connectedUsers());
@@ -227,10 +234,15 @@ export class RoomDO extends DurableObject<Env> {
       ws.close(1009, 'Message too big');
       return;
     }
+    const user = ws.deserializeAttachment() as SocketUser;
+    if (await this.sessions.hasEnded(ws, user, Date.now())) {
+      this.send(ws, { t: 'error', code: SIGNED_OUT_CODE, message: SIGNED_OUT_MESSAGE });
+      ws.close(CLOSE_SIGNED_OUT, SIGNED_OUT_CODE);
+      return;
+    }
     try {
       if (typeof message !== 'string') throw new RoomError('bad_message', 'Tin nhắn không hợp lệ.');
       const msg = parseClientMessage(message);
-      const user = ws.deserializeAttachment() as SocketUser;
       await this.handle(user, msg);
     } catch (err) {
       if (err instanceof RoomError) this.send(ws, { t: 'error', code: err.code, message: err.message });

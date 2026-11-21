@@ -8,6 +8,7 @@ import type {
 } from '../../shared/protocol';
 import type { Env } from '../env';
 import {
+  CLOSE_SIGNED_OUT,
   CREATE_RESERVATION_MS,
   INVITE_COOLDOWN_MS,
   LOBBY_BROADCAST_DELAY_MS,
@@ -16,6 +17,10 @@ import {
   MAX_OPEN_ROOMS_PER_HOST,
   MAX_MESSAGE_BYTES,
   MAX_LOBBY_SOCKETS_PER_USER,
+  SESSION_HEADER,
+  SESSION_RECHECK_MS,
+  SIGNED_OUT_CODE,
+  SIGNED_OUT_MESSAGE,
   SOCKET_BURST,
   SOCKET_REFILL_PER_SEC,
   USER_HEADER,
@@ -33,6 +38,7 @@ import {
   type PendingCreates,
   type StoredRoom,
 } from './lobby-rooms';
+import { SessionGuard, type SocketBinding } from './session-guard';
 import { applySweep } from './lobby-sweep';
 import { TokenBucket } from './token-bucket';
 
@@ -40,8 +46,14 @@ import { TokenBucket } from './token-bucket';
 const CLOSE_TOO_MANY = 4003;
 const CLOSE_RATE_LIMITED = 4005;
 
-/** What the lobby keeps on a socket: the user, plus when it connected to find the oldest. */
-type LobbySocketUser = PublicUser & { at: number };
+/**
+ * What the lobby keeps on a socket: the user, when it connected (to find the oldest) and the hash
+ * of its session. The attachment is never sent to a client as is; use `publicUser`.
+ */
+type LobbySocketUser = PublicUser & Omit<SocketBinding, 'userId'>;
+
+const publicUser = (a: LobbySocketUser): PublicUser => ({ id: a.id, displayName: a.displayName });
+const bindingOf = (a: LobbySocketUser): SocketBinding => ({ userId: a.id, at: a.at, sessionHash: a.sessionHash });
 
 interface LobbyEntry extends StoredRoom {
   /** Bumped from `revCounter` on every write, so a sweep can tell its answer went stale. */
@@ -65,6 +77,7 @@ export class LobbyDO extends DurableObject<Env> {
   private invites = new Map<string, number>();
   private readonly buckets = new WeakMap<WebSocket, TokenBucket>();
   private readonly timings: Timings;
+  private readonly sessions: SessionGuard;
   /** When the lobby next checks its listed rooms against their room objects; null while it lists none. */
   private sweepAt: number | null = null;
   /** When the pending broadcast is due; null when none is waiting. */
@@ -75,6 +88,7 @@ export class LobbyDO extends DurableObject<Env> {
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
     this.timings = timingsFor(env);
+    this.sessions = new SessionGuard(env.DB, SESSION_RECHECK_MS);
     void ctx.blockConcurrencyWhile(async () => {
       await this.loadRooms();
       this.creates = (await ctx.storage.get<Record<string, number[]>>(CREATES_KEY)) ?? {};
@@ -145,6 +159,22 @@ export class LobbyDO extends DurableObject<Env> {
     return 'ok';
   }
 
+  /** Ends every lobby socket opened under this session; the user's other sessions stay connected. */
+  async closeSession(sessionHash: string): Promise<void> {
+    let closed = false;
+    for (const ws of this.openSockets()) {
+      if ((ws.deserializeAttachment() as LobbySocketUser | null)?.sessionHash !== sessionHash) continue;
+      this.endSocket(ws);
+      closed = true;
+    }
+    if (closed) await this.scheduleBroadcast();
+  }
+
+  private endSocket(ws: WebSocket): void {
+    this.send(ws, { t: 'error', code: SIGNED_OUT_CODE, message: SIGNED_OUT_MESSAGE });
+    ws.close(CLOSE_SIGNED_OUT, SIGNED_OUT_CODE);
+  }
+
   // ------------------------------------------------------------ sockets
 
   override async fetch(request: Request): Promise<Response> {
@@ -156,7 +186,8 @@ export class LobbyDO extends DurableObject<Env> {
     const client = pair[0];
     const server = pair[1];
     this.ctx.acceptWebSocket(server);
-    const attachment: LobbySocketUser = { id: user.id, displayName: user.displayName, at: Date.now() };
+    const sessionHash = request.headers.get(SESSION_HEADER) ?? undefined;
+    const attachment: LobbySocketUser = { id: user.id, displayName: user.displayName, at: Date.now(), sessionHash };
     server.serializeAttachment(attachment);
     this.trimSockets(user.id);
     this.send(server, this.lobbyMessage());
@@ -191,7 +222,13 @@ export class LobbyDO extends DurableObject<Env> {
       ws.close(1009, 'Message too big');
       return;
     }
-    const sender = ws.deserializeAttachment() as PublicUser;
+    const attachment = ws.deserializeAttachment() as LobbySocketUser;
+    if (await this.sessions.hasEnded(ws, bindingOf(attachment), Date.now())) {
+      this.endSocket(ws);
+      await this.scheduleBroadcast();
+      return;
+    }
+    const sender = publicUser(attachment);
     const fail = (code: string, text: string) => this.send(ws, { t: 'error', code, message: text });
     if (typeof message !== 'string') return fail('bad_message', 'Tin nhắn không hợp lệ.');
     let msg: unknown;
@@ -252,7 +289,7 @@ export class LobbyDO extends DurableObject<Env> {
   }
 
   private socketsOf(userId: string): WebSocket[] {
-    return this.openSockets().filter((ws) => (ws.deserializeAttachment() as PublicUser | null)?.id === userId);
+    return this.openSockets().filter((ws) => (ws.deserializeAttachment() as LobbySocketUser | null)?.id === userId);
   }
 
   private send(ws: WebSocket, msg: LobbyServerMessage): void {
@@ -331,8 +368,8 @@ export class LobbyDO extends DurableObject<Env> {
     const rooms = publicRoomList(this.rooms, MAX_LOBBY_LIST);
     const online = new Map<string, PublicUser>();
     for (const ws of this.openSockets()) {
-      const user = ws.deserializeAttachment() as PublicUser | null;
-      if (user) online.set(user.id, { id: user.id, displayName: user.displayName });
+      const user = ws.deserializeAttachment() as LobbySocketUser | null;
+      if (user) online.set(user.id, publicUser(user));
     }
     return { t: 'lobby', rooms, online: [...online.values()] };
   }
