@@ -1,12 +1,16 @@
 import { Canvas } from '@react-three/fiber';
-import { Component, useRef, useState } from 'react';
+import { Component, useRef } from 'react';
 import type { CSSProperties, ReactNode } from 'react';
-import { PCFShadowMap, NeutralToneMapping } from 'three';
+import { ACESFilmicToneMapping, PCFShadowMap, SRGBColorSpace } from 'three';
 import { HORSES_PER_COLOR } from '../../../shared/game/types';
 import { horseLabel } from '../../../shared/protocol';
 import type { HudInsets } from './camera';
 import { HORSE_COLORS } from './palette';
 import type { GameSceneProps, HorseLabelElements } from './props';
+import { BACKDROP } from './render/Lighting';
+import { QualityScope, useQuality } from './render/QualityProvider';
+import { dprRange } from './render/quality';
+import type { SceneActivity } from './render/quality';
 import SceneContent from './SceneContent';
 
 const LABEL_STYLE: CSSProperties = {
@@ -25,27 +29,6 @@ const LABEL_STYLE: CSSProperties = {
 };
 
 const UNAVAILABLE = 'Trình duyệt không hỗ trợ WebGL nên không thể hiển thị bàn cờ 3D. Hãy thử trình duyệt hoặc thiết bị khác.';
-
-type WebglSupport = 'none' | 'software' | 'gpu';
-
-/**
- * Software rasterisers (no GPU, remote desktops, headless browsers) render the
- * full-quality scene at a few frames per second and starve the page, so they
- * get a cheaper renderer: no shadows, no antialiasing, pixel ratio 1.
- */
-function detectWebgl(): WebglSupport {
-  try {
-    const c = document.createElement('canvas');
-    const gl = c.getContext('webgl2') ?? c.getContext('webgl');
-    if (!gl) return 'none';
-    const info = gl.getExtension('WEBGL_debug_renderer_info');
-    const renderer = String(gl.getParameter(info ? info.UNMASKED_RENDERER_WEBGL : gl.RENDERER));
-    gl.getExtension('WEBGL_lose_context')?.loseContext();
-    return /swiftshader|llvmpipe|softpipe|software/i.test(renderer) ? 'software' : 'gpu';
-  } catch {
-    return 'none';
-  }
-}
 
 function Unavailable() {
   return (
@@ -80,7 +63,32 @@ class CanvasBoundary extends Component<{ children: ReactNode }, { failed: boolea
 
 /** Mount point of the 3D board. Default export so the match page can load it lazily. */
 export default function GameScene(props: GameSceneProps & { insets?: HudInsets }) {
-  const [support] = useState(detectWebgl);
+  return (
+    <QualityScope>
+      <Scene {...props} />
+    </QualityScope>
+  );
+}
+
+const FRAMELOOP = { full: 'always', dimmed: 'demand', paused: 'never' } as const satisfies Record<SceneActivity, string>;
+
+/**
+ * Filmic tone curve; the exposure is tuned with the lights in `render/Lighting.tsx`.
+ * Constant objects, so a re-render never re-applies them over what post-processing set.
+ */
+const RENDERER = {
+  antialias: true,
+  alpha: false,
+  powerPreference: 'high-performance',
+  toneMapping: ACESFilmicToneMapping,
+  toneMappingExposure: 1.15,
+  outputColorSpace: SRGBColorSpace,
+} as const;
+/** Software rasterisers render without antialiasing (and, through the low tier, without shadows at pixel ratio 1). */
+const SOFTWARE_RENDERER = { ...RENDERER, antialias: false } as const;
+
+function Scene(props: GameSceneProps & { insets?: HudInsets }) {
+  const { webgl: support, settings, activity } = useQuality();
   const labels = useRef<HorseLabelElements>([[], [], [], []]);
   const software = support === 'software';
   const game = props.room.game;
@@ -93,16 +101,17 @@ export default function GameScene(props: GameSceneProps & { insets?: HudInsets }
         height: '100%',
         overflow: 'hidden',
         touchAction: 'none',
-        background: 'radial-gradient(ellipse at 50% 38%, #5a3b27 0%, #33211a 55%, #1d130f 100%)',
+        background: BACKDROP,
       }}
     >
       {support !== 'none' ? (
         <CanvasBoundary>
           <Canvas
-            dpr={software ? 1 : [1, 2]}
+            dpr={dprRange(settings, activity)}
+            frameloop={FRAMELOOP[activity]}
             shadows={software ? false : { type: PCFShadowMap }}
             camera={{ fov: 40, near: 3, far: 80, position: [0, 15, 12] }}
-            gl={{ antialias: !software, alpha: true, powerPreference: 'high-performance', toneMapping: NeutralToneMapping }}
+            gl={software ? SOFTWARE_RENDERER : RENDERER}
             style={{ position: 'absolute', inset: 0 }}
           >
             <SceneContent {...props} labels={labels.current} />
