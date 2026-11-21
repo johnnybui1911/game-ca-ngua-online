@@ -1,6 +1,7 @@
 import type { MeUser, PublicUser } from '../../shared/protocol';
 import type { Env } from '../env';
 import { toBase64 } from './password';
+import { displayNameFromProfile } from './validate';
 
 export const SESSION_COOKIE = 'ca_session';
 const SESSION_SECONDS = 30 * 24 * 60 * 60;
@@ -78,7 +79,10 @@ export async function destroySession(request: Request, env: Env): Promise<string
   return cookieHeader(SESSION_COOKIE, '', { maxAge: 0 });
 }
 
-/** The signed-in user for an HTTP request or WebSocket upgrade, or null. */
+/**
+ * The signed-in user for an HTTP request or WebSocket upgrade, or null. The stored name goes
+ * through the current name cleaner, so names saved under an older, looser rule display cleanly.
+ */
 export async function getSessionUser(request: Request, env: Env): Promise<PublicUser | null> {
   const token = readCookie(request, SESSION_COOKIE);
   if (!plausibleToken(token)) return null;
@@ -89,7 +93,7 @@ export async function getSessionUser(request: Request, env: Env): Promise<Public
   )
     .bind(await sha256Hex(token), Date.now())
     .first<PublicUser>();
-  return row ?? null;
+  return row ? { id: row.id, displayName: displayNameFromProfile(row.displayName) } : null;
 }
 
 /** The session's user including whether it is a guest, or null. Used by account routes only. */
@@ -103,5 +107,5 @@ export async function getSessionAccount(request: Request, env: Env): Promise<MeU
   )
     .bind(await sha256Hex(token), Date.now())
     .first<{ id: string; displayName: string; guest: number }>();
-  return row ? { id: row.id, displayName: row.displayName, guest: row.guest === 1 } : null;
+  return row ? { id: row.id, displayName: displayNameFromProfile(row.displayName), guest: row.guest === 1 } : null;
 }

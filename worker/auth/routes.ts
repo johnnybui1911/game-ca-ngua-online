@@ -21,7 +21,7 @@ import {
   randomToken,
   readCookie,
 } from './session';
-import { checkDisplayName, checkPassword, normalizeEmail, sanitizeReturnTo } from './validate';
+import { checkDisplayName, checkPassword, displayNameFromProfile, normalizeEmail, sanitizeReturnTo } from './validate';
 
 type AppContext = Context<{ Bindings: Env }>;
 
@@ -66,7 +66,8 @@ async function respondSignedIn(c: AppContext, userId: string) {
   const row = await c.env.DB.prepare('SELECT id, display_name AS displayName, is_guest AS guest FROM users WHERE id = ?')
     .bind(userId)
     .first<{ id: string; displayName: string; guest: number }>();
-  return c.json(await me(c, row ? { id: row.id, displayName: row.displayName, guest: row.guest === 1 } : undefined));
+  const user = row ? { id: row.id, displayName: displayNameFromProfile(row.displayName), guest: row.guest === 1 } : undefined;
+  return c.json(await me(c, user));
 }
 
 export const authRoutes = new Hono<{ Bindings: Env }>();
