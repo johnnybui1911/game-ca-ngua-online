@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { COLORS } from '../../../shared/game/types';
-import { DEFAULT_POLAR, defaultPolar, fitCameraDistance, freeBand, seatCameraPosition } from './camera';
+import { DEFAULT_POLAR, defaultPolar, fitCameraDistance, freeBand, reserveInsets, seatCameraPosition } from './camera';
 import { SLAB_HALF } from './layout';
 
 /** NDC of a ground point for a camera at `pos` looking at the origin. */
@@ -100,6 +100,31 @@ describe('camera fit', () => {
       const band = freeBand({ top: 500, bottom: 500 }, 800);
       expect(band.fraction).toBeCloseTo(0.3, 9);
       expect(Number.isFinite(fitCameraDistance(16 / 9, 40, undefined, band.fraction))).toBe(true);
+    });
+  });
+
+  describe('reserved insets', () => {
+    it('starts from the first measurement', () => {
+      expect(reserveInsets(null, { top: 50, bottom: 100 }, 390, 844)).toEqual({ width: 390, height: 844, top: 50, bottom: 100 });
+    });
+
+    it('grows but never shrinks at one viewport size, per side', () => {
+      let r = reserveInsets(null, { top: 50, bottom: 100 }, 390, 844);
+      r = reserveInsets(r, { top: 40, bottom: 160 }, 390, 844);
+      expect(r).toMatchObject({ top: 50, bottom: 160 });
+      r = reserveInsets(r, { top: 60, bottom: 90 }, 390, 844);
+      expect(r).toMatchObject({ top: 60, bottom: 160 });
+    });
+
+    it('keeps the same object when nothing grows', () => {
+      const r = reserveInsets(null, { top: 50, bottom: 100 }, 390, 844);
+      expect(reserveInsets(r, { top: 50, bottom: 80 }, 390, 844)).toBe(r);
+    });
+
+    it('starts over when the viewport size changes', () => {
+      const r = reserveInsets(null, { top: 50, bottom: 160 }, 390, 844);
+      expect(reserveInsets(r, { top: 56, bottom: 120 }, 844, 390)).toEqual({ width: 844, height: 390, top: 56, bottom: 120 });
+      expect(reserveInsets(r, { top: 56, bottom: 120 }, 390, 700)).toMatchObject({ top: 56, bottom: 120 });
     });
   });
 });
