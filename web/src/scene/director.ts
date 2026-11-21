@@ -14,13 +14,15 @@ export const HORSE_Y = 0.07;
 /** Half the die edge; a resting die has its centre this high. */
 export const DIE_HALF = 0.32;
 
-/** One batch (a die tumble, or a move with its kick) must finish within this. */
+/** One server action (a die tumble, or a move with its kick) must finish within this; a batch gets it per action. */
 export const BATCH_BUDGET = 0.6;
 /** Batches allowed to wait behind the one playing; more than this snaps to the latest state. */
 export const MAX_WAITING = 2;
 export const CELEBRATION_SECONDS = 3.4;
 
 const ROLL_SECONDS = 0.5;
+/** Pause after a roll that is followed by its move in the same batch, so the die face can be read. */
+const ROLL_HOLD_SECONDS = 0.2;
 const MOVE_SECONDS = 0.5;
 const MOVE_WITH_KICK_SECONDS = 0.36;
 const KICK_SECONDS = 0.22;
@@ -68,6 +70,7 @@ type Seg =
       kickDur: number;
       dur: number;
     }
+  | { k: 'hold'; dur: number }
   | { k: 'turn'; color: Color; dur: 0 }
   | { k: 'win'; color: Color; dur: 0 };
 
@@ -182,11 +185,17 @@ export class Director {
   private begin(batch: Batch): Run {
     const segs: Seg[] = [];
     let hadRoll = false;
+    let actions = 0;
     for (const e of batch.events) {
       if (e.type === 'rolled') {
         hadRoll = true;
+        actions++;
         segs.push({ k: 'roll', color: e.color, dice: e.dice, dur: ROLL_SECONDS });
       } else if (e.type === 'moved') {
+        actions++;
+        // The die stays at rest through the move; a batch that moves has consumed its roll.
+        if (hadRoll) hadRoll = false;
+        if (segs[segs.length - 1]?.k === 'roll') segs.push({ k: 'hold', dur: ROLL_HOLD_SECONDS });
         const hops = e.from < 0 ? 1 : Math.max(1, e.to - e.from);
         const moveTime = e.kicked ? MOVE_WITH_KICK_SECONDS : MOVE_SECONDS;
         const hopDur = Math.min(MAX_HOP_SECONDS, moveTime / hops);
@@ -211,8 +220,9 @@ export class Director {
       }
     }
     const total = segs.reduce((sum, s) => sum + s.dur, 0);
-    if (total > BATCH_BUDGET) {
-      const scale = BATCH_BUDGET / total;
+    const budget = BATCH_BUDGET * Math.max(1, actions);
+    if (total > budget) {
+      const scale = budget / total;
       for (const s of segs) {
         s.dur *= scale;
         if (s.k === 'move') {

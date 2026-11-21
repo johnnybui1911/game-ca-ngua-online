@@ -1,7 +1,6 @@
 import { DurableObject } from 'cloudflare:workers';
 import { NO_SOURCE, type ServerEvent } from '../../shared/analytics';
 import { applyMove, applyRoll, createGame } from '../../shared/game/engine';
-import { chooseCpuMove } from '../../shared/game/cpu';
 import type { GameEvent, StepResult } from '../../shared/game/types';
 import { isEmoteId } from '../../shared/emotes';
 import {
@@ -39,7 +38,7 @@ import {
 import {
   cleanHorseNames,
   currentSeatIndex,
-  levelForOccupant,
+  AlarmTracker,
   levelOf,
   parseCpuLevel,
   drawDie,
@@ -50,6 +49,7 @@ import {
   nextWake,
   occupiedCount,
   planTurn,
+  playDueAction,
   reconcileConnections,
   resumeGame,
   seatIndexOfUser,
@@ -138,6 +138,7 @@ function parseClientMessage(text: string): RoomClientMessage {
 export class RoomDO extends DurableObject<Env> {
   private room: RoomState | null = null;
   private lastPushed = '';
+  private readonly alarmTracker = new AlarmTracker();
   /** In memory only: a socket woken from hibernation starts with a full bucket. */
   private readonly buckets = new WeakMap<WebSocket, TokenBucket>();
   /** Budget for host messages that write state, per user: reconnecting does not refill it. */
@@ -593,6 +594,7 @@ export class RoomDO extends DurableObject<Env> {
       }
     }
     await this.ctx.storage.deleteAlarm();
+    this.alarmTracker.armed(null);
     await this.ctx.storage.deleteAll();
     this.ctx.waitUntil(this.removeFromLobby(room.code));
     this.lastPushed = '';
@@ -615,9 +617,18 @@ export class RoomDO extends DurableObject<Env> {
     const room = this.room;
     if (!room) return;
     await this.ctx.storage.put(STORAGE_KEY, room);
+    await this.schedule();
+  }
+
+  /** Arms the alarm for the next wake; storage is only touched when it differs from what this instance last armed. */
+  private async schedule(): Promise<void> {
+    const room = this.room;
+    if (!room) return;
     const wake = nextWake(room, this.timings);
-    if (wake === null) await this.ctx.storage.deleteAlarm();
-    else await this.ctx.storage.setAlarm(wake);
+    const action = this.alarmTracker.plan(wake);
+    if (action === 'set' && wake !== null) await this.ctx.storage.setAlarm(wake);
+    else if (action === 'delete') await this.ctx.storage.deleteAlarm();
+    this.alarmTracker.armed(wake);
   }
 
   /** Tells the lobby about this room when its public summary changed. */
@@ -652,6 +663,7 @@ export class RoomDO extends DurableObject<Env> {
    * from persisted state, so a late or repeated firing does the right thing.
    */
   override async alarm(): Promise<void> {
+    this.alarmTracker.fired();
     const room = this.room;
     if (!room) return;
     const now = Date.now();
@@ -681,28 +693,14 @@ export class RoomDO extends DurableObject<Env> {
       if (vacated) reconcileConnections(room, connected, now, this.timings);
     } else if (room.status === 'playing' && !isPaused(room) && room.noHumanConnectedSince === null && room.dueAt !== null && now >= room.dueAt && room.game) {
       // With nobody watching, or paused by the host, the game stays frozen.
-      const game = room.game;
-      const result =
-        game.phase === 'roll'
-          ? applyRoll(game, drawDie())
-          : game.phase === 'move'
-            ? applyMove(game, chooseCpuMove(game, levelForOccupant(room, room.seats[currentSeatIndex(room)]?.occupant ?? null)))
-            : null;
-      if (result) {
-        room.game = result.state;
-        events = result.events;
-        if (result.state.phase === 'finished') {
-          room.status = 'finished';
-          this.count('match_finished');
-          room.dueAt = null;
-          room.actionDueAt = null;
-        } else {
-          planTurn(room, connected, now, this.timings);
-        }
+      const played = playDueAction(room, connected, now, this.timings);
+      if (played) {
+        events = played.events;
+        if (played.finished) this.count('match_finished');
       }
     }
 
     if (JSON.stringify(room) !== before) await this.commit(events);
-    else await this.persistAndSchedule();
+    else await this.schedule();
   }
 }

@@ -69,25 +69,40 @@ export function reserveCreate(
   return true;
 }
 
+/** Whether a stored entry already says what the listing would record. A null legacy host differs from any real one. */
+export function sameListing(
+  entry: StoredRoom,
+  listing: { summary: RoomSummary; visibility: RoomVisibility; hostId: string },
+): boolean {
+  return (
+    entry.hostId === listing.hostId &&
+    entry.visibility === listing.visibility &&
+    JSON.stringify(entry.summary) === JSON.stringify(listing.summary)
+  );
+}
+
 /**
  * Lists or refreshes a room. Only a room's first listing after its creation (`created`) ends the
  * creator's reservation; a room listed again later, perhaps under another host, must not eat one.
+ * `changed` is false when the stored entry already matched, in which case it is left untouched.
  */
 export function listRoom(
   rooms: Record<string, StoredRoom>,
   pending: PendingCreates,
   listing: { summary: RoomSummary; visibility: RoomVisibility; hostId: string; created: boolean },
   now: number,
-): StoredRoom {
+): { entry: StoredRoom; changed: boolean } {
   if (listing.created) consumeReservation(pending, listing.hostId, now);
+  const existing = rooms[listing.summary.code];
+  if (existing && sameListing(existing, listing)) return { entry: existing, changed: false };
   const entry: StoredRoom = {
     summary: listing.summary,
     visibility: listing.visibility,
     hostId: listing.hostId,
-    at: rooms[listing.summary.code]?.at ?? now,
+    at: existing?.at ?? now,
   };
   rooms[listing.summary.code] = entry;
-  return entry;
+  return { entry, changed: true };
 }
 
 /** A room was listed for the first time: its creation no longer needs a reservation. */
