@@ -1,26 +1,27 @@
-import { useEffect, useRef } from 'react';
 import { QUICK_INTRO } from '../../../shared/rules-text';
+import { Icon } from '../ui/Icon';
+import { Modal } from './Modal';
 
 /** Shown once per device when a quick match starts. The turn clock keeps running behind it. */
 export function QuickIntroCard({ onClose }: { onClose: () => void }) {
-  const ok = useRef<HTMLButtonElement>(null);
-  useEffect(() => {
-    ok.current?.focus();
-  }, []);
   return (
-    <div className="dialog-backdrop">
-      <div className="card dialog quick-intro" role="dialog" aria-modal="true" aria-labelledby="quick-intro-title" data-testid="quick-intro">
-        <h2 id="quick-intro-title">Ván nhanh</h2>
-        <ol className="quick-intro-lines">
-          {QUICK_INTRO.map((line) => (
-            <li key={line}>{line}</li>
-          ))}
-        </ol>
-        <p className="muted">Xem lại luật bất cứ lúc nào bằng nút ?.</p>
-        <button ref={ok} type="button" className="btn btn-primary" data-testid="quick-intro-ok" onClick={onClose}>
-          Hiểu rồi
-        </button>
-      </div>
-    </div>
+    <Modal labelledBy="quick-intro-title" testId="quick-intro" className="quick-intro" onClose={onClose}>
+      <p className="ui-eyebrow">Chế độ</p>
+      <h2 id="quick-intro-title" className="ui-title dialog-title">
+        Ván nhanh
+      </h2>
+      <ol className="quick-intro-lines">
+        {QUICK_INTRO.map((line) => (
+          <li key={line}>{line}</li>
+        ))}
+      </ol>
+      <p className="ui-muted quick-intro-hint">
+        Xem lại luật bất cứ lúc nào bằng nút <Icon name="help" size="sm" label="Luật chơi" />.
+      </p>
+      <button type="button" className="ui-btn ui-btn--primary" data-testid="quick-intro-ok" data-autofocus onClick={onClose}>
+        <Icon name="check" />
+        Hiểu rồi
+      </button>
+    </Modal>
   );
 }

@@ -93,7 +93,7 @@ export function SignInPage() {
             {shownError}
           </p>
         )}
-        <button type="submit" className="btn btn-primary" data-testid="signin-submit" disabled={busy}>
+        <button type="submit" className="ui-btn ui-btn--primary" data-testid="signin-submit" disabled={busy}>
           {busy ? 'Đang đăng nhập…' : 'Đăng nhập'}
         </button>
       </form>

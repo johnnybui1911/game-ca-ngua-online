@@ -80,12 +80,12 @@ export function SaveAccountBlock({ returnTo, onDismiss }: { returnTo: string; on
             {error}
           </p>
         )}
-        <button type="submit" className="btn btn-primary" data-testid="save-submit" disabled={busy}>
+        <button type="submit" className="ui-btn ui-btn--primary" data-testid="save-submit" disabled={busy}>
           {busy ? 'Đang lưu…' : 'Lưu tài khoản'}
         </button>
       </form>
       <ProviderButtons returnTo={returnTo} />
-      <button type="button" className="btn-link" data-testid="save-dismiss" onClick={onDismiss}>
+      <button type="button" className="ui-btn ui-btn--ghost save-dismiss" data-testid="save-dismiss" onClick={onDismiss}>
         Để sau
       </button>
     </section>
