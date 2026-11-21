@@ -26,6 +26,8 @@ export interface GameSceneProps {
    * `room.game.legalHorses` while it is their turn and the phase is 'move'.
    */
   onPickHorse: (horse: number) => void;
+  /** Called whenever the board starts or finishes animating what the server reported (rolls, moves). */
+  onBusyChange?: (busy: boolean) => void;
 }
 
 /** DOM label of each horse, `[color][horse]`, owned by the scene's mount point and placed by the frame loop. */

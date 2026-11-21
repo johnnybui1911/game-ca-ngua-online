@@ -114,6 +114,7 @@ export default function SceneContent({
   batches,
   myColor,
   onPickHorse,
+  onBusyChange,
   insets = NO_INSETS,
   labels,
 }: GameSceneProps & { insets?: HudInsets; labels?: HorseLabelElements }) {
@@ -127,6 +128,11 @@ export default function SceneContent({
     () => new Director(createView(state), setBusy, quick ? { budgetPerSegment: QUICK_SEGMENT_SECONDS } : {}),
     [state, quick],
   );
+  useEffect(() => {
+    onBusyChange?.(busy);
+  }, [busy, onBusyChange]);
+  // A board that goes away (WebGL loss, leaving the match) must not leave the page waiting on it.
+  useEffect(() => () => onBusyChange?.(false), [onBusyChange]);
   const camera = useThree((s) => s.camera);
   const size = useThree((s) => s.size);
   const projected = useMemo(() => new Vector3(), []);
