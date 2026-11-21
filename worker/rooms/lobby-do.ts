@@ -118,7 +118,9 @@ export class LobbyDO extends DurableObject<Env> {
 
   /** `created` marks the room's first listing after its creation, which is what ends the creator's reservation. */
   async upsertRoom(summary: RoomSummary, visibility: RoomVisibility, hostId: string, created = false): Promise<void> {
-    const entry = listRoom(this.rooms, this.pendingCreates, { summary, visibility, hostId, created }, Date.now());
+    const { entry, changed } = listRoom(this.rooms, this.pendingCreates, { summary, visibility, hostId, created }, Date.now());
+    // Rooms re-push identical summaries after every hibernation; nothing to store or broadcast then.
+    if (!changed) return;
     this.rooms[summary.code] = { ...entry, rev: ++this.revCounter };
     await this.persistRoom(summary.code);
     await this.ensureSweepScheduled();
