@@ -61,7 +61,7 @@ roomRoutes.post('/rooms', requireSameOrigin, async (c) => {
   if (allowed === 'too_many_rooms') {
     return fail(c, 429, 'too_many_rooms', 'Bạn đang có quá nhiều phòng đang mở. Hãy rời bớt phòng trước khi tạo phòng mới.');
   }
-  if (allowed === 'rate_limited') {
+  if (allowed !== 'ok') {
     return fail(c, 429, 'rate_limited', 'Bạn tạo phòng quá nhanh, vui lòng thử lại sau một phút.');
   }
   for (let attempt = 0; attempt < 8; attempt++) {

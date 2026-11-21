@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { RoomSummary } from '../../shared/protocol';
 import {
   consumeReservation,
+  listRoom,
   mergeLegacyRooms,
   openRoomCount,
   publicRoomList,
@@ -99,5 +100,30 @@ describe('mergeLegacyRooms', () => {
     expect(migrated.B).toMatchObject({ hostId: null, at: 2, visibility: 'private' });
     expect(merged.A).toBe(current.A);
     expect(Object.keys(merged).sort()).toEqual(['A', 'B']);
+  });
+});
+
+describe('listRoom', () => {
+  const listing = (code: string, hostId: string, created: boolean) => ({
+    summary: room(code).summary,
+    visibility: 'public' as const,
+    hostId,
+    created,
+  });
+
+  it('ends the creator reservation on the first listing only', () => {
+    const rooms: Record<string, StoredRoom> = {};
+    const pending: PendingCreates = new Map([['u1', [1000]]]);
+    listRoom(rooms, pending, listing('A', 'u1', true), 5);
+    expect(pending.has('u1')).toBe(false);
+  });
+
+  it('leaves another user\'s reservation alone when an existing room is listed again', () => {
+    const rooms: Record<string, StoredRoom> = { A: room('A', { at: 3 }) };
+    const pending: PendingCreates = new Map([['u2', [1000]]]);
+    const entry = listRoom(rooms, pending, listing('A', 'u2', false), 5);
+    expect(pending.get('u2')).toEqual([1000]);
+    expect(entry.at).toBe(3);
+    expect(rooms.A?.hostId).toBe('u2');
   });
 });

@@ -69,6 +69,27 @@ export function reserveCreate(
   return true;
 }
 
+/**
+ * Lists or refreshes a room. Only a room's first listing after its creation (`created`) ends the
+ * creator's reservation; a room listed again later, perhaps under another host, must not eat one.
+ */
+export function listRoom(
+  rooms: Record<string, StoredRoom>,
+  pending: PendingCreates,
+  listing: { summary: RoomSummary; visibility: RoomVisibility; hostId: string; created: boolean },
+  now: number,
+): StoredRoom {
+  if (listing.created) consumeReservation(pending, listing.hostId, now);
+  const entry: StoredRoom = {
+    summary: listing.summary,
+    visibility: listing.visibility,
+    hostId: listing.hostId,
+    at: rooms[listing.summary.code]?.at ?? now,
+  };
+  rooms[listing.summary.code] = entry;
+  return entry;
+}
+
 /** A room was listed for the first time: its creation no longer needs a reservation. */
 export function consumeReservation(pending: PendingCreates, userId: string, now: number): void {
   const live = livePending(pending, userId, now);
