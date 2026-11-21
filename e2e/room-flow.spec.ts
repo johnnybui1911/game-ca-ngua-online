@@ -162,7 +162,7 @@ test('copy link puts the room URL on the clipboard', async ({ browser }) => {
   await host.page.goto(`/r/${code}`);
   await host.page.getByTestId('copy-link').click();
   await expect(host.page.getByTestId('copy-status')).toHaveText('Đã sao chép link phòng.');
-  expect(await host.page.evaluate(() => navigator.clipboard.readText())).toBe(`${ORIGIN}/r/${code}`);
+  expect(await host.page.evaluate(() => navigator.clipboard.readText())).toBe(`${ORIGIN}/r/${code}?utm_source=invite`);
   await host.context.close();
 });
 

@@ -1,5 +1,6 @@
 import { Hono, type Context, type MiddlewareHandler } from 'hono';
 import type { GuestRequest, MeResponse, MeUser, SignInRequest, SignUpRequest } from '../../shared/protocol';
+import { countEvent, requestSource } from '../analytics/count';
 import type { Env } from '../env';
 import {
   createPasswordUser,
@@ -90,9 +91,11 @@ authRoutes.post('/signup', requireSameOrigin, async (c) => {
   if (current?.guest) {
     // Upgrade in place: the user id and the session stay, so the guest keeps its seat.
     await upgradeGuestWithPassword(c.env, current.id, email, password, displayName);
+    c.executionCtx.waitUntil(countEvent(c.env, 'account_saved', requestSource(c.req.raw)));
     return c.json(await me(c, { ...current, displayName, guest: false }));
   }
   const userId = await createPasswordUser(c.env, email, password, displayName);
+  c.executionCtx.waitUntil(countEvent(c.env, 'signed_up', requestSource(c.req.raw)));
   return respondSignedIn(c, userId);
 });
 
@@ -103,7 +106,9 @@ authRoutes.post('/guest', requireSameOrigin, async (c) => {
   }
   const displayName = checkDisplayName(body.displayName);
   await claimGuestSlot(c.env, c.req.raw);
-  return respondSignedIn(c, await createGuest(c.env, displayName));
+  const guestId = await createGuest(c.env, displayName);
+  c.executionCtx.waitUntil(countEvent(c.env, 'guest_started', requestSource(c.req.raw)));
+  return respondSignedIn(c, guestId);
 });
 
 authRoutes.post('/signin', requireSameOrigin, async (c) => {
@@ -199,6 +204,7 @@ authRoutes.get('/oauth/:provider/callback', async (c) => {
     // The new session exists before the guest goes, so a failure never leaves the player with neither.
     c.header('Set-Cookie', await createSession(c.env, userId), { append: true });
     if (guestId && userId !== guestId) await deleteGuest(c.env, guestId);
+    if (guestId && userId === guestId) c.executionCtx.waitUntil(countEvent(c.env, 'account_saved', requestSource(c.req.raw)));
     c.header('Set-Cookie', cookieHeader(OAUTH_COOKIE, '', { maxAge: 0, path: OAUTH_COOKIE_PATH }), {
       append: true,
     });

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import type { RoomClientMessage, RoomSnapshot } from '../../../shared/protocol';
+import { inviteLink, reportInviteShared } from '../analytics';
 import { useLobby } from '../lobby/LobbyProvider';
 import { COLOR_NAMES, COLOR_VARS } from './colors';
 
@@ -20,7 +21,7 @@ export function WaitingView({ room, myId, send, actionError }: Props) {
   const [sent, setSent] = useState<Set<string>>(new Set());
 
   const isHost = room.hostId === myId;
-  const link = `${location.origin}/r/${room.code}`;
+  const link = inviteLink(room.code);
   const occupied = room.seats.filter((s) => s.occupant !== null).length;
   const seatedIds = new Set(
     room.seats.flatMap((s) => (s.occupant?.kind === 'human' ? [s.occupant.user.id] : [])),
@@ -32,6 +33,7 @@ export function WaitingView({ room, myId, send, actionError }: Props) {
     try {
       await navigator.clipboard.writeText(link);
       setCopied('done');
+      reportInviteShared();
     } catch {
       setCopied('failed');
     }
@@ -40,6 +42,7 @@ export function WaitingView({ room, myId, send, actionError }: Props) {
   const share = async () => {
     try {
       await navigator.share({ title: room.name, text: `Vào phòng ${room.name} chơi cờ cá ngựa nhé!`, url: link });
+      reportInviteShared();
     } catch {
       // dismissed by the user
     }
