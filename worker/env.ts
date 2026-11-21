@@ -26,10 +26,13 @@ export interface Env {
   /** Guest creations allowed per client address per hour (positive integer; default 100). Local `.dev.vars.<env>` only. */
   GUEST_LIMIT_PER_HOUR?: string;
 
-  /** Sign-in attempts allowed per email per 15 minutes until one succeeds (positive integer; default 10). Local `.dev.vars.<env>` only. */
+  /** Unsuccessful sign-ins allowed per email and client address together per 15 minutes (positive integer; default 10). Local `.dev.vars.<env>` only. */
+  SIGNIN_PAIR_LIMIT?: string;
+
+  /** Unsuccessful sign-ins allowed per email, from any address, per 15 minutes (positive integer; default 100). Local `.dev.vars.<env>` only. */
   SIGNIN_EMAIL_LIMIT?: string;
 
-  /** Sign-in attempts allowed per client address per 15 minutes until one succeeds (positive integer; default 50). Local `.dev.vars.<env>` only. */
+  /** Unsuccessful sign-ins allowed per client address, for any email, per 15 minutes (positive integer; default 50). Local `.dev.vars.<env>` only. */
   SIGNIN_ADDRESS_LIMIT?: string;
 
   /** Sign-up attempts allowed per client address per hour (positive integer; default 20). Local `.dev.vars.<env>` only. */

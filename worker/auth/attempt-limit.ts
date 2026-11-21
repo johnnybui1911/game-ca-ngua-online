@@ -3,7 +3,7 @@ import { HttpError } from './errors';
 import { addressKey } from './guest';
 import { sha256Hex } from './session';
 
-export type AttemptKind = 'signin-email' | 'signin-addr' | 'signup-addr';
+export type AttemptKind = 'signin-pair' | 'signin-email' | 'signin-addr' | 'signup-addr';
 
 interface Policy {
   windowMs: number;
@@ -14,11 +14,18 @@ const MINUTE = 60 * 1000;
 
 /**
  * Sign-in limits count attempts that have not succeeded: the claim is made before the password is
- * checked (so concurrent guesses cannot overshoot) and released after a correct password.
- * The address limit is sized for shared addresses (carrier NAT, school or office networks).
+ * checked (so concurrent guesses cannot overshoot). A correct password releases the request's own
+ * claims and clears every earlier attempt of the same (email, address) pair.
+ *  - pair: the strict limit. Keyed by both email and address, so a third party cannot lock an
+ *    account owner out from another address.
+ *  - email: a looser ceiling against guessing spread over many addresses.
+ *  - addr: sized for shared addresses (carrier NAT, school or office networks).
+ * Sign-ups are counted before their outcome, whether or not they succeed: every attempt runs a
+ * password hash, so the count bounds that work.
  */
 export const POLICIES: Record<AttemptKind, Policy> = {
-  'signin-email': { windowMs: 15 * MINUTE, defaultLimit: 10 },
+  'signin-pair': { windowMs: 15 * MINUTE, defaultLimit: 10 },
+  'signin-email': { windowMs: 15 * MINUTE, defaultLimit: 100 },
   'signin-addr': { windowMs: 15 * MINUTE, defaultLimit: 50 },
   'signup-addr': { windowMs: 60 * MINUTE, defaultLimit: 20 },
 };
@@ -31,6 +38,7 @@ export function limitFromEnv(raw: string | undefined, fallback: number): number 
 
 export function limitFor(env: Env, kind: AttemptKind): number {
   const raw = {
+    'signin-pair': env.SIGNIN_PAIR_LIMIT,
     'signin-email': env.SIGNIN_EMAIL_LIMIT,
     'signin-addr': env.SIGNIN_ADDRESS_LIMIT,
     'signup-addr': env.SIGNUP_ADDRESS_LIMIT,
@@ -55,6 +63,15 @@ export interface Claim {
 }
 
 type Subject = { kind: AttemptKind; subject: string };
+
+/** The counters one sign-in attempt for `email` from `address` is held against. */
+export function signInSubjects(email: string, address: string): Subject[] {
+  return [
+    { kind: 'signin-pair', subject: `${address}|${email}` },
+    { kind: 'signin-email', subject: email },
+    { kind: 'signin-addr', subject: address },
+  ];
+}
 
 /**
  * Claims one attempt for every subject, or none: when any subject is already at its limit nothing
@@ -96,6 +113,21 @@ export async function claimAttempts(
 export async function releaseAttempts(env: Env, claims: Claim[]): Promise<void> {
   if (claims.length === 0) return;
   await env.DB.batch(claims.map((c) => env.DB.prepare('DELETE FROM auth_attempts WHERE rowid = ?').bind(c.rowId)));
+}
+
+/**
+ * Settles a correct sign-in: every attempt of the (email, address) pair is forgotten, and the
+ * request's claims on the shared email and address counters are given back.
+ */
+export async function forgiveSignIn(env: Env, claims: Claim[], email: string, address: string): Promise<void> {
+  const [pair] = signInSubjects(email, address);
+  const pairHash = await attemptKeyHash(pair!.kind, pair!.subject);
+  await env.DB.batch([
+    env.DB.prepare('DELETE FROM auth_attempts WHERE kind = ? AND key_hash = ?').bind(pair!.kind, pairHash),
+    ...claims
+      .filter((c) => c.kind !== pair!.kind)
+      .map((c) => env.DB.prepare('DELETE FROM auth_attempts WHERE rowid = ?').bind(c.rowId)),
+  ]);
 }
 
 export const tooManySignins = () =>
