@@ -49,6 +49,12 @@ export function recordVisit(): void {
   }
 }
 
+/** Landing page startup: counts the landing view under this visit's own source, then records the visit. */
+export function recordLandingVisit(): void {
+  report('landing_view', normalizeSource(new URL(location.href).searchParams.get(UTM_PARAM)));
+  recordVisit();
+}
+
 /** Counts a room link being copied or shared. */
 export function reportInviteShared(): void {
   report('invite_shared');

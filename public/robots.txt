@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+
+Sitemap: https://ca-ngua-online.johnny-bui1911.workers.dev/sitemap.xml

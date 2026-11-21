@@ -18,6 +18,8 @@ Mọi câu chữ dưới đây chỉ nói những gì game đang có thật. Kh�
 
 Link phòng do người chơi gửi tự gắn `utm_source=invite`, không cần làm gì thêm.
 
+Trang giới thiệu `https://ca-ngua-online.johnny-bui1911.workers.dev/co-ca-ngua-online?utm_source=<kênh>` dùng khi người xem cần biết luật và lý do chơi trước khi vào ván: bio, bài Reddit, bài nhóm hỏi về luật, quảng cáo. Bài kêu gọi chơi ngay thì vẫn dẫn thẳng vào game bằng link ở bảng trên.
+
 ## Ảnh có sẵn (`../creatives/social/`)
 
 | File | Dùng cho |

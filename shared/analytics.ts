@@ -4,7 +4,7 @@
  */
 
 /** Events the browser may report through `POST /api/events`. */
-export const CLIENT_EVENTS = ['visit', 'invite_shared'] as const;
+export const CLIENT_EVENTS = ['visit', 'landing_view', 'invite_shared'] as const;
 export type ClientEvent = (typeof CLIENT_EVENTS)[number];
 
 /** Events only the server records, at the point where they actually happen. */
