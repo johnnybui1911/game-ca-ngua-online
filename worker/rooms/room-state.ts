@@ -177,7 +177,10 @@ export function playDueAction(
     state.actionDueAt = null;
     return { events: result.events, finished: true };
   }
-  planTurn(state, connected, combined ? now + timings.cpuDelayMs : now, timings);
+  planTurn(state, connected, now, timings);
+  // The clients animate both actions from one batch; the next automated action waits for that.
+  // A connected human's clock is unaffected.
+  if (combined && state.dueAt !== null && isAutomatedActor(state, connected)) state.dueAt += timings.cpuDelayMs;
   return { events: result.events, finished: false };
 }
 
@@ -338,8 +341,25 @@ export function drawDie(fill: (bytes: Uint8Array) => Uint8Array = (b) => crypto.
 
 export type AlarmAction = 'set' | 'delete' | 'none';
 
-/** What the alarm needs, given the wake this instance last armed (`undefined` = unknown after construction). */
-export function alarmAction(known: number | null | undefined, wake: number | null): AlarmAction {
-  if (known === wake) return 'none';
-  return wake === null ? 'delete' : 'set';
+/**
+ * Remembers the alarm time this instance armed, so storage is touched only when it changes.
+ * Unknown after construction (a fresh instance may find any alarm armed), none after the alarm fires.
+ */
+export class AlarmTracker {
+  private known: number | null | undefined = undefined;
+
+  /** The runtime consumes an alarm when it fires. */
+  fired(): void {
+    this.known = null;
+  }
+
+  /** The storage call that arms `wake`; record it with `armed` once that call succeeded. */
+  plan(wake: number | null): AlarmAction {
+    if (this.known === wake) return 'none';
+    return wake === null ? 'delete' : 'set';
+  }
+
+  armed(wake: number | null): void {
+    this.known = wake;
+  }
 }

@@ -74,17 +74,10 @@ export function sameListing(
   entry: StoredRoom,
   listing: { summary: RoomSummary; visibility: RoomVisibility; hostId: string },
 ): boolean {
-  const a = entry.summary;
-  const b = listing.summary;
   return (
     entry.hostId === listing.hostId &&
     entry.visibility === listing.visibility &&
-    a.code === b.code &&
-    a.name === b.name &&
-    a.hostName === b.hostName &&
-    a.status === b.status &&
-    a.seatsTaken === b.seatsTaken &&
-    a.seatsTotal === b.seatsTotal
+    JSON.stringify(entry.summary) === JSON.stringify(listing.summary)
   );
 }
 

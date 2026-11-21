@@ -5,7 +5,7 @@ import type { Timings } from './constants';
 import { generateRoomCode, isRoomCode } from './room-code';
 import {
   cleanHorseNames,
-  alarmAction,
+  AlarmTracker,
   drawDie,
   dueDelay,
   nextCpuName,
@@ -364,6 +364,15 @@ describe('automated turn in one step', () => {
     expect(r.dueAt).toBe(1_000 + 2 * T.cpuDelayMs);
   });
 
+  it('gives a connected human who plays next their full clock after a combined step', () => {
+    const r = dueRoom([cpuSeats[0]!, { color: 2, occupant: { kind: 'human', user: ann } }]);
+    r.game = { ...r.game!, horses: [[5, -1, -1, -1], ...r.game!.horses.slice(1)] };
+    playDueAction(r, new Set(['u1']), 1_000, T, () => 2);
+    expect(r.game!.turn).toBe(2);
+    expect(r.dueAt).toBe(1_000 + T.turnMs);
+    expect(r.actionDueAt).toBe(1_000 + T.turnMs);
+  });
+
   it('only rolls when no move is legal', () => {
     const r = dueRoom();
     const played = playDueAction(r, new Set(['u1']), 1_000, T, () => 3)!;
@@ -409,14 +418,30 @@ describe('automated turn in one step', () => {
   });
 });
 
-describe('alarmAction', () => {
-  it('touches storage only when the wake differs from what is known to be armed', () => {
-    expect(alarmAction(undefined, 5)).toBe('set');
-    expect(alarmAction(undefined, null)).toBe('delete');
-    expect(alarmAction(5, 5)).toBe('none');
-    expect(alarmAction(null, null)).toBe('none');
-    expect(alarmAction(5, 9)).toBe('set');
-    expect(alarmAction(5, null)).toBe('delete');
-    expect(alarmAction(null, 9)).toBe('set');
+describe('AlarmTracker', () => {
+  it('arms once per new wake, trusts nothing after construction and nothing armed after firing', () => {
+    const t = new AlarmTracker();
+    // A fresh instance may find any alarm armed.
+    expect(t.plan(5)).toBe('set');
+    expect(t.plan(null)).toBe('delete');
+    t.armed(5);
+    expect(t.plan(5)).toBe('none');
+    expect(t.plan(9)).toBe('set');
+    expect(t.plan(null)).toBe('delete');
+    // The firing consumed it: the same wake must be armed again.
+    t.fired();
+    expect(t.plan(5)).toBe('set');
+    expect(t.plan(null)).toBe('none');
+    t.armed(null);
+    expect(t.plan(null)).toBe('none');
+    expect(t.plan(9)).toBe('set');
+  });
+
+  it('keeps the previous value when the storage call is not recorded', () => {
+    const t = new AlarmTracker();
+    t.armed(5);
+    // plan() alone (a storage call that threw) changes nothing.
+    expect(t.plan(9)).toBe('set');
+    expect(t.plan(9)).toBe('set');
   });
 });

@@ -38,7 +38,7 @@ import {
 import {
   cleanHorseNames,
   currentSeatIndex,
-  alarmAction,
+  AlarmTracker,
   drawDie,
   firstEmptySeat,
   humanUsers,
@@ -131,8 +131,7 @@ function parseClientMessage(text: string): RoomClientMessage {
 export class RoomDO extends DurableObject<Env> {
   private room: RoomState | null = null;
   private lastPushed = '';
-  /** Alarm time this instance last armed: null = none armed, undefined = unknown (after construction). */
-  private scheduledWake: number | null | undefined = undefined;
+  private readonly alarmTracker = new AlarmTracker();
   /** In memory only: a socket woken from hibernation starts with a full bucket. */
   private readonly buckets = new WeakMap<WebSocket, TokenBucket>();
   /** Budget for host messages that write state, per user: reconnecting does not refill it. */
@@ -579,7 +578,7 @@ export class RoomDO extends DurableObject<Env> {
       }
     }
     await this.ctx.storage.deleteAlarm();
-    this.scheduledWake = null;
+    this.alarmTracker.armed(null);
     await this.ctx.storage.deleteAll();
     this.ctx.waitUntil(this.removeFromLobby(room.code));
     this.lastPushed = '';
@@ -610,10 +609,10 @@ export class RoomDO extends DurableObject<Env> {
     const room = this.room;
     if (!room) return;
     const wake = nextWake(room, this.timings);
-    const action = alarmAction(this.scheduledWake, wake);
+    const action = this.alarmTracker.plan(wake);
     if (action === 'set' && wake !== null) await this.ctx.storage.setAlarm(wake);
     else if (action === 'delete') await this.ctx.storage.deleteAlarm();
-    this.scheduledWake = wake;
+    this.alarmTracker.armed(wake);
   }
 
   /** Tells the lobby about this room when its public summary changed. */
@@ -648,8 +647,7 @@ export class RoomDO extends DurableObject<Env> {
    * from persisted state, so a late or repeated firing does the right thing.
    */
   override async alarm(): Promise<void> {
-    // A firing alarm is consumed by the runtime.
-    this.scheduledWake = null;
+    this.alarmTracker.fired();
     const room = this.room;
     if (!room) return;
     const now = Date.now();
