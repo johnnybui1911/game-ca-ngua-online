@@ -101,7 +101,7 @@ export default function GameScene(props: GameSceneProps & { insets?: HudInsets }
           <Canvas
             dpr={software ? 1 : [1, 2]}
             shadows={software ? false : { type: PCFShadowMap }}
-            camera={{ fov: 40, near: 0.5, far: 200, position: [0, 15, 12] }}
+            camera={{ fov: 40, near: 3, far: 80, position: [0, 15, 12] }}
             gl={{ antialias: !software, alpha: true, powerPreference: 'high-performance', toneMapping: NeutralToneMapping }}
             style={{ position: 'absolute', inset: 0 }}
           >

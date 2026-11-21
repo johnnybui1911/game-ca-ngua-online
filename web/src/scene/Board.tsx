@@ -228,7 +228,7 @@ export default function Board({ assets, state, colors }: Props) {
             key={`lane${c}`}
             geometry={assets.laneGeometry}
             material={assets.laneMat[c]}
-            position={[dir.x * 3.5, INLAY_TOP + 0.012, dir.z * 3.5]}
+            position={[dir.x * 3.64, INLAY_TOP + 0.012, dir.z * 3.64]}
             rotation={[0, yawBetween({ x: 0, z: 0 }, dir), 0]}
           />
         );
