@@ -373,6 +373,14 @@ describe('automated turn in one step', () => {
     expect(r.actionDueAt).toBe(1_000 + T.turnMs);
   });
 
+  it('adds the pause to the takeover delay of a disconnected human who plays next, not to their own clock', () => {
+    const r = dueRoom([cpuSeats[0]!, { color: 2, occupant: { kind: 'human', user: ann } }]);
+    r.game = { ...r.game!, horses: [[5, -1, -1, -1], ...r.game!.horses.slice(1)] };
+    playDueAction(r, new Set(), 1_000, T, () => 2);
+    expect(r.dueAt).toBe(1_000 + Math.max(T.cpuDelayMs, T.playingDisconnectMs) + T.cpuDelayMs);
+    expect(r.actionDueAt).toBe(1_000 + T.turnMs);
+  });
+
   it('only rolls when no move is legal', () => {
     const r = dueRoom();
     const played = playDueAction(r, new Set(['u1']), 1_000, T, () => 3)!;
