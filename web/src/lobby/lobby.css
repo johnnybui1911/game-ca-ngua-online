@@ -1,4 +1,4 @@
-/* The lobby panel. It sits on the shell's glass surface (shell/shell.css styles the form fields). */
+/* The lobby panel, on the shell's glass surface. Form fields are styled for glass in styles/auth.css. */
 
 .lobby-panel {
   gap: var(--space-4);
@@ -62,6 +62,10 @@
   flex: 1 1 130px;
 }
 
+.lobby-options .glass-select {
+  width: 100%;
+}
+
 
 .join-row {
   display: grid;
@@ -71,16 +75,7 @@
 }
 
 .muted {
-  color: var(--ink-soft);
-}
-
-.field select {
-  min-height: var(--touch);
-  padding: 0 var(--space-3);
-  font: inherit;
-  background: #fff;
-  border: 2px solid var(--wood-300);
-  border-radius: var(--radius-sm);
+  color: var(--color-text-muted);
 }
 
 .choice-row {

@@ -17,7 +17,7 @@ function subscribeSide(onChange: () => void): () => void {
  * how much room is left, so the board stays in view beside or above the panel. The child brings
  * its own surface (a `.glass` section).
  */
-export function PanelHost({ children }: { children: ReactNode }) {
+export function PanelHost({ children, wide = false }: { children: ReactNode; /** A broader column, for screens with more to show (the waiting room). */ wide?: boolean }) {
   const ref = useRef<HTMLDivElement>(null);
   const side = useSyncExternalStore(subscribeSide, () => window.matchMedia(SIDE_QUERY).matches);
   const [box, setBox] = useState({ width: 0, height: 0 });
@@ -38,7 +38,7 @@ export function PanelHost({ children }: { children: ReactNode }) {
   useSceneStage({ activity: 'dimmed', orbit: true, insets: { top: 0, bottom, right }, panel: { right, bottom } });
 
   return (
-    <div className="shell-panel" ref={ref} data-testid="panel-host" data-layout={side ? 'side' : 'sheet'}>
+    <div className={wide ? 'shell-panel shell-panel--wide' : 'shell-panel'} ref={ref} data-testid="panel-host" data-layout={side ? 'side' : 'sheet'}>
       <div className="shell-panel-body">{children}</div>
     </div>
   );

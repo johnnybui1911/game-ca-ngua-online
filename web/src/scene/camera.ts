@@ -206,3 +206,54 @@ const FLOOR_RADIUS = 32;
 export function farPlane(distance: number): number {
   return Math.max(BASE_FAR, Math.ceil(distance + FLOOR_RADIUS));
 }
+
+/** Share of the way to the contact point the camera moves at full close-up. */
+export const CLOSE_UP_DOLLY = 0.22;
+/** Share of the way from the board centre to the contact point the camera's aim moves at full close-up. */
+export const CLOSE_UP_AIM = 0.55;
+/** Height above the board the close-up looks at: about the middle of a horse. */
+export const CLOSE_UP_HEIGHT = 0.6;
+/** Largest shake offset, board units, in the camera's own right/up plane. */
+export const SHAKE_AMPLITUDE = 0.09;
+
+/**
+ * Camera framing for a close-up on ground point (`focusX`, `focusZ`), blended by `weight` (0 = the framing given
+ * by `position` looking at the board centre, 1 = full close-up). Writes the camera position to `out[0..2]` and
+ * the point to look at to `out[3..5]`.
+ */
+export function closeUpFraming(
+  out: number[],
+  positionX: number,
+  positionY: number,
+  positionZ: number,
+  focusX: number,
+  focusZ: number,
+  weight: number,
+): number[] {
+  const dolly = CLOSE_UP_DOLLY * weight;
+  const aim = CLOSE_UP_AIM * weight;
+  out[0] = positionX + (focusX - positionX) * dolly;
+  out[1] = positionY + (CLOSE_UP_HEIGHT - positionY) * dolly;
+  out[2] = positionZ + (focusZ - positionZ) * dolly;
+  out[3] = focusX * aim;
+  out[4] = CLOSE_UP_HEIGHT * aim;
+  out[5] = focusZ * aim;
+  return out;
+}
+
+/**
+ * Camera shake `time` seconds into a shake lasting `seconds`: a decaying wobble in the camera's right (`out[0]`)
+ * and up (`out[1]`) directions, zero outside 0..seconds.
+ */
+export function shakeOffset(out: number[], time: number, seconds: number): number[] {
+  if (time < 0 || time >= seconds) {
+    out[0] = 0;
+    out[1] = 0;
+    return out;
+  }
+  const fade = 1 - time / seconds;
+  const size = SHAKE_AMPLITUDE * fade * fade;
+  out[0] = size * Math.sin(time * 83);
+  out[1] = size * Math.cos(time * 67);
+  return out;
+}

@@ -21,23 +21,29 @@ export function SoundSwitches() {
   const settings = useSyncExternalStore(sound.subscribe, sound.getSettings);
   return (
     <div className="sound-switches" data-testid="sound-switches">
-      <label>
+      <label className="sound-switch">
+        <Icon name="music" />
+        <span>Nhạc nền</span>
         <input
           type="checkbox"
+          role="switch"
+          className="switch-input"
           data-testid="sound-music"
           checked={settings.music}
           onChange={(e) => sound.setSettings({ ...settings, music: e.target.checked })}
         />
-        Nhạc nền
       </label>
-      <label>
+      <label className="sound-switch">
+        <Icon name="sound-on" />
+        <span>Hiệu ứng âm thanh</span>
         <input
           type="checkbox"
+          role="switch"
+          className="switch-input"
           data-testid="sound-effects"
           checked={settings.effects}
           onChange={(e) => sound.setSettings({ ...settings, effects: e.target.checked })}
         />
-        Hiệu ứng âm thanh
       </label>
     </div>
   );

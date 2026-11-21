@@ -79,7 +79,7 @@ function CreateRoomForm() {
         </fieldset>
         <div className="field">
           <label htmlFor="create-seats">Số chỗ</label>
-          <select id="create-seats" data-testid="create-seats" value={seats} onChange={(e) => setSeats(Number(e.target.value))}>
+          <select id="create-seats" className="glass-input glass-select" data-testid="create-seats" value={seats} onChange={(e) => setSeats(Number(e.target.value))}>
             {SEAT_OPTIONS.map((n) => (
               <option key={n} value={n}>
                 {n} người chơi

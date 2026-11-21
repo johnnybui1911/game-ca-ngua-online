@@ -171,6 +171,10 @@
     animation-name: shell-side-in;
   }
 
+  .shell-panel--wide {
+    width: min(560px, 46vw);
+  }
+
   /* Centred while it fits, scrolling from its top once it does not. */
   .shell-panel-body {
     margin-block: auto;
@@ -192,14 +196,21 @@
 }
 
 /* Pages that are still cards of their own take the panel's width instead of the screen's. */
-.shell-panel-body > :is(.auth-page, .room-page, .home-page) {
+.shell-panel-body > :is(.auth-page, .room-page) {
   display: block;
   min-height: 0;
   padding: 0;
 }
 
-.shell-panel-body :is(.auth-card, .room-card, .home-card) {
+.shell-panel-body :is(.auth-card, .room-card, .room-panel) {
   width: 100%;
+  /* The panel itself slides in; its content does not enter a second time. */
+  animation: none;
+}
+
+/* The waiting room is laid out for the panel's width, not the screen's: one column. */
+.shell-panel-body .room-columns {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 /* Glass surface inside the panel, and the form pieces on it. */
@@ -224,57 +235,6 @@
   padding: var(--space-4) var(--space-5);
   text-align: center;
   font-weight: var(--weight-semibold);
-}
-
-.shell-glass .muted,
-.home-join .muted {
-  color: var(--color-text-muted);
-}
-
-:is(.shell-glass, .home-join) .field label {
-  font-size: var(--text-sm);
-  font-weight: var(--weight-semibold);
-  color: var(--color-text-muted);
-}
-
-:is(.shell-glass, .home-join) .field :is(input, select) {
-  width: 100%;
-  min-height: var(--touch);
-  padding: 0 var(--space-3);
-  font: inherit;
-  color: var(--color-text);
-  background: rgb(13 8 6 / 55%);
-  border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius-sm);
-}
-
-:is(.shell-glass, .home-join) .field :is(input, select):focus {
-  border-color: var(--color-gold);
-}
-
-:is(.shell-glass, .home-join) .field input::placeholder {
-  color: var(--color-text-subtle);
-}
-
-:is(.shell-glass, .home-join) .field input[aria-invalid='true'] {
-  border-color: var(--color-danger);
-}
-
-:is(.shell-glass, .home-join) .form-error {
-  color: var(--color-danger);
-  background: var(--color-danger-bg);
-}
-
-.shell-glass .switch-link {
-  margin: 0;
-  color: var(--color-text-muted);
-}
-
-.shell-glass .switch-link a {
-  display: inline-flex;
-  align-items: center;
-  min-height: var(--touch);
-  color: var(--color-gold-strong);
 }
 
 /* Home page */

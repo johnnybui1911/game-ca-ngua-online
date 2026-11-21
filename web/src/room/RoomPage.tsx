@@ -36,7 +36,7 @@ export function RoomPage() {
     <>
       {conn.room.status === 'waiting' ? (
         // The waiting room sits in the panel over the board; the match takes the whole board.
-        <PanelHost>
+        <PanelHost wide>
           <WaitingView room={conn.room} myId={user.id} send={conn.send} actionError={conn.actionError} emotes={conn.emotes} offline={conn.status !== 'open'} />
         </PanelHost>
       ) : (

@@ -2,7 +2,7 @@ import { OrbitControls } from '@react-three/drei';
 import { useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { ElementRef } from 'react';
-import { Vector3, type PerspectiveCamera } from 'three';
+import { Quaternion, Vector3, type PerspectiveCamera } from 'three';
 import { isLocked } from '../../../shared/game/engine';
 import { HORSES_PER_COLOR } from '../../../shared/game/types';
 import type { Color } from '../../../shared/game/types';
@@ -12,6 +12,7 @@ import {
   HOME_ORBIT_SECONDS,
   NO_INSETS,
   SEAT_FLIGHT_SECONDS,
+  closeUpFraming,
   defaultPolar,
   farPlane,
   fitCameraDistance,
@@ -24,6 +25,7 @@ import {
   poseOf,
   posePosition,
   seatPose,
+  shakeOffset,
 } from './camera';
 import type { CameraPose, HudInsets } from './camera';
 import { Director, QUICK_SEGMENT_SECONDS } from './director';
@@ -34,18 +36,25 @@ import { createSceneState } from './scene-state';
 import type { SceneState } from './scene-state';
 import { unconsumed } from '../room/batches';
 import type { GameSceneProps, HorseLabelElements, SceneStaging } from './props';
+import TetEnvironment from './environment/TetEnvironment';
 import { useQuality } from './render/QualityProvider';
 import RenderPipeline from './render/RenderPipeline';
 import { sound } from '../audio/sound';
+import { KickCamera, SHAKE_SECONDS } from './motion/kick-camera';
+import { motionSetting } from './motion/motion-setting';
 
-function createView(state: SceneState): SceneView {
+function createView(state: SceneState, kickCamera: KickCamera): SceneView {
   return {
-    setHorse(color, horse, x, y, z, yaw) {
+    setHorse(color, horse, x, y, z, yaw, pitch, stretch) {
       const g = state.horses[color]?.[horse];
       if (!g) return;
       g.visible = true;
       g.position.set(x, y, z);
-      g.rotation.y = yaw;
+      // Order YXZ: the lean tips the horse along the way it faces.
+      g.rotation.set(pitch, yaw, 0);
+      // Squash and stretch keep the volume: what the height gains, the footprint gives up.
+      const wide = 1 / Math.sqrt(stretch);
+      g.scale.set(wide, stretch, wide);
     },
     setDie(visible, x, y, z, rx, ry, rz) {
       const g = state.die;
@@ -66,8 +75,17 @@ function createView(state: SceneState): SceneView {
     moveStarted(hops, hopSeconds, kickAt) {
       sound.playHooves(hops, hopSeconds, kickAt);
     },
+    kickStarted(x, z, contactIn) {
+      kickCamera.start(x, z, contactIn);
+    },
+    kickLanded() {
+      kickCamera.contact();
+    },
   };
 }
+
+/** Longest frame the camera timeline accepts, like the director's clock. */
+const MAX_CAMERA_DT = 0.1;
 
 const UP = new Vector3(0, 1, 0);
 /** How far past the fitted distance the player may zoom out. */
@@ -88,17 +106,32 @@ interface RigProps {
   sourceKey: string;
   insets: HudInsets;
   orbit: boolean;
+  kickCamera: KickCamera;
 }
 
 /**
  * Camera and orbit controls. The board centre stays the orbit pivot; panels around it are answered by
  * sliding the picture window and backing the camera off, both eased so the board glides when a
- * panel opens. Taking a seat flies the camera there from wherever it was.
+ * panel opens. Taking a seat flies the camera there from wherever it was. A kick's close-up and
+ * shake move the camera for single pictures only, on top of that framing.
  */
-function Rig({ seat, sourceKey, insets, orbit }: RigProps) {
+function Rig({ seat, sourceKey, insets, orbit, kickCamera }: RigProps) {
   const camera = useThree((s) => s.camera) as PerspectiveCamera;
   const size = useThree((s) => s.size);
   const { activity } = useQuality();
+  // The player's own framing, saved while a close-up or shake has moved the camera away from it.
+  const framing = useMemo(
+    () => ({ away: false, position: new Vector3(), quaternion: new Quaternion(), closeUp: [0, 0, 0, 0, 0, 0], shake: [0, 0] }),
+    [],
+  );
+  const restoreFraming = () => {
+    if (!framing.away) return;
+    framing.away = false;
+    camera.position.copy(framing.position);
+    camera.quaternion.copy(framing.quaternion);
+  };
+  // Runs before the orbit controls (priority -1), which must only ever see the player's framing.
+  useFrame(restoreFraming, -2);
   const controls = useRef<ElementRef<typeof OrbitControls>>(null);
   const aspect = size.width / Math.max(1, size.height);
   const band = freeBand(insets, size.height);
@@ -118,6 +151,7 @@ function Rig({ seat, sourceKey, insets, orbit }: RigProps) {
   useLayoutEffect(() => () => camera.clearViewOffset(), [camera]);
 
   useLayoutEffect(() => {
+    restoreFraming();
     const key = `${sourceKey}:${seat ?? 'free'}`;
     if (!frame.current) {
       // First picture: no flight, the camera starts where it belongs.
@@ -182,6 +216,22 @@ function Rig({ seat, sourceKey, insets, orbit }: RigProps) {
       c.maxDistance = nextFit * MAX_ZOOM_OUT;
       c.enabled = flight.current === null;
     }
+
+    // After the framing above and the controls: move the camera for this frame's picture only.
+    kickCamera.update(Math.min(dt, MAX_CAMERA_DT));
+    if (!kickCamera.active) return;
+    framing.away = true;
+    framing.position.copy(camera.position);
+    framing.quaternion.copy(camera.quaternion);
+    const p = camera.position;
+    // A tall viewport already has the board edge to edge: lean in half as far, so less of it leaves the screen.
+    const weight = kickCamera.weight * Math.min(1, Math.max(0.5, size.width / Math.max(1, size.height)));
+    const shot = closeUpFraming(framing.closeUp, p.x, p.y, p.z, kickCamera.focusX, kickCamera.focusZ, weight);
+    p.set(shot[0]!, shot[1]!, shot[2]!);
+    camera.lookAt(shot[3]!, shot[4]!, shot[5]!);
+    const s = shakeOffset(framing.shake, kickCamera.shakeTime, SHAKE_SECONDS);
+    camera.translateX(s[0]!);
+    camera.translateY(s[1]!);
   });
 
   return (
@@ -198,9 +248,11 @@ function Rig({ seat, sourceKey, insets, orbit }: RigProps) {
       target={[0, 0, 0]}
       onStart={() => {
         dragging.current = true;
+        kickCamera.setUserMoving(true);
       }}
       onEnd={() => {
         dragging.current = false;
+        kickCamera.setUserMoving(false);
       }}
     />
   );
@@ -227,9 +279,14 @@ export default function SceneContent({
   const [busy, setBusy] = useState(false);
   // The setting cannot change while a match is on screen.
   const quick = room.settings.quick;
+  const kickCamera = useMemo(() => new KickCamera(), []);
   const director = useMemo(
-    () => new Director(createView(state), setBusy, quick ? { budgetPerSegment: QUICK_SEGMENT_SECONDS } : {}),
-    [state, quick],
+    () =>
+      new Director(createView(state, kickCamera), setBusy, {
+        ...(quick ? { budgetPerSegment: QUICK_SEGMENT_SECONDS } : {}),
+        reducedMotion: motionSetting.isReduced,
+      }),
+    [state, kickCamera, quick],
   );
   useEffect(() => {
     onBusyChange?.(busy);
@@ -328,6 +385,7 @@ export default function SceneContent({
   return (
     <>
       <RenderPipeline />
+      <TetEnvironment />
 
       <Board assets={assets} state={state} colors={game.colors} />
       {lockedColors.length > 0 && <LockMarkers assets={assets} locked={lockedColors} />}
@@ -346,7 +404,13 @@ export default function SceneContent({
         )),
       )}
       <Celebration assets={assets} state={state} />
-      <Rig seat={view === 'seat' ? (myColor ?? 0) : null} sourceKey={sourceKey} insets={insets} orbit={orbit} />
+      <Rig
+        seat={view === 'seat' ? (myColor ?? 0) : null}
+        sourceKey={sourceKey}
+        insets={insets}
+        orbit={orbit}
+        kickCamera={kickCamera}
+      />
     </>
   );
 }
