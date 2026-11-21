@@ -2,6 +2,8 @@
 # .dev.vars from being loaded, so no OAuth provider is configured.
 E2E_NO_PROVIDERS=1
 ROOM_FAST_TIMERS=1
+# Every e2e request comes from one address; keep the room summary limit out of the way.
+ROOM_SUMMARY_LIMIT_OFF=1
 # Keeps the guest-limit spec short: the limit is spent after 10 creations.
 GUEST_LIMIT_PER_HOUR=10
 # Existing specs sign in and up many times from one address; keep the auth limits out of their way.
