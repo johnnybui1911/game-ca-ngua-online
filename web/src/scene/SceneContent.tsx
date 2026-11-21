@@ -18,6 +18,7 @@ import { createSceneState } from './scene-state';
 import type { SceneState } from './scene-state';
 import { unconsumed } from '../room/batches';
 import type { GameSceneProps, HorseLabelElements } from './props';
+import TetEnvironment from './environment/TetEnvironment';
 import RenderPipeline from './render/RenderPipeline';
 import { sound } from '../audio/sound';
 import { KickCamera, SHAKE_SECONDS } from './motion/kick-camera';
@@ -249,6 +250,7 @@ export default function SceneContent({
   return (
     <>
       <RenderPipeline />
+      <TetEnvironment />
 
       <Board assets={assets} state={state} colors={game.colors} />
       {lockedColors.length > 0 && <LockMarkers assets={assets} locked={lockedColors} />}
