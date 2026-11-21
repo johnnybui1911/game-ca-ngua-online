@@ -66,7 +66,9 @@ function variationSelectorFits(cp: number, prev: string): boolean {
  * - an explicit set of blank-rendering letters/symbols (see INVISIBLE) is dropped;
  * - variation selectors survive only directly after a character they can modify;
  * - at most 2 consecutive combining marks stay on a base character (enough for any NFC
- *   Vietnamese text and keycaps), and marks with no base are dropped.
+ *   Vietnamese text and keycaps), and marks with no base are dropped. Scripts that stack 3+
+ *   marks on one base (some Thai, Lao, Tibetan) lose the extra marks; acceptable for a
+ *   Vietnamese audience.
  * Runs before any length check so invisible characters cannot pad a name.
  */
 export function sanitizeText(raw: string): string {
@@ -127,7 +129,8 @@ export function checkDisplayName(raw: unknown): string {
 /** Turns a provider-supplied name into a valid display name. */
 export function displayNameFromProfile(raw: string | undefined): string {
   const name = sanitizeText(raw ?? '');
-  const clipped = [...name].slice(0, MAX_NAME).join('').trim();
+  // Clipping can cut a ZWJ sequence; sanitising again drops the dangling joiner.
+  const clipped = sanitizeText([...name].slice(0, MAX_NAME).join(''));
   return [...clipped].length >= MIN_NAME ? clipped : 'Người chơi';
 }
 
