@@ -1,17 +1,17 @@
 ---
 title: Host-set turn timer and quick match ("ván nhanh")
-status: proposed
+status: accepted
 ---
 
 # Host-set turn timer and quick match ("ván nhanh")
 
 ## Outcome
 
-The host of a room chooses, in the waiting room, how long each player has per action and whether the match is a "ván nhanh". A quick match plays the same rules as today but removes dead time: a roll with exactly one legal move plays that move at once, the server paces CPU turns and the board animation faster, and an idle human stops holding the table up. Same board, same rules (`shared/game/types.ts` untouched), fewer minutes per match and fewer Durable Object commits.
+The host of a room chooses, in the waiting room, how long each player has per action and whether the match is a "ván nhanh". A quick match plays rule variant N3 (see Decisions) and removes dead time: a roll with exactly one legal move plays that move at once, the server paces CPU turns and the board animation faster, and an idle human stops holding the table up. Same board; classic matches keep today's rules; fewer minutes per match and fewer Durable Object commits.
 
 ## Why (evidence in the code)
 
-- A 4-player match is about 1900 actions (issue #6, "median, CPU simulation"); a CPU action fires `cpuDelayMs: 700` after the previous one (`worker/rooms/constants.ts`, `NORMAL`). At that pace the CPU delay alone is about 1900 × 0.7 s ≈ 22 min for a table of CPUs (arithmetic on the issue's figure, not measured). The checked-in simulation (`shared/game/engine.test.ts`, "simulation") only asserts that 200 games finish; it reports no counts, so the 1900 figure is not reproducible from the repo. Phase 1 fixes that before any change.
+- A 4-player match is about 1900 actions (issue #6, "median, CPU simulation"); a CPU action fires `cpuDelayMs: 700` after the previous one (`worker/rooms/constants.ts`, `NORMAL`). At that pace the CPU delay alone is about 1900 × 0.7 s ≈ 22 min for a table of CPUs (arithmetic on the issue's figure, not measured). The checked-in simulation (`shared/game/engine.test.ts`, "simulation") only asserts that 200 games finish; it reports no counts. `shared/game/pacing.ts` now measures it (see Measurement).
 - Every action is one `RoomDO.commit`: `ctx.storage.put('room', room)` plus `setAlarm` (`persistAndSchedule` in `worker/rooms/room-do.ts`). Issue #6 is about exactly that cost.
 - The turn clock is a constant: `planTurn` in `worker/rooms/room-state.ts` sets `actionDueAt = now + timings.turnMs` (30 s), and `RoomDO` builds `timings` once from the environment (`timingsFor`).
 - An idle but connected human is never replaced: at the deadline `alarm()` plays one action (roll, or `chooseCpuMove`), then the next action gives them another full 30 s. A player who walked away costs up to 2 × 30 s for every roll-and-move pair for the rest of the match.
@@ -24,11 +24,11 @@ The host of a room chooses, in the waiting room, how long each player has per ac
 - Rooms persisted before this change must load: the new field is optional in storage.
 - Vietnamese UI copy.
 - Do not persist anything at a higher frequency than today (issue #6).
-- The rules in `shared/game/types.ts` are a confirmed user decision: nothing in "Decisions" changes them. Rule variants are only in Open questions.
+- The rules in `shared/game/types.ts` are a confirmed user decision: nothing in "Decisions" changes them. The quick match's rule variant is the user's choice, recorded in "Decisions (accepted)"; it applies to quick matches only.
 
 ## Non-goals
 
-Any rule change (see Open questions), per-player timers, spectators, a chess-clock bank of time, persisting settings per account, showing the mode in the public lobby list, reducing writes by batching persistence (issue #6's own follow-up), sound or horse-name work (PR #16).
+Any rule change (beyond the quick variant in Decisions), per-player timers, spectators, a chess-clock bank of time, persisting settings per account, showing the mode in the public lobby list, reducing writes by batching persistence (issue #6's own follow-up), sound or horse-name work (PR #16).
 
 ## Acceptance criteria
 
@@ -49,7 +49,7 @@ Any rule change (see Open questions), per-player timers, spectators, a chess-clo
 
 ## Decisions taken as defaults
 
-- Turn time is one of `10, 15, 20, 30, 60` seconds, default 30. There is no "off" (see Open questions): a connected idle tab would hold the room forever, since the idle close only fires when no human is connected.
+- Turn time is one of `10, 15, 20, 30, 60` seconds, default 30. There is no "off" (beyond the quick variant in Decisions): a connected idle tab would hold the room forever, since the idle close only fires when no human is connected.
 - Settings are a single object `{ turnSeconds, quick, autoRoll }` set by one message, stored in `RoomState.settings` (the same `room` storage key: no extra row, no extra write beyond the commit that every host action already causes). Editable only while `waiting`; kept across rematch.
 - "Ván nhanh" is a preset of pace-only changes: auto-move on a single legal horse (humans and timeouts alike), CPU pace of 400 ms per animated segment (a roll or a move; a combined roll-and-move waits 800 ms), board animation budget of 0.35 s per segment. The client preselects 20 s when the host turns it on; the server treats `turnSeconds` and `quick` independently.
 - "Tự đổ xúc xắc" is a separate switch (not part of the quick preset) because rolling is the one action a person may enjoy, and PR #16 added shake-to-roll.
@@ -58,30 +58,57 @@ Any rule change (see Open questions), per-player timers, spectators, a chess-clo
 - Timings in the fast e2e mode scale the chosen seconds (`turnUnitMs`) so timeouts are testable.
 - Funnel: two extra events for quick matches, counted in addition to the existing solo/group start, so the existing totals stay comparable.
 
-## Open questions for the user
+## Decisions (accepted)
 
-Rule-changing variants. None is implemented by this plan until you choose; each needs your decision because `shared/game/types.ts` is a confirmed decision. How other games do it (checked 2026-11-21): Ludo King quick mode starts with two tokens out, the first token home wins, and a player must capture one opponent token first (vendor claims 5-10 min vs 30-40 min classic); Ludo SuperStar and Party Ludo use "first token home wins" too. Vietnamese rules forbid two same-colour horses on one cell, so only one horse can start out.
+The user chose the rule variant and answered the open questions below; this section replaces them.
 
-Candidates to measure with the phase 1 simulator, choosing the one whose 4-player median lands near 5-10 minutes:
+- **Rule variant N3 for quick matches.** Classic matches keep today's rules exactly (`shared/game/types.ts` rules 1-7 unchanged; the quick variant is documented next to them).
+  - Each colour starts with one horse already on its entry cell (progress 0); the other three are in the stable.
+  - A colour's home column is locked until that colour has kicked at least one opponent horse (any kick counts, including one made by leaving the stable onto an occupied entry cell). While locked, a horse still moves up to its gate (progress 55) but cannot climb; a horse on the gate with the column locked has no legal move.
+  - Win: the first horse of any colour to enter its home column (any step) wins immediately.
+  - Everything else unchanged (exit on 1/6, no jumping, exact count, extra roll on 1/6, forced move).
+  - The variant lives in game state (`GameState.variant`, `GameState.unlocked` by colour) so the engine stays pure; a stored game without them is classic.
+- **The quick preset also carries the pace-only items**: auto-move when exactly one legal move, faster CPU and animation pace. "Tự đổ xúc xắc" stays a separate switch.
+- **Turn timer**: the host chooses 10/15/20/30/60 s, default 30; turning quick on preselects 20 s when still at 30.
+- **Plan defaults taken for the other questions**: no "off" timer; autopilot after 2 missed turns, for every match; the mode is not shown in the lobby list; the other variants (N1, N2, 2 horses per colour, win at N horses, leave-stable-on-any-roll, auto-roll in the preset) are not implemented.
+- **CPU plays N3 at every level**: a CPU never picks an illegal move; Normal and Easy keep their priorities (a kick comes first, which is what opens a locked column) and, in a quick game only, a move into the home column comes before everything because it wins; Hard values the first kick of a locked colour and the winning climb. Classic CPU behaviour is unchanged.
 
-- **N1**: one horse per colour starts on its entry cell; the first horse to enter its home column wins.
-- **N2**: as N1, but the first colour with two horses in the home column wins.
-- **N3**: as N1, but a colour's home column stays locked until it has kicked at least one opponent horse (fits the "đá ngựa" pitch; needs the lock cues in phase 4).
+## Measurement (all-CPU matches, Thường level)
 
-"Enters its home column" (any step) is proposed as the win point, because climbing to step 6 under rule 4 can take many extra turns. Recommendation: N3 with all four explanation surfaces, then ask 5-10 testers whether they understood why they won or lost; fall back to N1 if not.
+`PACING_REPORT=1 npx vitest run shared/game/pacing.test.ts` plays 200 games per row (seeds 1000..1199, the same dice for every mode) with `shared/game/pacing.ts`. "Phút theo nhịp server" is the pause the server imposes after every commit (700 ms per action in a classic room; 400 ms per animated segment of the commit in a quick room); it is the floor set by the server, not the match duration: people's thinking and clicking time is not modelled. All 200 games of every row finished.
 
-Other variants and questions:
+| Ghế | Chế độ | Thao tác TB / trung vị / p90 | Commit TB / trung vị / p90 | Phút nhịp server TB / trung vị / p90 | Lượt chọn ngựa TB | Nước bắt buộc TB | Đá ngựa TB |
+|---|---|---|---|---|---|---|---|
+| 2 | thường | 472 / 468 / 574 | 472 / 468 / 574 | 5,5 / 5,5 / 6,7 | 144 | 81 | 12,8 |
+| 2 | luật nhanh, nhịp thường | 112 / 98 / 176 | 112 / 98 / 176 | 1,3 / 1,1 / 2,1 | 40 | 16 | 3,5 |
+| 2 | **ván nhanh (N3)** | 112 / 98 / 176 | 96 / 83 / 153 | 0,7 / 0,7 / 1,2 | 40 | 16 | 3,5 |
+| 3 | thường | 1001 / 985 / 1330 | 1001 / 985 / 1330 | 11,7 / 11,5 / 15,5 | 295 | 176 | 46,5 |
+| 3 | luật nhanh, nhịp thường | 200 / 161 / 325 | 200 / 161 / 325 | 2,3 / 1,9 / 3,8 | 64 | 32 | 10,5 |
+| 3 | **ván nhanh (N3)** | 200 / 161 / 325 | 167 / 136 / 277 | 1,3 / 1,1 / 2,2 | 64 | 32 | 10,5 |
+| 4 | thường | 1992 / 1934 / 2720 | 1992 / 1934 / 2720 | 23,2 / 22,6 / 31,7 | 562 | 364 | 118,1 |
+| 4 | luật nhanh, nhịp thường | 347 / 274 / 619 | 347 / 274 / 619 | 4,1 / 3,2 / 7,2 | 105 | 60 | 22,2 |
+| 4 | **ván nhanh (N3)** | 347 / 274 / 619 | 288 / 226 / 522 | 2,3 / 1,8 / 4,1 | 105 | 60 | 22,2 |
 
-1. **2 horses per colour** instead of 4 (`HORSES_PER_COLOR` in `shared/game/types.ts`). Touches `createGame`, `legalHorsesFor`, `cpu.ts`, stable layout in `web/src/scene/layout.ts` and `Pieces.tsx`, and PR #16's four-name contract (`cleanHorseNames` requires length `HORSES_PER_COLOR`, `Seat.horseNames`). Largest effect on length.
-2. **Each colour starts with one horse already on its entry cell** (changes `createGame`, removes most of the "wait for 1 or 6" dead time).
-3. **Win when the first N horses reach home** (for example 2 or 3), which needs a field on `GameState` and changes the win check `row.every(isHome)` in `applyMove`.
-4. **Leave the stable on any roll, or extra tries to roll when every horse is in the stable**: changes rule 1 of the rules text.
-5. Should the turn timer have an **"off" choice for private rooms** with friends? Risk: an open but idle tab blocks the room indefinitely (no alarm, no writes, but nobody is told).
-6. Should **auto-roll** be part of the "Ván nhanh" preset instead of a separate switch?
-7. Should the mode ("Ván nhanh", turn time) show in the **public lobby list**? It would add a field to `RoomSummary` and one lobby write per change.
-8. Is **autopilot after 2 missed turns** acceptable for normal matches, or only for quick ones? Should a third miss hand the seat to a CPU for good (as `leave` does)?
+Reading it:
 
-Recommended default set if you say "just do it": the rules sheet (phase 0) and everything in "Decisions taken as defaults" (all pace-only). Rule variants only after you pick N1, N2 or N3.
+- The classic 4-seat median of 1934 actions reproduces the "about 1900" of issue #6; the figure is now reproducible from the repo.
+- N3 cuts the 4-seat median from 1934 to 274 actions (about 7 times fewer), 2-seat from 468 to 98, 3-seat from 985 to 161. Most of the gain comes from the rule change (the "luật nhanh, nhịp thường" rows), the pace changes add the merge of forced moves (commits 274 -> 226 at 4 seats) and the shorter pause.
+- Human time is not in the table. For a 4-player quick match the median of 274 actions finishes within 10 minutes only if an action takes 2.2 s or less on average (600 s / 274); the p90 of 619 actions needs 1 s or less. The 4-seat figure is therefore not "far below": it depends on how fast people play, and it should be re-checked with real matches (the funnel counts `match_started_quick` and `match_finished_quick`).
+- The merge of forced moves removes `Nước bắt buộc` commits per match (16 / 32 / 60 on average at 2 / 3 / 4 seats): the only reduction in storage writes per match this feature makes.
+
+CPU strength in quick matches (1000 games, seeds 100000.., 95% Wilson interval; the stronger level plays one seat and rotates over the colours):
+
+| Cặp | Ghế | Thắng của bên đầu | Khoảng 95% |
+|---|---|---|---|
+| Thường vs Thường (đối chứng) | 2 | 47,2% | 44,1-50,3% |
+| Khó vs Thường | 2 | 61,5% | 58,4-64,5% |
+| Thường vs Dễ | 2 | 83,9% | 81,5-86,0% |
+| Khó vs Dễ | 2 | 90,7% | 88,7-92,3% |
+| Khó vs 3 Thường | 4 | 28,1% | 25,4-31,0% (ngẫu nhiên: 25%) |
+| Thường vs 3 Dễ | 4 | 53,4% | 50,3-56,5% |
+| Khó vs 3 Dễ | 4 | 64,6% | 61,6-67,5% |
+
+The order Khó > Thường > Dễ holds in quick matches as in classic ones; a quick match is short and dice-driven, so the Hard edge over Normal is smaller than in classic.
 
 ## Interaction with other work
 
@@ -93,8 +120,8 @@ Recommended default set if you say "just do it": the rules sheet (phase 0) and e
 | # | Phase | Brief |
 |---|---|---|
 | 0 | [Rules sheet](phase-00-rules-sheet.md) (**implemented**, classic rules only; quick-mode block comes with phase 4) | "?" button in the HUD, Menu item and waiting-room entry open mode-aware rules at any time; one shared copy source checked against the landing page. Shippable before the other phases |
-| 1 | [Baseline measurement](phase-01-measurement.md) | Pure simulator and report of actions, commits, human prompts per match, before any change |
-| 2 | [Settings and turn timer](phase-02-settings-turn-timer.md) | `RoomSettings`, protocol, effective timings, host message, idle autopilot, tests |
-| 3 | [Quick match server](phase-03-quick-server.md) | Auto-move, auto-roll, segment-based CPU pace, tests |
-| 4 | [Client](phase-04-client.md) | Waiting-room controls, countdown/autopilot UI, animation budget, e2e |
-| 5 | [Funnel, docs, rollout](phase-05-funnel-rollout.md) | Counters, README, re-measure, storage-write review, rollback |
+| 1 | [Baseline measurement](phase-01-measurement.md) (**implemented**: `shared/game/pacing.ts`, results in Measurement above) | Pure simulator and report of actions, commits, human prompts per match, before any change |
+| 2 | [Settings and turn timer](phase-02-settings-turn-timer.md) (**implemented**; in fast e2e mode one turn-second is 400 ms, so the default 30 s is 12 s) | `RoomSettings`, protocol, effective timings, host message, idle autopilot, tests |
+| 3 | [Quick match server](phase-03-quick-server.md) (**implemented**, plus the N3 rules in `shared/game`) | Auto-move, auto-roll, segment-based CPU pace, tests |
+| 4 | [Client](phase-04-client.md) (**implemented**, with the N3 explanation surfaces) | Waiting-room controls, countdown/autopilot UI, animation budget, e2e |
+| 5 | [Funnel, docs, rollout](phase-05-funnel-rollout.md) (counters, README and landing section **implemented**; the production read-back of the counters remains for after deploy) | Counters, README, re-measure, storage-write review, rollback |
