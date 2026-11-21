@@ -78,7 +78,8 @@ export class Assets {
   readonly cellBase = this.own(new CylinderGeometry(0.47, 0.5, 0.03, 32));
   readonly cellRimMat = this.own(new MeshStandardMaterial({ color: BOARD.cellRim, roughness: 0.6 }));
   readonly decalGeometry = this.own(new PlaneGeometry(0.96, 0.96));
-  readonly laneGeometry = this.own(new BoxGeometry(1.24, 0.016, 6.32));
+  // Arms span 0.62..6.66 from the centre so neighbouring translucent lanes never overlap (coplanar overlap z-fights).
+  readonly laneGeometry = this.own(new BoxGeometry(1.24, 0.016, 6.04));
   readonly laneMat = this.perColor((c) =>
     this.own(new MeshStandardMaterial({ color: HORSE_COLORS[c], roughness: 0.8, transparent: true, opacity: 0.4 })),
   );
