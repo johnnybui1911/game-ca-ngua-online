@@ -20,6 +20,15 @@ import { reserveInsets, type ReservedInsets } from '../scene/camera';
 
 /** Seconds left on the local player's action at which the reminder sounds. */
 const REMINDER_SECONDS = 10;
+import { DOCKS, usePanelDock, type Dock } from './use-panel-dock';
+
+const DOCK_LABELS: Record<Dock, string> = {
+  bottom: 'Dưới',
+  left: 'Trái',
+  right: 'Phải',
+  float: 'Nổi (kéo được)',
+};
+const DOCK_ICONS: Record<Dock, string> = { bottom: '⬓', left: '◧', right: '◨', float: '❖' };
 
 const GameScene = lazy(() => import('../scene/GameScene'));
 
@@ -136,6 +145,7 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
   const lastRoll = useLastRoll(batches);
   const seconds = useCountdown(room.turnDeadline, clockOffset);
   const hud = useHudInsets(room.game !== null);
+  const { dock, setDock, floatStyle, handlers } = usePanelDock(hud.bottomRef);
 
   const mySeat = room.seats.find((s) => s.occupant?.kind === 'human' && s.occupant.user.id === myId);
   const myColor = mySeat?.color ?? null;
@@ -225,7 +235,33 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
 
       <EmoteLive emotes={emotes} mySeat={mySeat ? room.seats.indexOf(mySeat) : -1} nameOf={(i) => seatName(room.seats[i])} />
 
-      <section className="hud-bottom" aria-label="Điều khiển" ref={hud.bottomRef}>
+      <section
+        ref={hud.bottomRef}
+        className={`hud-bottom hud-dock-${dock}`}
+        style={floatStyle}
+        aria-label="Điều khiển"
+        {...(dock === 'float' ? handlers : {})}
+      >
+        <div className="hud-dock-bar" role="group" aria-label="Vị trí bảng điều khiển">
+          {dock === 'float' && (
+            <span className="hud-grip" title="Kéo để di chuyển" aria-hidden="true">
+              ⋮⋮
+            </span>
+          )}
+          {DOCKS.map((d) => (
+            <button
+              key={d}
+              type="button"
+              className={`dock-btn${dock === d ? ' is-active' : ''}`}
+              data-testid={`dock-${d}`}
+              aria-pressed={dock === d}
+              title={DOCK_LABELS[d]}
+              onClick={() => setDock(d)}
+            >
+              {DOCK_ICONS[d]}
+            </button>
+          ))}
+        </div>
         <div className="hud-line">
           <p className="turn-banner" data-testid="turn-banner" aria-live="polite">
             {turnText}

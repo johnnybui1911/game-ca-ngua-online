@@ -228,6 +228,85 @@
   border-radius: var(--radius-lg) var(--radius-lg) 0 0;
 }
 
+.hud-dock-bar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-1, 4px);
+}
+
+.hud-grip {
+  margin-right: auto;
+  padding: 4px 10px;
+  color: var(--ink-soft);
+  letter-spacing: -2px;
+  user-select: none;
+}
+
+.hud-dock-float {
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.hud-dock-float button {
+  cursor: pointer;
+}
+
+.dock-btn {
+  width: 32px;
+  height: 28px;
+  padding: 0;
+  font: inherit;
+  line-height: 1;
+  background: #fff;
+  border: 2px solid var(--wood-500);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.dock-btn.is-active {
+  background: var(--wood-500);
+  color: #fff;
+}
+
+.hud-dock-left,
+.hud-dock-right {
+  top: 50%;
+  bottom: auto;
+  width: min(260px, 42vw);
+  transform: translateY(-50%);
+  border: 3px solid var(--wood-500);
+  border-radius: var(--radius-lg);
+}
+
+.hud-dock-left {
+  right: auto;
+  left: var(--space-2);
+}
+
+.hud-dock-right {
+  right: var(--space-2);
+  left: auto;
+}
+
+.hud-dock-float {
+  right: auto;
+  bottom: var(--space-4, 16px);
+  left: 50%;
+  width: min(420px, 92vw);
+  margin: 0;
+  transform: translateX(-50%);
+  border: 3px solid var(--wood-500);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 6px 24px rgb(0 0 0 / 45%);
+}
+
+/* Once dragged, an explicit left/top replaces the default centred anchor. */
+.hud-dock-float[style*='left'] {
+  transform: none;
+}
+
 .hud-line {
   display: flex;
   align-items: center;
