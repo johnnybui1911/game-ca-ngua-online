@@ -21,6 +21,11 @@ interface Props {
   send: (msg: RoomClientMessage) => void;
 }
 
+const MOTION_LEVELS: [MotionLevel, string][] = [
+  ['full', 'Đầy đủ'],
+  ['reduced', 'Giảm'],
+];
+
 /** Waiting room: the host picks turn time, Ván nhanh and auto-roll; everyone else reads the choice. */
 export function GameSettings({ room, isHost, offline, actionError, send }: Props) {
   const settings = room.settings;
@@ -98,19 +103,26 @@ export function GameSettings({ room, isHost, offline, actionError, send }: Props
         <p className="muted setting-help">Máy đổ giúp sau 1,5 giây.</p>
       </div>
 
-      <div className="setting-row">
-        <label htmlFor="motion-level">Hoạt cảnh</label>
-        <select
-          id="motion-level"
-          className="setting-select"
-          style={{ minHeight: 48 }}
-          data-testid="motion-level"
-          value={motion}
-          onChange={(e) => motionSetting.setLevel(e.target.value as MotionLevel)}
-        >
-          <option value="full">Đầy đủ</option>
-          <option value="reduced">Giảm</option>
-        </select>
+      {/* Buttons, not a select or radios: those are the host's room settings here, and a guest's panel has none. */}
+      <div className="setting-row" role="group" aria-labelledby="motion-level-label" data-testid="motion-level" data-level={motion}>
+        <span id="motion-level-label" style={{ whiteSpace: 'nowrap' }}>
+          Hoạt cảnh
+        </span>
+        <span style={{ display: 'flex', gap: 8 }}>
+          {MOTION_LEVELS.map(([level, text]) => (
+            <button
+              key={level}
+              type="button"
+              className={motion === level ? 'btn btn-primary' : 'btn btn-secondary'}
+              style={{ minHeight: 48, padding: '0 14px', whiteSpace: 'nowrap' }}
+              data-testid={`motion-level-${level}`}
+              aria-pressed={motion === level}
+              onClick={() => motionSetting.setLevel(level)}
+            >
+              {text}
+            </button>
+          ))}
+        </span>
       </div>
 
       {rulesOpen && <RulesSheet settings={settings} secondsLeft={null} onClose={() => setRulesOpen(false)} />}
