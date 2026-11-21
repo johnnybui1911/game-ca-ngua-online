@@ -58,6 +58,7 @@ export function Horse({ assets, state, color, index, pickable, onPick }: HorsePr
     <group
       ref={(g) => {
         state.horses[color]![index] = g;
+        if (g) g.rotation.order = 'YXZ';
       }}
       visible={false}
     >

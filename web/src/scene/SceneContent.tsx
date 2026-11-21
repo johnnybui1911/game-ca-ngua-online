@@ -2,13 +2,13 @@ import { OrbitControls } from '@react-three/drei';
 import { useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { ElementRef } from 'react';
-import { Vector3, type PerspectiveCamera } from 'three';
+import { Quaternion, Vector3, type PerspectiveCamera } from 'three';
 import { isLocked } from '../../../shared/game/engine';
 import { HORSES_PER_COLOR } from '../../../shared/game/types';
 import type { Color } from '../../../shared/game/types';
 import { Assets } from './assets';
 import Board from './Board';
-import { NO_INSETS, defaultPolar, fitCameraDistance, freeBand, seatCameraPosition } from './camera';
+import { NO_INSETS, closeUpFraming, defaultPolar, fitCameraDistance, freeBand, seatCameraPosition, shakeOffset } from './camera';
 import type { HudInsets } from './camera';
 import { Director, QUICK_SEGMENT_SECONDS } from './director';
 import type { SceneView } from './director';
@@ -21,15 +21,21 @@ import type { GameSceneProps, HorseLabelElements } from './props';
 import TetEnvironment from './environment/TetEnvironment';
 import RenderPipeline from './render/RenderPipeline';
 import { sound } from '../audio/sound';
+import { KickCamera, SHAKE_SECONDS } from './motion/kick-camera';
+import { motionSetting } from './motion/motion-setting';
 
-function createView(state: SceneState): SceneView {
+function createView(state: SceneState, kickCamera: KickCamera): SceneView {
   return {
-    setHorse(color, horse, x, y, z, yaw) {
+    setHorse(color, horse, x, y, z, yaw, pitch, stretch) {
       const g = state.horses[color]?.[horse];
       if (!g) return;
       g.visible = true;
       g.position.set(x, y, z);
-      g.rotation.y = yaw;
+      // Order YXZ: the lean tips the horse along the way it faces.
+      g.rotation.set(pitch, yaw, 0);
+      // Squash and stretch keep the volume: what the height gains, the footprint gives up.
+      const wide = 1 / Math.sqrt(stretch);
+      g.scale.set(wide, stretch, wide);
     },
     setDie(visible, x, y, z, rx, ry, rz) {
       const g = state.die;
@@ -50,12 +56,51 @@ function createView(state: SceneState): SceneView {
     moveStarted(hops, hopSeconds, kickAt) {
       sound.playHooves(hops, hopSeconds, kickAt);
     },
+    kickStarted(x, z, contactIn) {
+      kickCamera.start(x, z, contactIn);
+    },
+    kickLanded() {
+      kickCamera.contact();
+    },
   };
 }
 
-function Rig({ myColor, insets }: { myColor: Color | null; insets: HudInsets }) {
+/** Longest frame the camera timeline accepts, like the director's clock. */
+const MAX_CAMERA_DT = 0.1;
+
+function Rig({ myColor, insets, kickCamera }: { myColor: Color | null; insets: HudInsets; kickCamera: KickCamera }) {
   const camera = useThree((s) => s.camera) as PerspectiveCamera;
   const size = useThree((s) => s.size);
+  // The player's own framing, saved while a close-up or shake has moved the camera away from it.
+  const framing = useMemo(
+    () => ({ away: false, position: new Vector3(), quaternion: new Quaternion(), closeUp: [0, 0, 0, 0, 0, 0], shake: [0, 0] }),
+    [],
+  );
+  const restoreFraming = () => {
+    if (!framing.away) return;
+    framing.away = false;
+    camera.position.copy(framing.position);
+    camera.quaternion.copy(framing.quaternion);
+  };
+  // Runs before the orbit controls (priority -1), which must only ever see the player's framing.
+  useFrame(restoreFraming, -2);
+  // Runs after them: move the camera for this frame's picture only.
+  useFrame((_, dt) => {
+    kickCamera.update(Math.min(dt, MAX_CAMERA_DT));
+    if (!kickCamera.active) return;
+    framing.away = true;
+    framing.position.copy(camera.position);
+    framing.quaternion.copy(camera.quaternion);
+    const p = camera.position;
+    // A tall viewport already has the board edge to edge: lean in half as far, so less of it leaves the screen.
+    const weight = kickCamera.weight * Math.min(1, Math.max(0.5, size.width / Math.max(1, size.height)));
+    const f = closeUpFraming(framing.closeUp, p.x, p.y, p.z, kickCamera.focusX, kickCamera.focusZ, weight);
+    p.set(f[0]!, f[1]!, f[2]!);
+    camera.lookAt(f[3]!, f[4]!, f[5]!);
+    const s = shakeOffset(framing.shake, kickCamera.shakeTime, SHAKE_SECONDS);
+    camera.translateX(s[0]!);
+    camera.translateY(s[1]!);
+  });
   const controls = useRef<ElementRef<typeof OrbitControls>>(null);
   const seat = useRef<{ color: Color; fit: number } | null>(null);
   const color: Color = myColor ?? 0;
@@ -70,6 +115,7 @@ function Rig({ myColor, insets }: { myColor: Color | null; insets: HudInsets }) 
   }, [camera, size.width, size.height, band.shiftPx]);
 
   useLayoutEffect(() => {
+    restoreFraming();
     const prev = seat.current;
     if (!prev || prev.color !== color) {
       camera.position.set(...seatCameraPosition(color, fit, defaultPolar(aspect)));
@@ -86,6 +132,8 @@ function Rig({ myColor, insets }: { myColor: Color | null; insets: HudInsets }) 
     <OrbitControls
       ref={controls}
       makeDefault
+      onStart={() => kickCamera.setUserMoving(true)}
+      onEnd={() => kickCamera.setUserMoving(false)}
       enablePan={false}
       enableDamping
       dampingFactor={0.12}
@@ -117,9 +165,14 @@ export default function SceneContent({
   const [busy, setBusy] = useState(false);
   // The setting cannot change while a match is on screen.
   const quick = room.settings.quick;
+  const kickCamera = useMemo(() => new KickCamera(), []);
   const director = useMemo(
-    () => new Director(createView(state), setBusy, quick ? { budgetPerSegment: QUICK_SEGMENT_SECONDS } : {}),
-    [state, quick],
+    () =>
+      new Director(createView(state, kickCamera), setBusy, {
+        ...(quick ? { budgetPerSegment: QUICK_SEGMENT_SECONDS } : {}),
+        reducedMotion: motionSetting.isReduced,
+      }),
+    [state, kickCamera, quick],
   );
   useEffect(() => {
     onBusyChange?.(busy);
@@ -216,7 +269,7 @@ export default function SceneContent({
         )),
       )}
       <Celebration assets={assets} state={state} />
-      <Rig myColor={myColor} insets={insets} />
+      <Rig myColor={myColor} insets={insets} kickCamera={kickCamera} />
     </>
   );
 }
