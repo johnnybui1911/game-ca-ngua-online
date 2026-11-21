@@ -35,6 +35,8 @@ interface LobbyEntry {
   visibility: RoomVisibility;
   /** Insertion order for newest-first listing. */
   at: number;
+  /** Bumped from `revCounter` on every write, so a sweep can tell its answer went stale. */
+  rev: number;
 }
 
 const ROOMS_KEY = 'rooms';
@@ -43,6 +45,7 @@ const SWEEP_KEY = 'sweepAt';
 
 export class LobbyDO extends DurableObject<Env> {
   private rooms: Record<string, LobbyEntry> = {};
+  private revCounter = 0;
   private creates: Record<string, number[]> = {};
   /** `${from}|${to}` -> last invite time. Losing it on eviction only forgets a 10 s window. */
   private invites = new Map<string, number>();
@@ -60,6 +63,7 @@ export class LobbyDO extends DurableObject<Env> {
     this.timings = timingsFor(env);
     void ctx.blockConcurrencyWhile(async () => {
       this.rooms = (await ctx.storage.get<Record<string, LobbyEntry>>(ROOMS_KEY)) ?? {};
+      for (const entry of Object.values(this.rooms)) entry.rev = ++this.revCounter;
       this.creates = (await ctx.storage.get<Record<string, number[]>>(CREATES_KEY)) ?? {};
       this.sweepAt = (await ctx.storage.get<number>(SWEEP_KEY)) ?? null;
     });
@@ -69,7 +73,7 @@ export class LobbyDO extends DurableObject<Env> {
 
   async upsertRoom(summary: RoomSummary, visibility: RoomVisibility): Promise<void> {
     const prev = this.rooms[summary.code];
-    this.rooms[summary.code] = { summary, visibility, at: prev?.at ?? Date.now() };
+    this.rooms[summary.code] = { summary, visibility, at: prev?.at ?? Date.now(), rev: ++this.revCounter };
     await this.ctx.storage.put(ROOMS_KEY, this.rooms);
     await this.ensureSweepScheduled();
     await this.scheduleBroadcast();
@@ -265,20 +269,20 @@ export class LobbyDO extends DurableObject<Env> {
    * notice was lost (or never arrived) would otherwise stay listed for good.
    */
   private async sweepRooms(): Promise<void> {
-    const codes = Object.keys(this.rooms);
+    const asked = Object.entries(this.rooms).map(([code, entry]) => ({ code, rev: entry.rev }));
     const results = await Promise.all(
-      codes.map((code) =>
+      asked.map(({ code, rev }) =>
         this.env.ROOMS.getByName(code)
           .summary()
           .then(
-            (summary) => ({ code, summary, failed: false }),
-            () => ({ code, summary: null, failed: true }),
+            (summary) => ({ code, rev, summary, failed: false }),
+            () => ({ code, rev, summary: null, failed: true }),
           ),
       ),
     );
     // An unreachable room object says nothing about the room, so only definite answers count.
-    const answers = results.filter((r) => !r.failed).map((r) => ({ code: r.code, summary: r.summary }));
-    if (applySweep(this.rooms, answers)) await this.ctx.storage.put(ROOMS_KEY, this.rooms);
+    const answers = results.filter((r) => !r.failed).map((r) => ({ code: r.code, summary: r.summary, rev: r.rev }));
+    if (applySweep(this.rooms, answers).length > 0) await this.ctx.storage.put(ROOMS_KEY, this.rooms);
   }
 
   private lobbyMessage(): LobbyServerMessage {
