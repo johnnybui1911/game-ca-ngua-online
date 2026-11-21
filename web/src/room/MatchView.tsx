@@ -1,6 +1,8 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { HORSES_PER_COLOR, POS_GATE } from '../../../shared/game/types';
+import { SaveAccountBlock } from '../auth/SaveAccountBlock';
+import { useSession } from '../auth/session-context';
 import type { RoomClientMessage, RoomSnapshot, Seat } from '../../../shared/protocol';
 import { unconsumed, type StateBatch } from './batches';
 import { secondsLeft } from './countdown';
@@ -53,6 +55,10 @@ function useCountdown(deadline: number | null, offset: number): number | null {
 export function MatchView({ room, batches, clockOffset, myId, send, actionError }: Props) {
   const navigate = useNavigate();
   const [confirmLeave, setConfirmLeave] = useState(false);
+  const { guest } = useSession();
+  // Decided once per visit: stays on screen as a confirmation after the guest registers.
+  const [offerSave] = useState(guest);
+  const [saveDismissed, setSaveDismissed] = useState(false);
   const game = room.game;
   const lastRoll = useLastRoll(batches);
   const seconds = useCountdown(room.turnDeadline, clockOffset);
@@ -208,6 +214,9 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError 
                 Về sảnh
               </button>
             </div>
+            {offerSave && !saveDismissed && (
+              <SaveAccountBlock returnTo={`/r/${room.code}`} onDismiss={() => setSaveDismissed(true)} />
+            )}
           </div>
         </div>
       )}

@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { useNavigate } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 import {
   MAX_SEATS,
   MIN_SEATS,
@@ -190,8 +190,40 @@ function RoomList() {
   );
 }
 
+function SignOutControl() {
+  const { guest, signOut } = useSession();
+  const [confirming, setConfirming] = useState(false);
+  if (!guest) {
+    return (
+      <button type="button" className="btn btn-secondary" data-testid="signout" onClick={() => void signOut()}>
+        Đăng xuất
+      </button>
+    );
+  }
+  if (!confirming) {
+    return (
+      <button type="button" className="btn btn-secondary" data-testid="signout" onClick={() => setConfirming(true)}>
+        Thoát
+      </button>
+    );
+  }
+  return (
+    <div className="signout-confirm" role="alertdialog" aria-labelledby="signout-confirm-text" data-testid="signout-confirm-box">
+      <p id="signout-confirm-text">Thoát sẽ mất tên khách và chỗ ngồi của bạn. Thoát thật không?</p>
+      <div className="signout-confirm-actions">
+        <button type="button" className="btn btn-primary" data-testid="signout-confirm" onClick={() => void signOut()}>
+          Thoát
+        </button>
+        <button type="button" className="btn btn-secondary" data-testid="signout-cancel" onClick={() => setConfirming(false)}>
+          Ở lại
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export function LobbyPage() {
-  const { user, signOut } = useSession();
+  const { user, guest } = useSession();
   const { online } = useLobby();
   return (
     <main className="lobby-page">
@@ -200,10 +232,16 @@ export function LobbyPage() {
         <p className="muted" data-testid="online-count">
           {online.length} người đang online
         </p>
-        <button type="button" className="btn btn-secondary" data-testid="signout" onClick={() => void signOut()}>
-          Đăng xuất
-        </button>
+        <SignOutControl />
       </header>
+      {guest && (
+        <aside className="guest-notice" data-testid="guest-notice">
+          <span>Bạn đang chơi với tư cách khách</span>
+          <Link className="btn btn-secondary" to="/dang-ky?returnTo=/" data-testid="guest-save-link">
+            Lưu tài khoản
+          </Link>
+        </aside>
+      )}
       <div className="lobby-grid">
         <CreateRoomForm />
         <JoinByCodeForm />

@@ -23,7 +23,19 @@ export async function signUp(page: Page, email: string, name: string, password =
   await page.getByTestId('signup-submit').click();
 }
 
+/** Signs out from the lobby and opens the sign-in page. */
 export async function signOut(page: Page) {
   await page.getByTestId('signout').click();
-  await expect(page).toHaveURL(/\/dang-nhap/);
+  await expect(page).toHaveURL(/\/bat-dau/);
+  await page.goto('/dang-nhap');
+}
+
+export const ORIGIN_HEADER = { Origin: 'http://127.0.0.1:5173' };
+
+/** Current user of the page's session, from the server. */
+export async function whoAmI(page: Page): Promise<{ id: string; displayName: string; guest: boolean } | null> {
+  const me = (await (await page.request.get('/api/auth/me')).json()) as {
+    user: { id: string; displayName: string; guest: boolean } | null;
+  };
+  return me.user;
 }

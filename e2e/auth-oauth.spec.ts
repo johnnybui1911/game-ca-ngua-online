@@ -14,7 +14,7 @@ for (const [provider, label] of [
     const id = `${provider}-${Date.now()}`;
     await control('profile', { provider, profile: { id, name: `Mock ${label} ${id.slice(-4)}` } });
 
-    await page.goto('/r/ABC234');
+    await page.goto('/dang-nhap?returnTo=%2Fr%2FABC234');
     await expect(page.getByTestId(`oauth-${provider}`)).toBeEnabled();
     await page.getByTestId(`oauth-${provider}`).click();
     await expect(page).toHaveURL('/r/ABC234');

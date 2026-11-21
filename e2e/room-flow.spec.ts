@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test';
 import { createRoom, newPlayer, ORIGIN } from './helpers/rooms';
 import { PASSWORD, uniqueEmail } from './auth-helpers';
 
-test('private room: a signed-out guest signs up from the link and lands seated beside the host', async ({ browser }) => {
+test('private room: a signed-out visitor registers from the entry screen link and lands seated beside the host', async ({ browser }) => {
   const host = await newPlayer(browser, 'Chủ Nhà');
   await host.page.goto('/');
   await host.page.getByTestId('create-name').fill('Phòng bạn bè');
@@ -20,6 +20,8 @@ test('private room: a signed-out guest signs up from the link and lands seated b
   const guestContext = await browser.newContext({ baseURL: ORIGIN, locale: 'vi-VN' });
   const guest = await guestContext.newPage();
   await guest.goto(`/r/${code}`);
+  await expect(guest).toHaveURL(/\/bat-dau\?returnTo=/);
+  await guest.getByTestId('to-signin').click();
   await expect(guest).toHaveURL(/\/dang-nhap\?returnTo=/);
   await guest.getByTestId('to-signup').click();
   await guest.getByTestId('signup-name').fill('Khách Mời');
@@ -177,12 +179,23 @@ test('room creation validates input and is limited to five per minute', async ({
   });
   expect(cross.status()).toBe(403);
   expect(await cross.json()).toEqual({ error: { code: 'forbidden_origin', message: 'Yêu cầu không hợp lệ.' } });
-  for (let i = 0; i < 5; i++) expect((await post({ name: `Phòng ${i}`, visibility: 'private', seats: 2 })).status()).toBe(201);
+  let firstCode = '';
+  for (let i = 0; i < 5; i++) {
+    const res = await post({ name: `Phòng ${i}`, visibility: 'private', seats: 2 });
+    expect(res.status()).toBe(201);
+    if (i === 0) firstCode = ((await res.json()) as { code: string }).code;
+  }
   expect((await post({ name: 'Thừa', visibility: 'private', seats: 2 })).status()).toBe(429);
 
   const anon = await browser.newContext({ baseURL: ORIGIN });
   expect((await anon.request.post('/api/rooms', { headers: { Origin: ORIGIN }, data: {} })).status()).toBe(401);
-  expect((await anon.request.get('/api/rooms/ABC234')).status()).toBe(401);
+  // The room summary is public so the entry screen can name the room; everything else needs a session.
+  const summary = await anon.request.get(`/api/rooms/${firstCode}`);
+  expect(summary.status()).toBe(200);
+  expect(await summary.json()).toMatchObject({ code: firstCode, name: 'Phòng 0', hostName: 'Tạo Nhiều' });
+  expect((await anon.request.get('/api/rooms/ABC234')).status()).toBe(404);
+  expect((await anon.request.get('/api/lobby/ws')).status()).toBe(401);
+  expect((await anon.request.get(`/api/rooms/${firstCode}/ws`)).status()).toBe(401);
   await anon.close();
   await p.context.close();
 });

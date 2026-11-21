@@ -1,6 +1,8 @@
 # Cờ Cá Ngựa 3D Online
 
-Game cờ cá ngựa 3D nhiều người chơi trên trình duyệt: đăng ký, đăng nhập (email, Google, Facebook, X), tạo phòng công khai hoặc riêng tư, chia sẻ link, mời người đang online, chơi với người hoặc CPU.
+Game cờ cá ngựa 3D nhiều người chơi trên trình duyệt: chơi ngay với một cái tên hoặc đăng ký, đăng nhập (email, Google, Facebook, X), tạo phòng công khai hoặc riêng tư, chia sẻ link, mời người đang online, chơi với người hoặc CPU.
+
+Chơi khách: người mới mở link phòng (hoặc trang chủ) sẽ vào màn hình `/bat-dau`, nhập một cái tên là chơi, không cần email. Người chơi khách là một người dùng không có email và mật khẩu, tối đa 10 lần tạo khách mỗi địa chỉ mỗi giờ (`GUEST_LIMIT_PER_HOUR` ghi đè giá trị này, chỉ để chạy thử cục bộ) và khách không còn phiên nào hợp lệ sẽ bị dọn. Khi ván kết thúc, khách được mời lưu tài khoản bằng email hoặc nhà cung cấp ngay trong phòng và giữ nguyên tên, chỗ ngồi; sảnh luôn có lối "Lưu tài khoản" cho khách.
 
 Production: <https://ca-ngua-online.johnny-bui1911.workers.dev>
 

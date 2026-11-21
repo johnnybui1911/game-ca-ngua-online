@@ -13,7 +13,7 @@ const QUERY_ERRORS: Record<string, string> = {
 };
 
 export function SignInPage() {
-  const { user, refresh } = useSession();
+  const { ready, user, guest, refresh } = useSession();
   const [params] = useSearchParams();
   const returnTo = sanitizeReturnTo(params.get('returnTo'));
   const queryError = QUERY_ERRORS[params.get('error') ?? ''] ?? null;
@@ -24,7 +24,8 @@ export function SignInPage() {
   const [serverError, setServerError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  if (user) return <Navigate to={returnTo} replace />;
+  if (!ready) return <p className="page-status" role="status">Đang tải…</p>;
+  if (user && !guest) return <Navigate to={returnTo} replace />;
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -96,7 +97,6 @@ export function SignInPage() {
           {busy ? 'Đang đăng nhập…' : 'Đăng nhập'}
         </button>
       </form>
-      <div className="divider"><span>hoặc</span></div>
       <ProviderButtons returnTo={returnTo} />
       <p className="switch-link">
         Chưa có tài khoản? <Link to={signUpLink} data-testid="to-signup">Đăng ký</Link>

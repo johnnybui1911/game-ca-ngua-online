@@ -1,11 +1,14 @@
 /**
- * Smoke check against a deployed site (PROD_URL). Creates two throwaway accounts whose
- * emails start with `prod-smoke-`, so they can be removed from the database afterwards.
+ * Smoke check against a deployed site (PROD_URL). Creates throwaway users that can be removed
+ * from the database afterwards: guests named `Khoi-smoke-...` and accounts whose emails start
+ * with `prod-smoke-`.
  */
 import { expect, test, type Page } from '@playwright/test';
 import { PASSWORD, signOut, signUp } from '../auth-helpers';
 
 const stamp = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+/** Display names are at most 24 characters. */
+const tag = stamp.slice(-8);
 const email = (who: string) => `prod-smoke-${who}-${stamp}@example.com`;
 
 test.setTimeout(240_000);
@@ -16,6 +19,13 @@ async function hud(page: Page) {
     seq: Number(await el.getAttribute('data-seq')),
     horses: await el.getAttribute('data-horses'),
   };
+}
+
+/** Enters as a guest through the entry screen, from wherever the page is sent. */
+async function enterAsGuest(page: Page, name: string) {
+  await expect(page).toHaveURL(/\/bat-dau/);
+  await page.getByTestId('guest-name').fill(name);
+  await page.getByTestId('guest-submit').click();
 }
 
 /** Rolls or moves when the HUD offers it; returns whether it acted. */
@@ -37,14 +47,10 @@ test('accounts, a shared room and a live two-player match work on the deployed s
   await signUp(a, email('a'), 'Khói Một');
   await expect(a.getByTestId('greeting')).toContainText('Khói Một');
   await signOut(a);
+  // A provider button exists exactly when the deployment holds credentials for it.
+  const me = (await (await ctxA.request.get('/api/auth/me')).json()) as { providers: Record<string, boolean> };
   for (const p of ['google', 'facebook', 'x']) {
-    const button = a.getByTestId(`oauth-${p}`);
-    const me = (await (await ctxA.request.get('/api/auth/me')).json()) as { providers: Record<string, boolean> };
-    if (me.providers[p]) await expect(button).toBeEnabled();
-    else {
-      await expect(button).toBeDisabled();
-      await expect(button).toContainText('chưa cấu hình');
-    }
+    await expect(a.getByTestId(`oauth-${p}`)).toHaveCount(me.providers[p] ? 1 : 0);
   }
   await a.getByTestId('signin-email').fill(email('a'));
   await a.getByTestId('signin-password').fill(PASSWORD);
@@ -60,14 +66,18 @@ test('accounts, a shared room and a live two-player match work on the deployed s
 
   const ctxB = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
   const b = await ctxB.newPage();
-  await signUp(b, email('b'), 'Khói Hai');
-  await expect(b.getByTestId('greeting')).toContainText('Khói Hai');
+  // The second player follows the link, names themselves once and never sees an email form.
   await b.goto(roomUrl);
+  await expect(b.getByTestId('entry-room')).toBeVisible();
+  await expect(b.locator('input[type=email]')).toHaveCount(0);
+  await enterAsGuest(b, `Khoi-smoke-b-${tag}`);
+  await expect(b).toHaveURL(roomUrl);
 
-  await expect(a.getByTestId('seat-1-name')).toContainText('Khói Hai');
+  await expect(a.getByTestId('seat-1-name')).toContainText(`Khoi-smoke-b-${tag}`);
   await a.getByTestId('start-button').click();
   await expect(a.getByTestId('hud')).toBeVisible();
   await expect(b.getByTestId('hud')).toBeVisible();
+  const colorB = await b.getByTestId('hud').getAttribute('data-my-color');
   await expect(a.locator('[data-testid=game-scene] canvas')).toBeVisible();
   await expect(b.locator('[data-testid=game-scene] canvas')).toBeVisible();
 
@@ -87,6 +97,20 @@ test('accounts, a shared room and a live two-player match work on the deployed s
     }, { timeout: 15_000 })
     .toBe(true);
 
+  // The guest saves an account from inside the room: same user, same seat.
+  const guestId = ((await (await ctxB.request.get('/api/auth/me')).json()) as { user: { id: string; guest: boolean } }).user;
+  expect(guestId.guest).toBe(true);
+  const saved = await ctxB.request.post('/api/auth/signup', {
+    headers: { Origin: new URL(roomUrl).origin },
+    data: { email: email('b'), password: PASSWORD, displayName: `Khoi-smoke-b-${tag}` },
+  });
+  expect(saved.ok()).toBe(true);
+  const after = ((await saved.json()) as { user: { id: string; guest: boolean } }).user;
+  expect(after).toMatchObject({ id: guestId.id, guest: false });
+  await b.reload();
+  await expect(b.getByTestId('hud')).toBeVisible();
+  expect(await b.getByTestId('hud').getAttribute('data-my-color')).toBe(colorB);
+
   // Leaving frees the room.
   for (const page of [a, b]) {
     await page.getByTestId('leave-room').click();
@@ -100,8 +124,9 @@ test('accounts, a shared room and a live two-player match work on the deployed s
 test('a CPU seat takes its turns on the deployed site', async ({ browser }) => {
   const ctx = await browser.newContext();
   const page = await ctx.newPage();
-  await signUp(page, email('c'), 'Khói Ba');
-  await expect(page.getByTestId('greeting')).toContainText('Khói Ba');
+  await page.goto('/');
+  await enterAsGuest(page, `Khoi-smoke-c-${tag}`);
+  await expect(page.getByTestId('greeting')).toContainText(`Khoi-smoke-c-${tag}`);
   await page.getByTestId('create-visibility-private').check();
   await page.getByTestId('create-seats').selectOption('2');
   await page.getByTestId('create-submit').click();

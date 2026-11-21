@@ -18,19 +18,26 @@ function validate(displayName: string, email: string, password: string): Errors 
   return errors;
 }
 
+/** Waits for the session so a guest's current name can prefill the form. */
 export function SignUpPage() {
-  const { user, refresh } = useSession();
+  const { ready } = useSession();
+  if (!ready) return <p className="page-status" role="status">Đang tải…</p>;
+  return <SignUpForm />;
+}
+
+function SignUpForm() {
+  const { user, guest, refresh } = useSession();
   const [params] = useSearchParams();
   const returnTo = sanitizeReturnTo(params.get('returnTo'));
 
-  const [displayName, setDisplayName] = useState('');
+  const [displayName, setDisplayName] = useState(guest ? (user?.displayName ?? '') : '');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fieldErrors, setFieldErrors] = useState<Errors>({});
   const [serverError, setServerError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  if (user) return <Navigate to={returnTo} replace />;
+  if (user && !guest) return <Navigate to={returnTo} replace />;
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -55,7 +62,7 @@ export function SignUpPage() {
   const signInLink = `/dang-nhap${returnTo === '/' ? '' : `?returnTo=${encodeURIComponent(returnTo)}`}`;
 
   return (
-    <AuthLayout title="Đăng ký">
+    <AuthLayout title={guest ? 'Lưu tài khoản' : 'Đăng ký'}>
       <form className="form" onSubmit={submit} noValidate>
         <div className="field">
           <label htmlFor="signup-name">Tên hiển thị</label>
@@ -117,10 +124,9 @@ export function SignUpPage() {
           </p>
         )}
         <button type="submit" className="btn btn-primary" data-testid="signup-submit" disabled={busy}>
-          {busy ? 'Đang đăng ký…' : 'Đăng ký'}
+          {busy ? 'Đang lưu…' : guest ? 'Lưu tài khoản' : 'Đăng ký'}
         </button>
       </form>
-      <div className="divider"><span>hoặc</span></div>
       <ProviderButtons returnTo={returnTo} />
       <p className="switch-link">
         Đã có tài khoản? <Link to={signInLink} data-testid="to-signin">Đăng nhập</Link>

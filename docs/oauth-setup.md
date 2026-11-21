@@ -1,6 +1,6 @@
 # Bật đăng nhập Google, Facebook và X
 
-Code của cả ba luồng đã chạy trên production. Mỗi nút chỉ hoạt động khi deployment có đủ Client ID và Client Secret của nhà cung cấp đó; khi chưa có, nút hiện "(chưa cấu hình)".
+Code của cả ba luồng đã chạy trên production. Mỗi nút chỉ hoạt động khi deployment có đủ Client ID và Client Secret của nhà cung cấp đó; khi chưa có, nút đó không được hiển thị (và nếu không nhà cung cấp nào được cấu hình thì cả dòng "hoặc" cũng ẩn).
 
 Địa chỉ production: `https://ca-ngua-online.johnny-bui1911.workers.dev`
 
@@ -54,10 +54,15 @@ npx wrangler secret put X_CLIENT_SECRET
 curl -s https://ca-ngua-online.johnny-bui1911.workers.dev/api/auth/me
 ```
 
-Trường `providers` trả `true` cho nhà cung cấp đã có đủ hai secret. Sau đó mở trang đăng nhập và bấm nút tương ứng.
+Trường `providers` trả `true` cho nhà cung cấp đã có đủ hai secret. Sau đó mở trang đăng nhập: nút tương ứng xuất hiện (nhà cung cấp chưa có secret thì không có nút); bấm nút để thử.
 
 ## Hành vi cần biết
 
 - Tài khoản Google có email đã xác minh trùng với một tài khoản email/mật khẩu sẵn có sẽ được gắn vào tài khoản đó. Mật khẩu của tài khoản đó bị xoá và mọi phiên đăng nhập đang có bị huỷ ngay khi gắn, vì email/mật khẩu được đăng ký mà chưa xác minh email, nên chỉ chủ email Google mới được dùng tài khoản này về sau (muốn dùng mật khẩu lại thì phải đăng ký lại bằng email khác). Facebook và X luôn tạo tài khoản riêng.
+- Người chơi khách (chơi bằng tên, chưa có tài khoản) bấm đăng nhập bằng nhà cung cấp thì được xử lý theo phiên khách trong cookie, không theo tham số nào trên URL:
+  - nhà cung cấp chưa từng được dùng: tài khoản nhà cung cấp được gắn vào chính người dùng khách đó, giữ nguyên id, tên đã chọn, phòng và chỗ ngồi; email chỉ được lưu nếu đã xác minh và chưa ai dùng;
+  - nhà cung cấp đã gắn với một tài khoản: chuyển sang tài khoản đó và xoá người dùng khách;
+  - Google có email đã xác minh trùng một tài khoản khác: áp dụng quy tắc gắn ở trên cho tài khoản đó rồi xoá người dùng khách.
+  Hai tài khoản đã có không bao giờ được gộp.
 - X không trả email, nên tài khoản tạo qua X không có email.
 - Đổi tên miền thì phải cập nhật redirect URI ở cả ba nhà cung cấp.
