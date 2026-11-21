@@ -57,7 +57,11 @@ roomRoutes.post('/rooms', requireSameOrigin, async (c) => {
   if (typeof seats !== 'number' || !Number.isInteger(seats) || seats < MIN_SEATS || seats > MAX_SEATS) {
     return fail(c, 400, 'invalid_seats', `Số chỗ cần từ ${MIN_SEATS} đến ${MAX_SEATS}.`);
   }
-  if (!(await c.env.LOBBY.getByName('lobby').allowCreate(user.id))) {
+  const allowed = await c.env.LOBBY.getByName('lobby').allowCreate(user.id);
+  if (allowed === 'too_many_rooms') {
+    return fail(c, 429, 'too_many_rooms', 'Bạn đang có quá nhiều phòng đang mở. Hãy rời bớt phòng trước khi tạo phòng mới.');
+  }
+  if (allowed === 'rate_limited') {
     return fail(c, 429, 'rate_limited', 'Bạn tạo phòng quá nhanh, vui lòng thử lại sau một phút.');
   }
   for (let attempt = 0; attempt < 8; attempt++) {

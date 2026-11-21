@@ -1,0 +1,103 @@
+import { describe, expect, it } from 'vitest';
+import type { RoomSummary } from '../../shared/protocol';
+import {
+  consumeReservation,
+  mergeLegacyRooms,
+  openRoomCount,
+  publicRoomList,
+  reserveCreate,
+  type PendingCreates,
+  type StoredRoom,
+} from './lobby-rooms';
+
+const room = (code: string, over: Partial<StoredRoom> & { status?: RoomSummary['status'] } = {}): StoredRoom => ({
+  summary: { code, name: code, hostName: 'An', status: over.status ?? 'waiting', seatsTaken: 1, seatsTotal: 4 },
+  visibility: over.visibility ?? 'public',
+  hostId: over.hostId === undefined ? 'u1' : over.hostId,
+  at: over.at ?? 0,
+});
+
+describe('open room cap', () => {
+  it('counts only unfinished rooms the user hosts', () => {
+    const rooms = {
+      A: room('A'),
+      B: room('B', { status: 'playing' }),
+      C: room('C', { status: 'finished' }),
+      D: room('D', { hostId: 'u2' }),
+      E: room('E', { hostId: null }),
+    };
+    expect(openRoomCount(rooms, new Map(), 'u1', 0)).toBe(2);
+  });
+
+  it('lets a burst of creates reserve only up to the cap', () => {
+    const pending: PendingCreates = new Map();
+    const results = Array.from({ length: 5 }, () => reserveCreate({}, pending, 'u1', 0, 3, 1000));
+    expect(results).toEqual([true, true, true, false, false]);
+    expect(reserveCreate({}, pending, 'u2', 0, 3, 1000)).toBe(true);
+  });
+
+  it('counts reservations and listed rooms together', () => {
+    const pending: PendingCreates = new Map();
+    const rooms = { A: room('A'), B: room('B') };
+    expect(reserveCreate(rooms, pending, 'u1', 0, 3, 1000)).toBe(true);
+    expect(reserveCreate(rooms, pending, 'u1', 0, 3, 1000)).toBe(false);
+  });
+
+  it('frees a reservation at its expiry', () => {
+    const pending: PendingCreates = new Map();
+    reserveCreate({}, pending, 'u1', 0, 1, 1000);
+    expect(reserveCreate({}, pending, 'u1', 999, 1, 1000)).toBe(false);
+    expect(reserveCreate({}, pending, 'u1', 1000, 1, 1000)).toBe(true);
+  });
+
+  it('turns a reservation into the listed room instead of counting both', () => {
+    const pending: PendingCreates = new Map();
+    reserveCreate({}, pending, 'u1', 0, 1, 1000);
+    consumeReservation(pending, 'u1', 10);
+    expect(openRoomCount({ A: room('A') }, pending, 'u1', 10)).toBe(1);
+    consumeReservation(pending, 'u1', 10);
+    expect(pending.size).toBe(0);
+  });
+
+  it('consumes the soonest-expiring reservation first', () => {
+    const pending: PendingCreates = new Map([['u1', [900, 100]]]);
+    consumeReservation(pending, 'u1', 0);
+    expect(pending.get('u1')).toEqual([900]);
+  });
+});
+
+describe('publicRoomList', () => {
+  it('lists public unfinished rooms newest first and caps the length', () => {
+    const rooms: Record<string, StoredRoom> = {
+      A: room('A', { at: 1 }),
+      B: room('B', { at: 3 }),
+      C: room('C', { at: 2, visibility: 'private' }),
+      D: room('D', { at: 4, status: 'finished' }),
+      E: room('E', { at: 2 }),
+    };
+    expect(publicRoomList(rooms, 10).map((r) => r.code)).toEqual(['B', 'E', 'A']);
+    expect(publicRoomList(rooms, 2).map((r) => r.code)).toEqual(['B', 'E']);
+  });
+
+  it('keeps the cap when more rooms are open than it allows', () => {
+    const rooms = Object.fromEntries(Array.from({ length: 80 }, (_, i) => [`R${i}`, room(`R${i}`, { at: i })]));
+    const list = publicRoomList(rooms, 50);
+    expect(list).toHaveLength(50);
+    expect(list[0]?.code).toBe('R79');
+    expect(list[49]?.code).toBe('R30');
+  });
+});
+
+describe('mergeLegacyRooms', () => {
+  it('migrates legacy entries without a host and keeps current ones', () => {
+    const current = { A: room('A', { hostId: 'u1', at: 5 }) };
+    const { merged, migrated } = mergeLegacyRooms(current, {
+      A: { summary: room('A').summary, visibility: 'public', at: 1 },
+      B: { summary: room('B').summary, visibility: 'private', at: 2 },
+    });
+    expect(Object.keys(migrated)).toEqual(['B']);
+    expect(migrated.B).toMatchObject({ hostId: null, at: 2, visibility: 'private' });
+    expect(merged.A).toBe(current.A);
+    expect(Object.keys(merged).sort()).toEqual(['A', 'B']);
+  });
+});

@@ -22,3 +22,22 @@ export class TokenBucket {
     return true;
   }
 }
+
+/** One bucket per key, created full on first use. Lives in memory, so a key's budget outlasts its sockets. */
+export class KeyedTokenBuckets {
+  private readonly buckets = new Map<string, TokenBucket>();
+
+  constructor(
+    private readonly capacity: number,
+    private readonly refillPerSec: number,
+  ) {}
+
+  take(key: string, now: number): boolean {
+    let bucket = this.buckets.get(key);
+    if (!bucket) {
+      bucket = new TokenBucket(this.capacity, this.refillPerSec, now);
+      this.buckets.set(key, bucket);
+    }
+    return bucket.take(now);
+  }
+}
