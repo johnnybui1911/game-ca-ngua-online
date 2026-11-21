@@ -3,6 +3,7 @@ import { NO_SOURCE } from '../../shared/analytics';
 import { applyMove, applyRoll, createGame } from '../../shared/game/engine';
 import { chooseCpuMove } from '../../shared/game/cpu';
 import type { GameEvent, StepResult } from '../../shared/game/types';
+import { isEmoteId } from '../../shared/emotes';
 import {
   MAX_HORSE_NAME,
   CLOSE_SIGNED_OUT,
@@ -21,6 +22,8 @@ import { SessionGuard, type SocketBinding } from './session-guard';
 import { KeyedQueue } from './socket-queue';
 import { KeyedTokenBuckets, TokenBucket } from './token-bucket';
 import {
+  EMOTE_BURST,
+  EMOTE_REFILL_PER_SEC,
   HOST_ACTION_BURST,
   HOST_ACTION_REFILL_PER_SEC,
   MAX_MESSAGE_BYTES,
@@ -108,6 +111,9 @@ function parseClientMessage(text: string): RoomClientMessage {
       if (!names) throw new RoomError('bad_name', `Tên quân tối đa ${MAX_HORSE_NAME} ký tự.`);
       return { t: 'horseNames', names };
     }
+    case 'emote':
+      if (!isEmoteId(msg.id)) throw new RoomError('bad_emote', 'Biểu cảm không hợp lệ.');
+      return { t: 'emote', id: msg.id };
     case 'start':
     case 'roll':
     case 'rematch':
@@ -130,6 +136,8 @@ export class RoomDO extends DurableObject<Env> {
   private readonly hostBudget = new KeyedTokenBuckets(HOST_ACTION_BURST, HOST_ACTION_REFILL_PER_SEC);
   /** Same budget for renaming horses, which any seated player can do. */
   private readonly nameBudget = new KeyedTokenBuckets(HOST_ACTION_BURST, HOST_ACTION_REFILL_PER_SEC);
+  /** Emotes are broadcast only; in memory like `hostBudget`, per user across sockets and reconnects. */
+  private readonly emoteBudget = new KeyedTokenBuckets(EMOTE_BURST, EMOTE_REFILL_PER_SEC);
   private readonly timings: Timings;
   private readonly sessions: SessionGuard;
   private readonly inbox = new KeyedQueue<WebSocket>();
@@ -409,6 +417,19 @@ export class RoomDO extends DurableObject<Env> {
         if (!isPaused(room)) throw new RoomError('bad_state', 'Ván đấu không tạm dừng.');
         resumeGame(room, this.connectedUsers(), now, this.timings);
         await this.commit([]);
+        return;
+      }
+      case 'emote': {
+        // Broadcast only: no commit, storage write, seq bump, alarm or lobby push.
+        if (!this.emoteBudget.take(user.userId, now)) return;
+        const payload = JSON.stringify({ t: 'emote', seat: seatIndexOfUser(room, user.userId), id: msg.id } satisfies RoomServerMessage);
+        for (const ws of this.openSockets()) {
+          try {
+            ws.send(payload);
+          } catch {
+            // closing socket
+          }
+        }
         return;
       }
       case 'closeRoom':

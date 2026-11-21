@@ -7,9 +7,13 @@ import {
   type RoomServerMessage,
   type RoomSnapshot,
 } from '../../../shared/protocol';
+import { isEmoteId } from '../../../shared/emotes';
+import { sound } from '../audio/sound';
 import { api } from '../api';
 import { appendBatch, type StateBatch } from './batches';
 import { useSession } from '../auth/session-context';
+import { receiveEmote, type EmoteBySeat } from './emote-feed';
+import { emoteSettings } from './emote-settings';
 import { gateFailure } from './room-gate';
 import { openReconnectingSocket, type ReconnectingSocket, type SocketStatus } from '../lobby/reconnecting-socket';
 
@@ -38,10 +42,15 @@ export interface RoomConnection {
   clockOffset: number;
   /** Set when the connection is over for good; the page shows it with a way back to the lobby. */
   failure: RoomFailure | null;
+  /** Newest emote per seat, in memory only: a new socket starts empty. */
+  emotes: EmoteBySeat;
   /** The last error the server sent for an action of ours (cleared by the next state). */
   actionError: string | null;
   send: (msg: RoomClientMessage) => void;
 }
+
+/** At most one emote sound per this many ms, however many arrive. */
+const EMOTE_SOUND_GAP_MS = 400;
 
 const FAILURE_TEXT: Record<string, string> = {
   room_full: 'Phòng đã đầy.',
@@ -61,8 +70,14 @@ export function useRoomConnection(code: string): RoomConnection {
   const [clockOffset, setClockOffset] = useState(0);
   const [failure, setFailure] = useState<RoomFailure | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [emotes, setEmotes] = useState<EmoteBySeat>({});
+  const emoteCount = useRef(0);
+  const lastEmoteSound = useRef(0);
   const socket = useRef<ReconnectingSocket | null>(null);
-  const { refresh } = useSession();
+  const { refresh, user } = useSession();
+  const myId = useRef<string | null>(null);
+  myId.current = user?.id ?? null;
+  const latestRoom = useRef<RoomSnapshot | null>(null);
   /** Bumped to reconnect when the session ended but the same user is signed in again. */
   const [epoch, setEpoch] = useState(0);
 
@@ -72,6 +87,7 @@ export function useRoomConnection(code: string): RoomConnection {
     setClockOffset(0);
     setFailure(null);
     setActionError(null);
+    setEmotes({});
     // Show the notice, then re-read the session: signed out, the page routes away; still (or again)
     // signed in, reconnect under the live session.
     const sessionEnded = () => {
@@ -107,6 +123,19 @@ export function useRoomConnection(code: string): RoomConnection {
       },
       onMessage: (data) => {
         const msg = JSON.parse(data) as RoomServerMessage;
+        if (msg.t === 'emote') {
+          // Not game state: unknown ids from a newer server are ignored.
+          if (!isEmoteId(msg.id) || !Number.isInteger(msg.seat)) return;
+          const now = Date.now();
+          setEmotes((prev) => receiveEmote(prev, msg.seat, msg.id, ++emoteCount.current, now));
+          const occ = latestRoom.current?.seats[msg.seat]?.occupant;
+          const own = occ?.kind === 'human' && occ.user.id === myId.current;
+          if (!own && !emoteSettings.isMuted() && now - lastEmoteSound.current >= EMOTE_SOUND_GAP_MS) {
+            lastEmoteSound.current = now;
+            sound.playEmote();
+          }
+          return;
+        }
         if (msg.t === 'state') {
           setActionError(null);
           setClockOffset(msg.serverNow - Date.now());
@@ -137,5 +166,6 @@ export function useRoomConnection(code: string): RoomConnection {
   }, []);
 
   const room = batches[batches.length - 1]?.room ?? null;
-  return { status, room, batches, clockOffset, failure, actionError, send };
+  latestRoom.current = room;
+  return { status, room, batches, clockOffset, failure, emotes, actionError, send };
 }

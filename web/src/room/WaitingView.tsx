@@ -5,6 +5,9 @@ import { SoundButton, useMusic } from '../audio/SoundControls';
 import { inviteLink, reportInviteShared } from '../analytics';
 import { useLobby } from '../lobby/LobbyProvider';
 import { COLOR_NAMES, COLOR_VARS } from './colors';
+import { EmoteBubble, EmoteLive } from './EmoteBubble';
+import { EmotePicker } from './EmotePicker';
+import type { EmoteBySeat } from './emote-feed';
 import { HorseNamesDialog } from './HorseNamesDialog';
 
 const INVITE_SENT_MS = 10_000;
@@ -14,9 +17,18 @@ interface Props {
   myId: string;
   send: (msg: RoomClientMessage) => void;
   actionError: string | null;
+  emotes: EmoteBySeat;
+  /** The socket is not open. */
+  offline: boolean;
 }
 
-export function WaitingView({ room, myId, send, actionError }: Props) {
+function seatLabel(seat: RoomSnapshot['seats'][number] | undefined): string {
+  const occ = seat?.occupant;
+  if (!occ) return '';
+  return occ.kind === 'cpu' ? occ.name : occ.user.displayName;
+}
+
+export function WaitingView({ room, myId, send, actionError, emotes, offline }: Props) {
   const navigate = useNavigate();
   const { online, invite } = useLobby();
   const [copied, setCopied] = useState<'idle' | 'done' | 'failed'>('idle');
@@ -109,6 +121,7 @@ export function WaitingView({ room, myId, send, actionError }: Props) {
                       Quân: {seat.horseNames.map((_, h) => horseLabel(seat.horseNames, h)).join(' · ')}
                     </span>
                   )}
+                  <EmoteBubble seat={i} emote={emotes[i]} mine={mine} />
                 </div>
                 {mine && (
                   <button type="button" className="btn btn-secondary seat-action" data-testid="rename-horses" onClick={() => setRenaming(true)}>
@@ -129,6 +142,9 @@ export function WaitingView({ room, myId, send, actionError }: Props) {
             );
           })}
         </ul>
+
+        <EmoteLive emotes={emotes} mySeat={room.seats.indexOf(mySeat!)} nameOf={(i) => seatLabel(room.seats[i])} />
+        <EmotePicker send={send} offline={offline} />
 
         {actionError && (
           <p className="form-error" role="alert" data-testid="action-error">

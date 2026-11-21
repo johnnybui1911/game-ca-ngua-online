@@ -396,3 +396,145 @@
 .horse-name-field input[aria-invalid='true'] {
   border-color: var(--danger);
 }
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.hud-player {
+  position: relative;
+}
+
+.emote-bubble {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  z-index: 5;
+  transform: translateX(-50%);
+  max-width: 60vw;
+  margin-top: 4px;
+  padding: 2px var(--space-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 700;
+  font-size: var(--text-sm);
+  background: #fff;
+  border: 2px solid var(--wood-500);
+  border-radius: 999px;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 30%);
+  pointer-events: none;
+  animation: emote-pop 0.25s ease-out;
+}
+
+.seat-info .emote-bubble {
+  position: static;
+  justify-self: start;
+  transform: none;
+  margin-top: 4px;
+  max-width: 100%;
+}
+
+@keyframes emote-pop {
+  from {
+    opacity: 0;
+    scale: 0.6;
+  }
+  to {
+    opacity: 1;
+    scale: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .emote-bubble {
+    animation: none;
+  }
+}
+
+.emote-picker {
+  position: relative;
+}
+
+.emote-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+  padding: var(--space-2);
+  background: #fff;
+  border: 2px solid var(--wood-300);
+  border-radius: var(--radius-md);
+}
+
+.hud-bottom .emote-picker {
+  position: static;
+}
+
+.hud-bottom .emote-grid {
+  position: absolute;
+  bottom: 100%;
+  left: var(--space-2);
+  right: var(--space-2);
+  z-index: 6;
+  margin: 0 0 var(--space-2);
+  box-shadow: 0 2px 10px rgb(0 0 0 / 35%);
+}
+
+.emote-option {
+  display: grid;
+  place-items: center;
+  gap: 2px;
+  min-width: 44px;
+  min-height: 56px;
+  padding: var(--space-1);
+  font: inherit;
+  background: var(--wood-100);
+  border: 2px solid var(--wood-300);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.emote-option:focus-visible {
+  outline: 3px solid var(--focus);
+}
+
+.emote-option-emoji {
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+.emote-option-text {
+  font-size: 0.7rem;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.emote-mute {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 36px;
+  cursor: pointer;
+}
+
+.emote-mute input {
+  width: 20px;
+  height: 20px;
+}
+
+/* Narrow phones: the emote button shows only its icon so the turn actions stay on one line. */
+@media (max-width: 420px) {
+  .emote-open-label {
+    display: none;
+  }
+}

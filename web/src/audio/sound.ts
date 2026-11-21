@@ -184,6 +184,15 @@ class SoundEngine {
     this.bell(t + 0.16, midiToHz(93), 0.28);
   }
 
+  /** A soft two-note pop for another player's emote; silent when effects are off. */
+  playEmote(): void {
+    const ctx = this.effectsContext();
+    if (!ctx) return;
+    const t = ctx.currentTime;
+    this.bell(t, midiToHz(84), 0.1, 0.1);
+    this.bell(t + 0.07, midiToHz(88), 0.1, 0.1);
+  }
+
   /** Three quick high beeps: your turn is running out. */
   playReminder(): void {
     const ctx = this.effectsContext();
