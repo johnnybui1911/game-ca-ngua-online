@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { applyMove, applyRoll, createGame } from '../../../shared/game/engine';
 import { chooseCpuMove } from '../../../shared/game/cpu';
 import type { Color, DiceValue, GameEvent, GameState, HorsePos } from '../../../shared/game/types';
-import { BATCH_BUDGET, CELEBRATION_SECONDS, Director, HORSE_Y, MAX_WAITING } from './director';
+import { BATCH_BUDGET, CELEBRATION_SECONDS, Director, HORSE_Y, MAX_WAITING, QUICK_SEGMENT_SECONDS } from './director';
 import type { SceneView } from './director';
 import { TRACK, horseGround } from './layout';
 
@@ -266,5 +266,92 @@ describe('Director', () => {
     const d = new Director(view);
     d.reset({ ...base, phase: 'finished', winner: 0 });
     expect(view.celebration).toBeNull();
+  });
+  describe('quick pace', () => {
+    const quick = () => ({ budgetPerSegment: QUICK_SEGMENT_SECONDS });
+
+    it('plays a combined roll and move within two segments', () => {
+      const start = createGame([0, 2], 'quick');
+      const rolled = applyRoll(start, 6);
+      const moved = applyMove(rolled.state, rolled.state.legalHorses[0]!);
+      const view = new FakeView();
+      const d = new Director(view, undefined, quick());
+      d.reset(start);
+      d.push(moved.state, [...rolled.events, ...moved.events]);
+      const took = drain(d);
+      expect(took).toBeLessThanOrEqual(2 * QUICK_SEGMENT_SECONDS + 0.05);
+      expect(took).toBeGreaterThan(QUICK_SEGMENT_SECONDS);
+      view.expectShows(moved.state);
+    });
+
+    it('plays a roll alone within one segment', () => {
+      const start = createGame([0, 2], 'quick');
+      const rolled = applyRoll(start, 3);
+      const view = new FakeView();
+      const d = new Director(view, undefined, quick());
+      d.reset(start);
+      d.push(rolled.state, rolled.events);
+      expect(drain(d)).toBeLessThanOrEqual(QUICK_SEGMENT_SECONDS + 0.05);
+      view.expectShows(rolled.state);
+    });
+
+    it('leaves the normal director on its per-action budget for a combined batch', () => {
+      const start = createGame([0, 2]);
+      const rolled = applyRoll(start, 6);
+      const moved = applyMove(rolled.state, rolled.state.legalHorses[0]!);
+      const d = new Director(new FakeView());
+      d.reset(start);
+      d.push(moved.state, [...rolled.events, ...moved.events]);
+      const took = drain(d);
+      expect(took).toBeLessThanOrEqual(2 * BATCH_BUDGET + 0.05);
+      expect(took).toBeGreaterThan(BATCH_BUDGET);
+    });
+
+    it('never snaps when combined batches arrive every 0.8 s', () => {
+      let seed = 11;
+      const rnd = () => {
+        seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+        return seed;
+      };
+      const view = new FakeView();
+      const d = new Director(view, undefined, quick());
+      let game = createGame([0, 1, 2, 3], 'quick');
+      d.reset(game);
+      let batches = 0;
+      let movesPlayed = 0;
+      while (batches < 100) {
+        if (game.phase === 'finished') {
+          game = createGame([0, 1, 2, 3], 'quick');
+          d.reset(game);
+          view.moves = [];
+          movesPlayed = 0;
+        }
+        const rolled = applyRoll(game, (1 + (rnd() % 6)) as DiceValue);
+        let next = rolled.state;
+        let events = rolled.events;
+        if (next.phase === 'move' && next.legalHorses.length === 1) {
+          const moved = applyMove(next, next.legalHorses[0]!);
+          next = moved.state;
+          events = [...events, ...moved.events];
+        }
+        d.push(next, events);
+        movesPlayed += events.filter((e) => e.type === 'moved').length;
+        game = next;
+        batches++;
+        for (let t = 0; t < 0.8; t += 1 / 60) d.update(1 / 60);
+        expect(view.moves).toHaveLength(movesPlayed);
+        if (game.phase === 'move') {
+          const moved = applyMove(game, chooseCpuMove(game));
+          d.push(moved.state, moved.events);
+          movesPlayed += 1;
+          game = moved.state;
+          batches++;
+          for (let t = 0; t < 0.8; t += 1 / 60) d.update(1 / 60);
+          expect(view.moves).toHaveLength(movesPlayed);
+        }
+      }
+      drain(d);
+      view.expectShows(game);
+    });
   });
 });

@@ -3,14 +3,16 @@ import { useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { ElementRef } from 'react';
 import { Vector3, type PerspectiveCamera } from 'three';
+import { isLocked } from '../../../shared/game/engine';
 import { HORSES_PER_COLOR } from '../../../shared/game/types';
 import type { Color } from '../../../shared/game/types';
 import { Assets } from './assets';
 import Board from './Board';
 import { NO_INSETS, defaultPolar, fitCameraDistance, freeBand, seatCameraPosition } from './camera';
 import type { HudInsets } from './camera';
-import { Director } from './director';
+import { Director, QUICK_SEGMENT_SECONDS } from './director';
 import type { SceneView } from './director';
+import LockMarkers from './LockMarkers';
 import { Celebration, Die, Horse } from './Pieces';
 import { createSceneState } from './scene-state';
 import type { SceneState } from './scene-state';
@@ -119,7 +121,12 @@ export default function SceneContent({
   const assets = useMemo(() => new Assets(), []);
   const state = useMemo(createSceneState, []);
   const [busy, setBusy] = useState(false);
-  const director = useMemo(() => new Director(createView(state), setBusy), [state]);
+  // The setting cannot change while a match is on screen.
+  const quick = room.settings.quick;
+  const director = useMemo(
+    () => new Director(createView(state), setBusy, quick ? { budgetPerSegment: QUICK_SEGMENT_SECONDS } : {}),
+    [state, quick],
+  );
   const camera = useThree((s) => s.camera);
   const size = useThree((s) => s.size);
   const projected = useMemo(() => new Vector3(), []);
@@ -186,6 +193,7 @@ export default function SceneContent({
 
   const canPick = !busy && myColor !== null && myColor === game.turn && game.phase === 'move';
   const legal = canPick ? game.legalHorses : [];
+  const lockedColors = game.colors.filter((c) => isLocked(game, c));
 
   return (
     <>
@@ -213,6 +221,7 @@ export default function SceneContent({
       </mesh>
 
       <Board assets={assets} state={state} colors={game.colors} />
+      {lockedColors.length > 0 && <LockMarkers assets={assets} locked={lockedColors} />}
       <Die assets={assets} state={state} />
       {game.colors.flatMap((color) =>
         Array.from({ length: HORSES_PER_COLOR }, (_, index) => (

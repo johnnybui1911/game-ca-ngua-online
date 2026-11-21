@@ -10,6 +10,7 @@ import { CPU_LEVEL_LABELS, cpuLevelOf } from './cpu-levels';
 import { EmoteBubble, EmoteLive } from './EmoteBubble';
 import { EmotePicker } from './EmotePicker';
 import type { EmoteBySeat } from './emote-feed';
+import { GameSettings } from './GameSettings';
 import { HorseNamesDialog } from './HorseNamesDialog';
 import { RulesSheet } from './RulesSheet';
 
@@ -103,6 +104,7 @@ export function WaitingView({ room, myId, send, actionError, emotes, offline }: 
         </header>
 
         <CpuLevelControl room={room} isHost={isHost} offline={offline} send={send} />
+        <GameSettings room={room} isHost={isHost} offline={offline} actionError={actionError} send={send} />
 
         <ul className="seat-list" data-testid="seat-list">
           {room.seats.map((seat, i) => {
@@ -228,7 +230,7 @@ export function WaitingView({ room, myId, send, actionError, emotes, offline }: 
           </button>
         </div>
       </section>
-      {rulesOpen && <RulesSheet secondsLeft={null} onClose={() => setRulesOpen(false)} />}
+      {rulesOpen && <RulesSheet settings={room.settings} secondsLeft={null} onClose={() => setRulesOpen(false)} />}
       {renaming && mySeat && (
         <HorseNamesDialog color={mySeat.color} names={mySeat.horseNames} send={send} onClose={() => setRenaming(false)} />
       )}
