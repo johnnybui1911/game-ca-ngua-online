@@ -2,3 +2,5 @@
 # .dev.vars from being loaded, so no OAuth provider is configured.
 E2E_NO_PROVIDERS=1
 ROOM_FAST_TIMERS=1
+# Keeps the guest-limit spec short: the limit is spent after 10 creations.
+GUEST_LIMIT_PER_HOUR=10

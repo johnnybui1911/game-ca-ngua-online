@@ -2,7 +2,8 @@ import type { Env } from '../env';
 import { HttpError } from './errors';
 import { sha256Hex } from './session';
 
-export const DEFAULT_GUEST_LIMIT = 10;
+/** Sized for shared addresses (carrier NAT, school or office networks), where many real players arrive from one IP. */
+export const DEFAULT_GUEST_LIMIT = 100;
 export const GUEST_WINDOW_MS = 60 * 60 * 1000;
 /** Most abandoned guests removed by one creation, so no request does unbounded work. */
 const CLEANUP_BATCH = 50;
