@@ -538,3 +538,55 @@
     display: none;
   }
 }
+
+.rules-button {
+  flex: none;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  font: 800 1.1rem/1 var(--font-display);
+  color: var(--ink);
+  background: #fff;
+  border: 2px solid var(--wood-500);
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.rules-sheet {
+  width: min(100%, 460px);
+  max-height: calc(100dvh - 2 * var(--space-4));
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  text-align: left;
+}
+
+.rules-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.rules-countdown {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.rules-body {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.rules-body h3 {
+  margin: 0 0 var(--space-2);
+  font-size: 1rem;
+}
+
+.rules-body ol {
+  margin: 0;
+  padding-left: 1.25rem;
+  display: grid;
+  gap: var(--space-2);
+}

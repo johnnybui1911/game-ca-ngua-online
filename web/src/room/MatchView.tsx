@@ -14,6 +14,7 @@ import { EmoteBubble, EmoteLive } from './EmoteBubble';
 import { EmotePicker } from './EmotePicker';
 import type { EmoteBySeat } from './emote-feed';
 import { HorseNamesDialog } from './HorseNamesDialog';
+import { RulesButton, RulesSheet } from './RulesSheet';
 import { describeMove } from './move-text';
 import { useShakeToRoll } from './shake';
 import { reserveInsets, type ReservedInsets } from '../scene/camera';
@@ -127,6 +128,7 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
   const [confirmLeave, setConfirmLeave] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [renaming, setRenaming] = useState(false);
+  const [rulesOpen, setRulesOpen] = useState(false);
   const [confirmClose, setConfirmClose] = useState(false);
   const { guest } = useSession();
   // Decided once per visit: stays on screen as a confirmation after the guest registers.
@@ -145,7 +147,7 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
   const canRoll = myTurn && !paused && game?.phase === 'roll';
   useMusic('game');
   useGameSounds(batches, myTurn && !paused, seconds, room.turnDeadline);
-  const dialogOpen = menuOpen || renaming || confirmLeave || confirmClose;
+  const dialogOpen = menuOpen || renaming || rulesOpen || confirmLeave || confirmClose;
   // Changes with every roll the server reports, so each roll chance allows one shake-roll.
   const lastRolledSeq = [...batches].reverse().find((b) => b.events.some((e) => e.type === 'rolled'))?.room.seq ?? null;
   const shake = useShakeToRoll(canRoll && !dialogOpen, lastRolledSeq, () => send({ t: 'roll' }));
@@ -235,6 +237,7 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
               {seconds} giây
             </span>
           )}
+          <RulesButton onClick={() => setRulesOpen(true)} />
           <span className="dice" data-testid="dice-value" aria-label="Xúc xắc" style={lastRoll ? { borderColor: COLOR_VARS[lastRoll.color] } : undefined}>
             {lastRoll?.dice ?? '–'}
           </span>
@@ -309,6 +312,17 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
               </label>
             )}
             <div className="dialog-actions">
+              <button
+                type="button"
+                className="btn btn-secondary"
+                data-testid="menu-rules"
+                onClick={() => {
+                  setMenuOpen(false);
+                  setRulesOpen(true);
+                }}
+              >
+                Luật chơi
+              </button>
               {mySeat && (
                 <button
                   type="button"
@@ -355,6 +369,8 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
           </div>
         </div>
       )}
+
+      {rulesOpen && <RulesSheet secondsLeft={myTurn && !finished ? seconds : null} onClose={() => setRulesOpen(false)} />}
 
       {renaming && mySeat && (
         <HorseNamesDialog color={mySeat.color} names={mySeat.horseNames} send={send} onClose={() => setRenaming(false)} />

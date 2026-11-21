@@ -92,7 +92,7 @@ Recommended default set if you say "just do it": the rules sheet (phase 0) and e
 
 | # | Phase | Brief |
 |---|---|---|
-| 0 | [Rules sheet](phase-00-rules-sheet.md) | "?" button in the HUD, Menu item and waiting-room entry open mode-aware rules at any time; one shared copy source checked against the landing page. Shippable before the other phases |
+| 0 | [Rules sheet](phase-00-rules-sheet.md) (**implemented**, classic rules only; quick-mode block comes with phase 4) | "?" button in the HUD, Menu item and waiting-room entry open mode-aware rules at any time; one shared copy source checked against the landing page. Shippable before the other phases |
 | 1 | [Baseline measurement](phase-01-measurement.md) | Pure simulator and report of actions, commits, human prompts per match, before any change |
 | 2 | [Settings and turn timer](phase-02-settings-turn-timer.md) | `RoomSettings`, protocol, effective timings, host message, idle autopilot, tests |
 | 3 | [Quick match server](phase-03-quick-server.md) | Auto-move, auto-roll, segment-based CPU pace, tests |

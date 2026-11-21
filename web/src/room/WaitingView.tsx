@@ -9,6 +9,7 @@ import { EmoteBubble, EmoteLive } from './EmoteBubble';
 import { EmotePicker } from './EmotePicker';
 import type { EmoteBySeat } from './emote-feed';
 import { HorseNamesDialog } from './HorseNamesDialog';
+import { RulesSheet } from './RulesSheet';
 
 const INVITE_SENT_MS = 10_000;
 
@@ -34,6 +35,7 @@ export function WaitingView({ room, myId, send, actionError, emotes, offline }: 
   const [copied, setCopied] = useState<'idle' | 'done' | 'failed'>('idle');
   const [sent, setSent] = useState<Set<string>>(new Set());
   const [renaming, setRenaming] = useState(false);
+  const [rulesOpen, setRulesOpen] = useState(false);
   useMusic('lobby');
 
   const isHost = room.hostId === myId;
@@ -143,6 +145,12 @@ export function WaitingView({ room, myId, send, actionError, emotes, offline }: 
           })}
         </ul>
 
+        <div className="leave-row">
+          <button type="button" className="btn btn-secondary" data-testid="waiting-rules" onClick={() => setRulesOpen(true)}>
+            Luật chơi
+          </button>
+        </div>
+
         <EmoteLive emotes={emotes} mySeat={room.seats.indexOf(mySeat!)} nameOf={(i) => seatLabel(room.seats[i])} />
         <EmotePicker send={send} offline={offline} />
 
@@ -216,6 +224,7 @@ export function WaitingView({ room, myId, send, actionError, emotes, offline }: 
           </button>
         </div>
       </section>
+      {rulesOpen && <RulesSheet secondsLeft={null} onClose={() => setRulesOpen(false)} />}
       {renaming && mySeat && (
         <HorseNamesDialog color={mySeat.color} names={mySeat.horseNames} send={send} onClose={() => setRenaming(false)} />
       )}
