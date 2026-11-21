@@ -7,6 +7,9 @@ export interface Env {
   ROOMS: DurableObjectNamespace<RoomDO>;
   LOBBY: DurableObjectNamespace<LobbyDO>;
 
+  /** Public room summary lookups per client address (see wrangler.jsonc). Optional so a missing binding fails open. */
+  ROOM_SUMMARY_LIMITER?: RateLimit;
+
   // OAuth credentials, set per deployment with `wrangler secret put`. A provider
   // with a missing id or secret is reported as not configured.
   GOOGLE_CLIENT_ID?: string;
