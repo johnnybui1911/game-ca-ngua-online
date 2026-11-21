@@ -54,6 +54,9 @@ describe('displayNameFromProfile', () => {
     expect(displayNameFromProfile('x')).toBe('Người chơi');
     expect(displayNameFromProfile(undefined)).toBe('Người chơi');
     expect(displayNameFromProfile('  Lan   Anh ')).toBe('Lan Anh');
+    const cut = 'A'.repeat(22) + '👨\u200D👩';
+    expect(displayNameFromProfile(cut)).toBe('A'.repeat(22) + '👨');
+    expect(displayNameFromProfile('A'.repeat(21) + '👨\u200D👩')).toBe('A'.repeat(21) + '👨\u200D👩');
   });
 });
 
@@ -70,5 +73,54 @@ describe('text sanitising', () => {
     expect(() => checkDisplayName('a\u200B\u200B\u200B')).toThrow();
     expect(checkDisplayName('A\u200Bn')).toBe('An');
     expect(displayNameFromProfile('\u202E\u200B')).toBe('Người chơi');
+  });
+
+  it('normalises decomposed Vietnamese to NFC without hitting the mark limit', () => {
+    const decomposed = 'Nguye\u0302\u0303n Va\u0306n A\u0309';
+    expect(sanitizeText(decomposed)).toBe('Nguyễn Văn Ả');
+  });
+
+  it('keeps ZWJ sequences and keycaps whole', () => {
+    const family = '👨\u200D👩\u200D👧';
+    const flag = '🏳\uFE0F\u200D🌈';
+    const skin = '👩🏽\u200D💻';
+    expect(sanitizeText(`${family} ${flag} ${skin} 1\uFE0F\u20E3`)).toBe(`${family} ${flag} ${skin} 1\uFE0F\u20E3`);
+  });
+
+  it('removes ZWJ that is not between two emoji', () => {
+    expect(sanitizeText('\u200D🐴\u200D')).toBe('🐴');
+    expect(sanitizeText('A\u200DB')).toBe('AB');
+    expect(sanitizeText('🐴\u200D\u200D🐴')).toBe('🐴\u200D🐴');
+    expect(sanitizeText('🐴\u200DA')).toBe('🐴A');
+  });
+
+  it('drops emoji tag characters', () => {
+    expect(sanitizeText('🏴\u{E0067}\u{E0062}\u{E007F}')).toBe('🏴');
+  });
+
+  it.each([
+    0x3164, 0xffa0, 0x115f, 0x1160, 0x2800, 0x034f, 0x17b4, 0x17b5, 0x1d159, 0x1d173, 0x1d17a, 0xfe00, 0xe0100,
+  ])('removes invisible U+%s', (cp) => {
+    expect(sanitizeText(`A${String.fromCodePoint(cp)}B`)).toBe('AB');
+  });
+
+  it('drops standalone variation selectors but keeps FE0F after emoji', () => {
+    expect(sanitizeText('\uFE0FA\uFE0F')).toBe('A');
+    expect(sanitizeText('❤\uFE0F\uFE0F')).toBe('❤\uFE0F');
+  });
+
+  it('collapses whitespace-class characters to a single space', () => {
+    expect(sanitizeText('\u3000A\u00A0\u2003\u205FB\uFEFF\u3164 C\u2000')).toBe('A B C');
+  });
+
+  it('limits combining marks per base', () => {
+    const zalgo = 'Z' + '\u0300\u0301\u0302\u0303\u0304\u0305'.repeat(5) + 'a';
+    expect(sanitizeText(zalgo)).toBe('Z\u0300\u0301a');
+    expect(sanitizeText('\u0301\u0302 A')).toBe('A');
+  });
+
+  it('rejects names made only of invisible characters', () => {
+    expect(() => checkDisplayName('\u3164\u3164')).toThrow();
+    expect(displayNameFromProfile('\u2800\u2800\u2800')).toBe('Người chơi');
   });
 });

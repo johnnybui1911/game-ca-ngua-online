@@ -8,9 +8,12 @@ import type {
 } from '../../shared/protocol';
 import type { Env } from '../env';
 import {
+  CREATE_RESERVATION_MS,
   INVITE_COOLDOWN_MS,
   LOBBY_BROADCAST_DELAY_MS,
   MAX_CREATES_PER_MINUTE,
+  MAX_LOBBY_LIST,
+  MAX_OPEN_ROOMS_PER_HOST,
   MAX_MESSAGE_BYTES,
   MAX_LOBBY_SOCKETS_PER_USER,
   SOCKET_BURST,
@@ -20,6 +23,16 @@ import {
   type Timings,
 } from './constants';
 import { isRoomCode } from './room-code';
+import {
+  ROOM_KEY_PREFIX,
+  listRoom,
+  mergeLegacyRooms,
+  publicRoomList,
+  reserveCreate,
+  roomKey,
+  type PendingCreates,
+  type StoredRoom,
+} from './lobby-rooms';
 import { applySweep } from './lobby-sweep';
 import { TokenBucket } from './token-bucket';
 
@@ -30,20 +43,24 @@ const CLOSE_RATE_LIMITED = 4005;
 /** What the lobby keeps on a socket: the user, plus when it connected to find the oldest. */
 type LobbySocketUser = PublicUser & { at: number };
 
-interface LobbyEntry {
-  summary: RoomSummary;
-  visibility: RoomVisibility;
-  /** Insertion order for newest-first listing. */
-  at: number;
+interface LobbyEntry extends StoredRoom {
+  /** Bumped from `revCounter` on every write, so a sweep can tell its answer went stale. */
+  rev: number;
 }
 
-const ROOMS_KEY = 'rooms';
+/** Where every room's entry lived before it got a key of its own. */
+const LEGACY_ROOMS_KEY = 'rooms';
+/** Most keys one `put` of many may carry. */
+const PUT_BATCH = 128;
 const CREATES_KEY = 'creates';
 const SWEEP_KEY = 'sweepAt';
 
 export class LobbyDO extends DurableObject<Env> {
   private rooms: Record<string, LobbyEntry> = {};
+  private revCounter = 0;
   private creates: Record<string, number[]> = {};
+  /** Creations whose room has not reached the lobby yet; in memory, since they expire within seconds. */
+  private readonly pendingCreates: PendingCreates = new Map();
   /** `${from}|${to}` -> last invite time. Losing it on eviction only forgets a 10 s window. */
   private invites = new Map<string, number>();
   private readonly buckets = new WeakMap<WebSocket, TokenBucket>();
@@ -59,7 +76,7 @@ export class LobbyDO extends DurableObject<Env> {
     super(ctx, env);
     this.timings = timingsFor(env);
     void ctx.blockConcurrencyWhile(async () => {
-      this.rooms = (await ctx.storage.get<Record<string, LobbyEntry>>(ROOMS_KEY)) ?? {};
+      await this.loadRooms();
       this.creates = (await ctx.storage.get<Record<string, number[]>>(CREATES_KEY)) ?? {};
       this.sweepAt = (await ctx.storage.get<number>(SWEEP_KEY)) ?? null;
     });
@@ -67,10 +84,35 @@ export class LobbyDO extends DurableObject<Env> {
 
   // ------------------------------------------------------------------ RPC
 
-  async upsertRoom(summary: RoomSummary, visibility: RoomVisibility): Promise<void> {
-    const prev = this.rooms[summary.code];
-    this.rooms[summary.code] = { summary, visibility, at: prev?.at ?? Date.now() };
-    await this.ctx.storage.put(ROOMS_KEY, this.rooms);
+  private async loadRooms(): Promise<void> {
+    const stored = await this.ctx.storage.list<StoredRoom>({ prefix: ROOM_KEY_PREFIX });
+    const current: Record<string, StoredRoom> = {};
+    for (const [key, entry] of stored) current[key.slice(ROOM_KEY_PREFIX.length)] = entry;
+    const legacy = await this.ctx.storage.get<Record<string, StoredRoom>>(LEGACY_ROOMS_KEY);
+    const { merged, migrated } = mergeLegacyRooms(current, legacy ?? {});
+    if (legacy) {
+      // Per-room keys first: a crash before the delete leaves both, and the merge is repeatable.
+      const entries = Object.entries(migrated).map(([code, entry]) => [roomKey(code), entry] as const);
+      for (let i = 0; i < entries.length; i += PUT_BATCH) {
+        await this.ctx.storage.put(Object.fromEntries(entries.slice(i, i + PUT_BATCH)));
+      }
+      await this.ctx.storage.delete(LEGACY_ROOMS_KEY);
+    }
+    for (const [code, entry] of Object.entries(merged)) this.rooms[code] = { ...entry, rev: ++this.revCounter };
+  }
+
+  private persistRoom(code: string): Promise<void> {
+    const entry = this.rooms[code];
+    if (!entry) return this.ctx.storage.delete(roomKey(code)).then(() => undefined);
+    const { rev: _rev, ...stored } = entry;
+    return this.ctx.storage.put(roomKey(code), stored);
+  }
+
+  /** `created` marks the room's first listing after its creation, which is what ends the creator's reservation. */
+  async upsertRoom(summary: RoomSummary, visibility: RoomVisibility, hostId: string, created = false): Promise<void> {
+    const entry = listRoom(this.rooms, this.pendingCreates, { summary, visibility, hostId, created }, Date.now());
+    this.rooms[summary.code] = { ...entry, rev: ++this.revCounter };
+    await this.persistRoom(summary.code);
     await this.ensureSweepScheduled();
     await this.scheduleBroadcast();
   }
@@ -78,25 +120,29 @@ export class LobbyDO extends DurableObject<Env> {
   async removeRoom(code: string): Promise<void> {
     if (!(code in this.rooms)) return;
     delete this.rooms[code];
-    await this.ctx.storage.put(ROOMS_KEY, this.rooms);
+    await this.persistRoom(code);
     await this.scheduleBroadcast();
   }
 
-  /** Records a room creation and says whether the user is still under the per-minute limit. */
-  async allowCreate(userId: string): Promise<boolean> {
+  /**
+   * Decides whether the user may create a room: not past the open-room cap and under the per-minute
+   * limit. An allowed creation is held against the cap until its room is listed, so a burst of
+   * creates cannot all pass before the first room arrives.
+   */
+  async allowCreate(userId: string): Promise<'ok' | 'too_many_rooms' | 'rate_limited'> {
     const now = Date.now();
     const recent = (this.creates[userId] ?? []).filter((t) => now - t < 60_000);
-    if (recent.length >= MAX_CREATES_PER_MINUTE) {
-      this.creates[userId] = recent;
-      return false;
+    this.creates[userId] = recent;
+    if (recent.length >= MAX_CREATES_PER_MINUTE) return 'rate_limited';
+    if (!reserveCreate(this.rooms, this.pendingCreates, userId, now, MAX_OPEN_ROOMS_PER_HOST, CREATE_RESERVATION_MS)) {
+      return 'too_many_rooms';
     }
     recent.push(now);
-    this.creates[userId] = recent;
     for (const id of Object.keys(this.creates)) {
       if ((this.creates[id] ?? []).every((t) => now - t >= 60_000)) delete this.creates[id];
     }
     await this.ctx.storage.put(CREATES_KEY, this.creates);
-    return true;
+    return 'ok';
   }
 
   // ------------------------------------------------------------ sockets
@@ -265,27 +311,24 @@ export class LobbyDO extends DurableObject<Env> {
    * notice was lost (or never arrived) would otherwise stay listed for good.
    */
   private async sweepRooms(): Promise<void> {
-    const codes = Object.keys(this.rooms);
+    const asked = Object.entries(this.rooms).map(([code, entry]) => ({ code, rev: entry.rev }));
     const results = await Promise.all(
-      codes.map((code) =>
+      asked.map(({ code, rev }) =>
         this.env.ROOMS.getByName(code)
           .summary()
           .then(
-            (summary) => ({ code, summary, failed: false }),
-            () => ({ code, summary: null, failed: true }),
+            (summary) => ({ code, rev, summary, failed: false }),
+            () => ({ code, rev, summary: null, failed: true }),
           ),
       ),
     );
     // An unreachable room object says nothing about the room, so only definite answers count.
-    const answers = results.filter((r) => !r.failed).map((r) => ({ code: r.code, summary: r.summary }));
-    if (applySweep(this.rooms, answers)) await this.ctx.storage.put(ROOMS_KEY, this.rooms);
+    const answers = results.filter((r) => !r.failed).map((r) => ({ code: r.code, summary: r.summary, rev: r.rev }));
+    await Promise.all(applySweep(this.rooms, answers).map((code) => this.persistRoom(code)));
   }
 
   private lobbyMessage(): LobbyServerMessage {
-    const rooms = Object.values(this.rooms)
-      .filter((e) => e.visibility === 'public' && e.summary.status !== 'finished')
-      .sort((a, b) => b.at - a.at)
-      .map((e) => e.summary);
+    const rooms = publicRoomList(this.rooms, MAX_LOBBY_LIST);
     const online = new Map<string, PublicUser>();
     for (const ws of this.openSockets()) {
       const user = ws.deserializeAttachment() as PublicUser | null;

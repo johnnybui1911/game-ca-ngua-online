@@ -1,6 +1,7 @@
 import { Hono, type Context, type MiddlewareHandler } from 'hono';
 import type { GuestRequest, MeResponse, MeUser, SignInRequest, SignUpRequest } from '../../shared/protocol';
 import type { Env } from '../env';
+import { claimAttempts, clientKey, forgiveSignIn, signInSubjects, tooManySignins, tooManySignups } from './attempt-limit';
 import {
   createPasswordUser,
   findUserByEmail,
@@ -20,7 +21,7 @@ import {
   randomToken,
   readCookie,
 } from './session';
-import { checkDisplayName, checkPassword, normalizeEmail, sanitizeReturnTo } from './validate';
+import { checkDisplayName, checkPassword, displayNameFromProfile, normalizeEmail, sanitizeReturnTo } from './validate';
 
 type AppContext = Context<{ Bindings: Env }>;
 
@@ -65,7 +66,8 @@ async function respondSignedIn(c: AppContext, userId: string) {
   const row = await c.env.DB.prepare('SELECT id, display_name AS displayName, is_guest AS guest FROM users WHERE id = ?')
     .bind(userId)
     .first<{ id: string; displayName: string; guest: number }>();
-  return c.json(await me(c, row ? { id: row.id, displayName: row.displayName, guest: row.guest === 1 } : undefined));
+  const user = row ? { id: row.id, displayName: displayNameFromProfile(row.displayName), guest: row.guest === 1 } : undefined;
+  return c.json(await me(c, user));
 }
 
 export const authRoutes = new Hono<{ Bindings: Env }>();
@@ -86,6 +88,7 @@ authRoutes.post('/signup', requireSameOrigin, async (c) => {
   const email = normalizeEmail(body.email);
   const password = checkPassword(body.password);
   const displayName = checkDisplayName(body.displayName);
+  await claimAttempts(c.env, [{ kind: 'signup-addr', subject: clientKey(c.req.raw) }], tooManySignups);
   const current = await getSessionAccount(c.req.raw, c.env);
   if (current?.guest) {
     // Upgrade in place: the user id and the session stay, so the guest keeps its seat.
@@ -116,11 +119,15 @@ authRoutes.post('/signin', requireSameOrigin, async (c) => {
     throw failure;
   }
   const password = typeof body.password === 'string' ? body.password : '';
+  // Claimed before any hashing and forgiven once the password proves right, so only failures stay counted.
+  const address = clientKey(c.req.raw);
+  const claims = await claimAttempts(c.env, signInSubjects(email, address), tooManySignins);
   const user = await findUserByEmail(c.env, email);
   // Verify against a dummy hash for unknown or password-less accounts so the response time is alike.
   const stored = user?.password_hash ?? (await DUMMY_HASH_PROMISE());
   const ok = await verifyPassword(password, stored);
   if (!user || !user.password_hash || !ok) throw failure;
+  await forgiveSignIn(c.env, claims, email, address);
   const current = await getSessionAccount(c.req.raw, c.env);
   const response = await respondSignedIn(c, user.id);
   // A guest that signs in to an existing account is replaced by it.

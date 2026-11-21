@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { HORSES_PER_COLOR, POS_GATE } from '../../../shared/game/types';
 import { SaveAccountBlock } from '../auth/SaveAccountBlock';
@@ -9,6 +9,7 @@ import { secondsLeft } from './countdown';
 import { lastRollAfter, type LastRoll } from './last-roll';
 import { COLOR_NAMES, COLOR_VARS } from './colors';
 import { describeMove } from './move-text';
+import { reserveInsets, type ReservedInsets } from '../scene/camera';
 
 const GameScene = lazy(() => import('../scene/GameScene'));
 
@@ -52,6 +53,33 @@ function useCountdown(deadline: number | null, offset: number): number | null {
   return deadline === null ? null : secondsLeft(deadline, now, offset);
 }
 
+/**
+ * Heights of the top player strip and bottom panel. The largest seen at the current viewport size are
+ * kept, so the board does not move when panel content comes and goes during a match.
+ */
+function useHudInsets(active: boolean) {
+  const topRef = useRef<HTMLUListElement>(null);
+  const bottomRef = useRef<HTMLElement>(null);
+  const [insets, setInsets] = useState<ReservedInsets | null>(null);
+  useLayoutEffect(() => {
+    const topEl = topRef.current;
+    const bottomEl = bottomRef.current;
+    const root = topEl?.parentElement;
+    if (!active || !topEl || !bottomEl || !root) return;
+    const measure = () => {
+      const measured = { top: topEl.offsetHeight, bottom: bottomEl.offsetHeight };
+      setInsets((prev) => reserveInsets(prev, measured, root.clientWidth, root.clientHeight));
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(topEl);
+    observer.observe(bottomEl);
+    observer.observe(root);
+    return () => observer.disconnect();
+  }, [active]);
+  return { topRef, bottomRef, insets: insets ?? { top: 0, bottom: 0 } };
+}
+
 export function MatchView({ room, batches, clockOffset, myId, send, actionError }: Props) {
   const navigate = useNavigate();
   const [confirmLeave, setConfirmLeave] = useState(false);
@@ -62,6 +90,7 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError 
   const game = room.game;
   const lastRoll = useLastRoll(batches);
   const seconds = useCountdown(room.turnDeadline, clockOffset);
+  const hud = useHudInsets(room.game !== null);
   if (!game) return null;
 
   const mySeat = room.seats.find((s) => s.occupant?.kind === 'human' && s.occupant.user.id === myId);
@@ -97,6 +126,7 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError 
             room={room}
             batches={batches}
             myColor={myColor}
+            insets={hud.insets}
             onPickHorse={(horse) => {
               if (myTurn && game.phase === 'move' && game.legalHorses.includes(horse)) send({ t: 'move', horse });
             }}
@@ -104,7 +134,7 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError 
         </Suspense>
       </div>
 
-      <ul className="hud-players">
+      <ul className="hud-players" ref={hud.topRef}>
         {room.seats
           .filter((s) => s.occupant !== null && game.colors.includes(s.color))
           .map((s) => {
@@ -131,7 +161,7 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError 
           })}
       </ul>
 
-      <section className="hud-bottom" aria-label="Điều khiển">
+      <section className="hud-bottom" aria-label="Điều khiển" ref={hud.bottomRef}>
         <div className="hud-line">
           <p className="turn-banner" data-testid="turn-banner" aria-live="polite">
             {turnText}

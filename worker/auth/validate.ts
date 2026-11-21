@@ -23,13 +23,98 @@ export function checkPassword(raw: unknown): string {
   return raw;
 }
 
+const MAX_MARKS_PER_BASE = 2;
+
 /**
- * Collapses whitespace and drops control, zero-width and bidi-override characters (Unicode
- * categories Cc and Cf), so a name cannot hide text or reorder what surrounds it.
+ * Characters that render blank (or as nothing) but are letters, symbols or marks, so the
+ * general-category filter alone would keep them: Hangul fillers, Braille blank, combining
+ * grapheme joiner, Khmer inherent vowels and musical-symbol format controls.
+ */
+const INVISIBLE = new Set<number>([
+  0x034f, 0x115f, 0x1160, 0x17b4, 0x17b5, 0x2800, 0x3164, 0xffa0, 0x1d159,
+  ...Array.from({ length: 0x1d17a - 0x1d173 + 1 }, (_, i) => 0x1d173 + i),
+]);
+
+const ZWJ = 0x200d;
+const EXTENDED_PICTOGRAPHIC = /^\p{Extended_Pictographic}$/u;
+const EMOJI_MODIFIER = /^\p{Emoji_Modifier}$/u;
+const KEYCAP_BASE = /^[0-9#*]$/;
+const IDEOGRAPH = /^\p{Script=Han}$/u;
+const MARK = /^\p{M}$/u;
+const WHITESPACE = /^\s$/u;
+const CONTROL_OR_FORMAT = /^[\p{Cc}\p{Cf}]$/u;
+
+function isVariationSelector(cp: number): boolean {
+  return (cp >= 0xfe00 && cp <= 0xfe0f) || (cp >= 0xe0100 && cp <= 0xe01ef);
+}
+
+/** A variation selector is kept only right after a character it can modify. */
+function variationSelectorFits(cp: number, prev: string): boolean {
+  if (prev === '') return false;
+  if (cp === 0xfe0e || cp === 0xfe0f) return EXTENDED_PICTOGRAPHIC.test(prev) || KEYCAP_BASE.test(prev);
+  return IDEOGRAPH.test(prev);
+}
+
+/**
+ * Normalises text to NFC and removes what can make a name look blank or misleading:
+ * - whitespace of any kind (incl. U+3000, U+00A0, U+FEFF) collapses to one space; ends are trimmed;
+ * - control and format characters (Cc, Cf: bidi overrides, zero-width space, soft hyphen, ...) are
+ *   dropped, except U+200D, kept only between two emoji (an emoji, optionally followed by U+FE0F
+ *   or a skin-tone modifier, then an emoji) so family and rainbow-flag sequences stay whole;
+ *   emoji tag characters (U+E0020-E007F) are format characters and are dropped, so a subdivision
+ *   flag such as England degrades to a plain black flag;
+ * - an explicit set of blank-rendering letters/symbols (see INVISIBLE) is dropped;
+ * - variation selectors survive only directly after a character they can modify;
+ * - at most 2 consecutive combining marks stay on a base character (enough for any NFC
+ *   Vietnamese text and keycaps), and marks with no base are dropped. Scripts that stack 3+
+ *   marks on one base (some Thai, Lao, Tibetan) lose the extra marks; acceptable for a
+ *   Vietnamese audience.
  * Runs before any length check so invisible characters cannot pad a name.
  */
 export function sanitizeText(raw: string): string {
-  return raw.replace(/\s+/g, ' ').replace(/[\p{Cc}\p{Cf}]/gu, '').trim();
+  const chars = [...raw.normalize('NFC')];
+  let out = '';
+  let prev = ''; // last emitted code point as a string, '' at start
+  let prevEmoji = false; // last emitted base is an emoji (survives FE0F and skin-tone modifiers)
+  let marks = 0;
+
+  for (let i = 0; i < chars.length; i++) {
+    const ch = chars[i]!;
+    const cp = ch.codePointAt(0)!;
+
+    if (WHITESPACE.test(ch)) {
+      if (prev !== '' && prev !== ' ') {
+        out += ' ';
+        prev = ' ';
+        prevEmoji = false;
+        marks = 0;
+      }
+      continue;
+    }
+    if (cp === ZWJ) {
+      if (prevEmoji && EXTENDED_PICTOGRAPHIC.test(chars[i + 1] ?? '')) {
+        out += ch;
+        prev = ch;
+        prevEmoji = false;
+      }
+      continue;
+    }
+    if (CONTROL_OR_FORMAT.test(ch) || INVISIBLE.has(cp)) continue;
+    if (isVariationSelector(cp)) {
+      if (!variationSelectorFits(cp, prev)) continue;
+      // The selector keeps the emoji state of its base.
+    } else if (MARK.test(ch)) {
+      if (prev === '' || prev === ' ' || ++marks > MAX_MARKS_PER_BASE) continue;
+      prevEmoji = false;
+    } else {
+      marks = 0;
+      prevEmoji = EXTENDED_PICTOGRAPHIC.test(ch) || (prevEmoji && EMOJI_MODIFIER.test(ch));
+    }
+    if (isVariationSelector(cp)) marks++;
+    out += ch;
+    prev = ch;
+  }
+  return out.trimEnd();
 }
 
 export function checkDisplayName(raw: unknown): string {
@@ -44,7 +129,8 @@ export function checkDisplayName(raw: unknown): string {
 /** Turns a provider-supplied name into a valid display name. */
 export function displayNameFromProfile(raw: string | undefined): string {
   const name = sanitizeText(raw ?? '');
-  const clipped = [...name].slice(0, MAX_NAME).join('').trim();
+  // Clipping can cut a ZWJ sequence; sanitising again drops the dangling joiner.
+  const clipped = sanitizeText([...name].slice(0, MAX_NAME).join(''));
   return [...clipped].length >= MIN_NAME ? clipped : 'Người chơi';
 }
 

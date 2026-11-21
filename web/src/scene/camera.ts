@@ -13,14 +13,63 @@ export function defaultPolar(aspect: number): number {
   return Math.min(DEFAULT_POLAR, Math.max(MIN_POLAR, MIN_POLAR + (aspect - 0.5) * 0.9));
 }
 
+/** Screen space (CSS px) covered by HUD panels at the top and bottom of the viewport. */
+export interface HudInsets {
+  top: number;
+  bottom: number;
+}
+
+export const NO_INSETS: HudInsets = { top: 0, bottom: 0 };
+/** The board never gets less than this share of the viewport height, however tall the HUD. */
+const MIN_FREE = 0.3;
+
+/** Insets reserved for one viewport size. */
+export interface ReservedInsets extends HudInsets {
+  width: number;
+  height: number;
+}
+
 /**
- * Smallest camera distance at which the whole slab is inside the viewport, for
- * a camera on an arm axis looking at the board centre. Exact corner
+ * Reserve the largest panel heights seen at this viewport size, so panel
+ * content coming and going (an error line, wrapping move buttons) never moves
+ * the board. A different viewport size starts over from the new measurement.
+ */
+export function reserveInsets(prev: ReservedInsets | null, measured: HudInsets, width: number, height: number): ReservedInsets {
+  if (!prev || prev.width !== width || prev.height !== height) return { width, height, ...measured };
+  const top = Math.max(prev.top, measured.top);
+  const bottom = Math.max(prev.bottom, measured.bottom);
+  return top === prev.top && bottom === prev.bottom ? prev : { width, height, top, bottom };
+}
+
+/**
+ * The viewport band left between the HUD panels: `fraction` of the height, and
+ * `shiftPx`, how far down the picture window must slide so the board centre
+ * lands in the middle of that band instead of the viewport centre.
+ */
+export function freeBand(insets: HudInsets, viewportHeight: number): { fraction: number; shiftPx: number } {
+  const h = Math.max(1, viewportHeight);
+  let top = Math.max(0, insets.top);
+  let bottom = Math.max(0, insets.bottom);
+  const covered = top + bottom;
+  if (covered > h * (1 - MIN_FREE)) {
+    const k = (h * (1 - MIN_FREE)) / covered;
+    top *= k;
+    bottom *= k;
+  }
+  // The band centre is (bottom - top) / 2 above the viewport centre; a window moved down by that much shows content moved up.
+  return { fraction: 1 - (top + bottom) / h, shiftPx: (bottom - top) / 2 };
+}
+
+/**
+ * Smallest camera distance at which the whole slab is inside the free band
+ * (`freeFraction` of the viewport height, centred on the board centre), for a
+ * camera on an arm axis looking at the board centre. Exact corner
  * projection, so it holds for portrait and landscape alike.
  */
-export function fitCameraDistance(aspect: number, verticalFovDeg: number, polar = defaultPolar(aspect)): number {
-  const tanV = Math.tan((verticalFovDeg * Math.PI) / 360);
-  const tanH = tanV * aspect;
+export function fitCameraDistance(aspect: number, verticalFovDeg: number, polar = defaultPolar(aspect), freeFraction = 1): number {
+  const tanFull = Math.tan((verticalFovDeg * Math.PI) / 360);
+  const tanV = tanFull * freeFraction;
+  const tanH = tanFull * aspect;
   const sin = Math.sin(polar);
   const cos = Math.cos(polar);
   let need = 0;
