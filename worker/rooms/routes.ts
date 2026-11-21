@@ -12,6 +12,7 @@ import { sanitizeText } from '../auth/validate';
 import type { Env } from '../env';
 import { MAX_ROOM_NAME, SESSION_HEADER, USER_HEADER } from './constants';
 import { generateRoomCode, isRoomCode } from './room-code';
+import { allowSummaryLookup, summaryLimitBody } from './summary-limit';
 
 type AppContext = Context<{ Bindings: Env }>;
 
@@ -82,6 +83,8 @@ roomRoutes.post('/rooms', requireSameOrigin, async (c) => {
 roomRoutes.get('/rooms/:code', async (c) => {
   const code = c.req.param('code').toUpperCase();
   if (!isRoomCode(code)) return notFound(c);
+  // Only lookups that would wake a room object count against the per-address limit.
+  if (!(await allowSummaryLookup(c.env, c.req.raw))) return c.json(summaryLimitBody, 429);
   const summary = await c.env.ROOMS.getByName(code).summary();
   return summary ? c.json(summary) : notFound(c);
 });
