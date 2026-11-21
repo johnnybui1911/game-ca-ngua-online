@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import type { ApiError } from '../shared/protocol';
+import { eventRoutes } from './analytics/events';
 import { HttpError } from './auth/errors';
 import { authRoutes } from './auth/routes';
 import type { Env } from './env';
@@ -11,6 +12,7 @@ app.get('/api/health', (c) => c.json({ ok: true }));
 
 app.route('/api/auth', authRoutes);
 app.route('/api', roomRoutes);
+app.route('/api', eventRoutes);
 
 app.onError((err, c) => {
   if (err instanceof HttpError) return c.json(err.toBody(), err.status);

@@ -6,15 +6,17 @@ test.beforeEach(async () => {
   await control('reset');
 });
 
-test('a room link opens the entry screen, one name seats the visitor and no email field is shown', async ({ browser }) => {
+test('an invite link opens the entry screen, one name seats the visitor and no email field is shown', async ({ browser }) => {
   const host = await newPlayer(browser, 'Chủ Phòng Khách');
   const code = await createRoom(host, { name: 'Phòng chào khách', visibility: 'private', seats: 3 });
   await host.page.goto(`/r/${code}`);
 
   const visitor = await browser.newContext({ baseURL: ORIGIN, locale: 'vi-VN' });
   const page = await visitor.newPage();
-  await page.goto(`/r/${code}`);
+  await page.goto(`/r/${code}?utm_source=invite`);
+  // The tag is remembered as the visitor's source and dropped from the address, so it never reaches returnTo.
   await expect(page).toHaveURL(new RegExp(`/bat-dau\\?returnTo=%2Fr%2F${code}$`));
+  expect((await visitor.cookies()).find((c) => c.name === 'ca_src')?.value).toBe('invite');
   await expect(page.getByTestId('entry-room-name')).toHaveText('Phòng chào khách');
   await expect(page.getByTestId('entry-room-host')).toHaveText('Chủ Phòng Khách');
   await expect(page.getByTestId('guest-submit')).toHaveText('Vào phòng');

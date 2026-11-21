@@ -101,6 +101,16 @@ export function GuestEntryPage() {
           {room.message}
         </p>
       )}
+      {code === null && (
+        <div className="entry-pitch" data-testid="entry-pitch">
+          <img src="/board.jpg" alt="Bàn cờ cá ngựa 3D với ngựa bốn màu" width={800} height={420} />
+          <ul>
+            <li>Không cài app, nhập tên là chơi</li>
+            <li>Tạo phòng, gửi link rủ cả nhóm</li>
+            <li>Thiếu người? Có máy chơi cùng</li>
+          </ul>
+        </div>
+      )}
       <form className="form" onSubmit={(e) => void submit(e)} noValidate>
         <div className="field">
           <label htmlFor="guest-name">Tên của bạn</label>

@@ -6,6 +6,7 @@ import {
   type CreateRoomRequest,
   type CreateRoomResponse,
 } from '../../shared/protocol';
+import { countEvent, requestSource } from '../analytics/count';
 import { requireSameOrigin } from '../auth/routes';
 import { getSessionIdentity, getSessionUser, type SessionIdentity } from '../auth/session';
 import { sanitizeText } from '../auth/validate';
@@ -75,7 +76,10 @@ roomRoutes.post('/rooms', requireSameOrigin, async (c) => {
   for (let attempt = 0; attempt < 8; attempt++) {
     const code = generateRoomCode();
     const created = await c.env.ROOMS.getByName(code).create({ code, name, visibility: input.visibility, seats, host: user });
-    if (created) return c.json<CreateRoomResponse>({ code }, 201);
+    if (created) {
+      c.executionCtx.waitUntil(countEvent(c.env, 'room_created', requestSource(c.req.raw)));
+      return c.json<CreateRoomResponse>({ code }, 201);
+    }
   }
   return c.json<ApiError>({ error: { code: 'code_exhausted', message: 'Không tạo được phòng, vui lòng thử lại.' } }, 503);
 });
