@@ -179,7 +179,7 @@ export function playDueAction(
   }
   planTurn(state, connected, combined ? now + timings.cpuDelayMs : now, timings);
   return { events: result.events, finished: false };
-};
+}
 
 /**
  * Brings disconnect timers, the turn clock and the host in line with who has an open
