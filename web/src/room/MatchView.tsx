@@ -28,6 +28,21 @@ import { reserveInsets, type ReservedInsets } from '../scene/camera';
 /** Seconds left on the local player's action at which the reminder sounds. */
 const REMINDER_SECONDS = 10;
 
+/** Longest the roll waits for the board to finish animating; a slow device must not hold the player up. */
+const MAX_BOARD_WAIT_MS = 1500;
+
+/** True while the board is still animating what the server reported, for at most MAX_BOARD_WAIT_MS per state. */
+function useBoardWait(seq: number): [boolean, (busy: boolean) => void] {
+  const [busy, setBusy] = useState(false);
+  const [expiredAt, setExpiredAt] = useState<number | null>(null);
+  useEffect(() => {
+    if (!busy) return;
+    const timer = setTimeout(() => setExpiredAt(seq), MAX_BOARD_WAIT_MS);
+    return () => clearTimeout(timer);
+  }, [busy, seq]);
+  return [busy && expiredAt !== seq, setBusy];
+}
+
 const GameScene = lazy(() => import('../scene/GameScene'));
 
 interface Props {
@@ -168,9 +183,12 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
   const finished = game?.phase === 'finished';
   const paused = room.paused;
   const myTurn = game !== null && myColor !== null && game.turn === myColor && !finished;
-  const canRoll = myTurn && !paused && game?.phase === 'roll';
+  // The server reports a CPU's roll and move together with the turn passing to us; the roll button
+  // and the chime wait until the board has shown that turn.
+  const [boardBusy, setBoardBusy] = useBoardWait(room.seq);
+  const canRoll = myTurn && !paused && game?.phase === 'roll' && !boardBusy;
   useMusic('game');
-  useGameSounds(batches, myTurn && !paused, seconds, room.turnDeadline);
+  useGameSounds(batches, myTurn && !paused && !boardBusy, seconds, room.turnDeadline);
   const dialogOpen = menuOpen || renaming || rulesOpen || confirmLeave || confirmClose || (introOpen && !finished);
   // Changes with every roll the server reports, so each roll chance allows one shake-roll.
   const lastRolledSeq = [...batches].reverse().find((b) => b.events.some((e) => e.type === 'rolled'))?.room.seq ?? null;
@@ -216,6 +234,7 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
             batches={batches}
             myColor={myColor}
             insets={hud.insets}
+            onBusyChange={setBoardBusy}
             onPickHorse={(horse) => {
               if (myTurn && !paused && game.phase === 'move' && game.legalHorses.includes(horse)) send({ t: 'move', horse });
             }}

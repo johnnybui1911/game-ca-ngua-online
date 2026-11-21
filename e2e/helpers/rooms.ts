@@ -82,7 +82,8 @@ export async function dismissQuickIntro(page: Page): Promise<void> {
   await expect(page.getByTestId('quick-intro')).toBeHidden();
 }
 
-export const GAME_TIMEOUT = 8 * 60_000;
+/** A full game through the UI: the roll button waits for each board animation, which headless WebGL renders slowly. */
+export const GAME_TIMEOUT = 12 * 60_000;
 
 /**
  * Headless browsers rasterise WebGL on the CPU, at a cost proportional to the
