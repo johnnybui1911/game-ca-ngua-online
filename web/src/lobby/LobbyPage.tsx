@@ -114,7 +114,14 @@ function JoinByCodeForm() {
       await api<RoomSummary>(`/api/rooms/${code}`);
       void navigate(`/r/${code}`);
     } catch (err) {
-      setError(err instanceof ApiRequestError && err.status === 404 ? 'Không tìm thấy phòng' : 'Không kiểm tra được phòng, vui lòng thử lại.');
+      const known = err instanceof ApiRequestError && (err.status === 404 || err.status === 429);
+      setError(
+        !known
+          ? 'Không kiểm tra được phòng, vui lòng thử lại.'
+          : err.status === 404
+            ? 'Không tìm thấy phòng'
+            : err.message,
+      );
       setBusy(false);
     }
   };

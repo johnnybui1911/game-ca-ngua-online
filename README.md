@@ -47,3 +47,18 @@ npm run deploy
 ```
 
 Đăng nhập mạng xã hội cần secret của từng nhà cung cấp: xem [docs/oauth-setup.md](docs/oauth-setup.md).
+
+## Đo phễu người chơi
+
+Worker đếm tổng theo ngày (UTC) vào bảng D1 `daily_events` (`day`, `event`, `source`, `n`), không lưu id, địa chỉ hay tên người chơi. Danh sách sự kiện và nguồn nằm ở `shared/analytics.ts`.
+
+- Trình duyệt báo `visit` (mỗi tab một lần) và `invite_shared` (sao chép hoặc chia sẻ link phòng) qua `POST /api/events`.
+- Worker tự đếm `guest_started`, `signed_up` (đăng ký email), `account_saved` (khách lưu tài khoản), `room_created`; phòng đếm `match_started_solo` (1 người + máy), `match_started_group` (từ 2 người), `match_finished` với nguồn `-`.
+- Nguồn lấy từ `?utm_source=` của lần ghé đầu tiên (cookie `ca_src`, 30 ngày); link mời trong phòng tự gắn `utm_source=invite`. Nguồn ngoài danh sách thành `other`, không có thì là `direct`.
+
+Xem số liệu production:
+
+```sh
+npx wrangler d1 execute DB --remote --command \
+  "SELECT day, event, source, n FROM daily_events WHERE day >= date('now','-7 day') ORDER BY day, event, source"
+```

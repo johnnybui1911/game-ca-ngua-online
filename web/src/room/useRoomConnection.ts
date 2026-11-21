@@ -1,7 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { RoomClientMessage, RoomServerMessage, RoomSnapshot } from '../../../shared/protocol';
-import { api, ApiRequestError } from '../api';
+import {
+  CLOSE_SIGNED_OUT,
+  SIGNED_OUT_CODE,
+  SIGNED_OUT_MESSAGE,
+  type RoomClientMessage,
+  type RoomServerMessage,
+  type RoomSnapshot,
+} from '../../../shared/protocol';
+import { api } from '../api';
 import { appendBatch, type StateBatch } from './batches';
+import { useSession } from '../auth/session-context';
+import { gateFailure } from './room-gate';
 import { openReconnectingSocket, type ReconnectingSocket, type SocketStatus } from '../lobby/reconnecting-socket';
 
 export interface RoomFailure {
@@ -14,7 +23,8 @@ export interface RoomFailure {
     | 'left'
     | 'unavailable'
     | 'too_many_connections'
-    | 'rate_limited';
+    | 'rate_limited'
+    | 'signed_out';
   message: string;
 }
 
@@ -41,6 +51,7 @@ const FAILURE_TEXT: Record<string, string> = {
   left: 'Bạn đã rời phòng.',
   too_many_connections: 'Bạn mở phòng này ở quá nhiều tab, kết nối này đã bị đóng.',
   rate_limited: 'Bạn gửi quá nhanh nên kết nối đã bị đóng.',
+  [SIGNED_OUT_CODE]: SIGNED_OUT_MESSAGE,
 };
 
 /** Room socket with reconnect; every reconnect rebuilds the view from the snapshot the server sends first. */
@@ -51,6 +62,9 @@ export function useRoomConnection(code: string): RoomConnection {
   const [failure, setFailure] = useState<RoomFailure | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const socket = useRef<ReconnectingSocket | null>(null);
+  const { refresh } = useSession();
+  /** Bumped to reconnect when the session ended but the same user is signed in again. */
+  const [epoch, setEpoch] = useState(0);
 
   useEffect(() => {
     setStatus('connecting');
@@ -58,6 +72,14 @@ export function useRoomConnection(code: string): RoomConnection {
     setClockOffset(0);
     setFailure(null);
     setActionError(null);
+    // Show the notice, then re-read the session: signed out, the page routes away; still (or again)
+    // signed in, reconnect under the live session.
+    const sessionEnded = () => {
+      setFailure({ code: 'signed_out', message: SIGNED_OUT_MESSAGE });
+      void refresh().then((me) => {
+        if (me) setEpoch((n) => n + 1);
+      });
+    };
     const conn = openReconnectingSocket({
       path: `/api/rooms/${code}/ws`,
       onStatus: setStatus,
@@ -66,9 +88,7 @@ export function useRoomConnection(code: string): RoomConnection {
           await api(`/api/rooms/${code}`);
           return null;
         } catch (err) {
-          if (err instanceof ApiRequestError && err.status === 404) return 'not_found';
-          if (err instanceof ApiRequestError && err.status !== 0) return 'unavailable';
-          return null;
+          return gateFailure(err);
         }
       },
       onStop: (reason) => {
@@ -78,8 +98,13 @@ export function useRoomConnection(code: string): RoomConnection {
             : { code: 'unavailable', message: 'Không vào được phòng, vui lòng thử lại.' },
         );
       },
-      onServerStop: () =>
-        setFailure((prev) => prev ?? { code: 'room_closed', message: FAILURE_TEXT.room_closed ?? 'Phòng đã đóng.' }),
+      onServerStop: (closeCode) => {
+        if (closeCode === CLOSE_SIGNED_OUT) {
+          sessionEnded();
+          return;
+        }
+        setFailure((prev) => prev ?? { code: 'room_closed', message: FAILURE_TEXT.room_closed ?? 'Phòng đã đóng.' });
+      },
       onMessage: (data) => {
         const msg = JSON.parse(data) as RoomServerMessage;
         if (msg.t === 'state') {
@@ -88,6 +113,11 @@ export function useRoomConnection(code: string): RoomConnection {
           setBatches((prev) => appendBatch(prev, { room: msg.room, events: msg.events }));
         } else if (msg.code in FAILURE_TEXT) {
           // The server ends the socket after these; do not wait for the close, which a proxy may swallow.
+          if (msg.code === SIGNED_OUT_CODE) {
+            socket.current?.close();
+            sessionEnded();
+            return;
+          }
           setFailure({ code: msg.code as RoomFailure['code'], message: FAILURE_TEXT[msg.code] ?? msg.message });
           socket.current?.close();
         } else {
@@ -100,7 +130,7 @@ export function useRoomConnection(code: string): RoomConnection {
       conn.close();
       socket.current = null;
     };
-  }, [code]);
+  }, [code, epoch, refresh]);
 
   const send = useCallback((msg: RoomClientMessage) => {
     socket.current?.send(JSON.stringify(msg));

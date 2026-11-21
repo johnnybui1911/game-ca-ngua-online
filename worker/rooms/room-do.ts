@@ -1,23 +1,32 @@
 import { DurableObject } from 'cloudflare:workers';
+import { NO_SOURCE } from '../../shared/analytics';
 import { applyMove, applyRoll, createGame } from '../../shared/game/engine';
 import { chooseCpuMove } from '../../shared/game/cpu';
 import type { GameEvent, StepResult } from '../../shared/game/types';
 import {
   MAX_HORSE_NAME,
+  CLOSE_SIGNED_OUT,
   SEAT_COLORS,
+  SIGNED_OUT_CODE,
+  SIGNED_OUT_MESSAGE,
   type PublicUser,
   type RoomClientMessage,
   type RoomServerMessage,
   type RoomSummary,
   type RoomVisibility,
 } from '../../shared/protocol';
+import { countEvent } from '../analytics/count';
 import type { Env } from '../env';
+import { SessionGuard, type SocketBinding } from './session-guard';
+import { KeyedQueue } from './socket-queue';
 import { KeyedTokenBuckets, TokenBucket } from './token-bucket';
 import {
   HOST_ACTION_BURST,
   HOST_ACTION_REFILL_PER_SEC,
   MAX_MESSAGE_BYTES,
   MAX_SOCKETS_PER_USER,
+  SESSION_HEADER,
+  SESSION_RECHECK_MS,
   SOCKET_BURST,
   SOCKET_REFILL_PER_SEC,
   USER_HEADER,
@@ -59,11 +68,8 @@ export interface CreateRoomInit {
   host: PublicUser;
 }
 
-interface SocketUser {
-  userId: string;
+interface SocketUser extends SocketBinding {
   displayName: string;
-  /** Connection time, to find a user's oldest socket. */
-  at: number;
 }
 
 class RoomError extends Error {
@@ -125,10 +131,13 @@ export class RoomDO extends DurableObject<Env> {
   /** Same budget for renaming horses, which any seated player can do. */
   private readonly nameBudget = new KeyedTokenBuckets(HOST_ACTION_BURST, HOST_ACTION_REFILL_PER_SEC);
   private readonly timings: Timings;
+  private readonly sessions: SessionGuard;
+  private readonly inbox = new KeyedQueue<WebSocket>();
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
     this.timings = timingsFor(env);
+    this.sessions = new SessionGuard(env.DB, SESSION_RECHECK_MS);
     void ctx.blockConcurrencyWhile(async () => {
       this.room = (await ctx.storage.get<RoomState>(STORAGE_KEY)) ?? null;
     });
@@ -193,7 +202,9 @@ export class RoomDO extends DurableObject<Env> {
       return new Response(null, { status: 101, webSocket: client });
     }
     this.ctx.acceptWebSocket(server);
-    const attachment: SocketUser = { userId: user.id, displayName: user.displayName, at: Date.now() };
+    // `user` is the PublicUser stored in the room; the session hash stays on the socket only.
+    const sessionHash = request.headers.get(SESSION_HEADER) ?? undefined;
+    const attachment: SocketUser = { userId: user.id, displayName: user.displayName, at: Date.now(), sessionHash };
     server.serializeAttachment(attachment);
     this.trimSockets(user.id);
     if (!(await this.onConnectionChange(before))) this.sendState(server, [], this.connectedUsers());
@@ -225,7 +236,12 @@ export class RoomDO extends DurableObject<Env> {
 
   // ------------------------------------------------------------ sockets
 
-  override async webSocketMessage(ws: WebSocket, message: string | ArrayBuffer): Promise<void> {
+  /** One socket's messages are handled in arrival order, though handling awaits. */
+  override webSocketMessage(ws: WebSocket, message: string | ArrayBuffer): Promise<void> {
+    return this.inbox.run(ws, () => this.handleMessage(ws, message));
+  }
+
+  private async handleMessage(ws: WebSocket, message: string | ArrayBuffer): Promise<void> {
     if (!this.room) return;
     let bucket = this.buckets.get(ws);
     if (!bucket) {
@@ -242,10 +258,15 @@ export class RoomDO extends DurableObject<Env> {
       ws.close(1009, 'Message too big');
       return;
     }
+    const user = ws.deserializeAttachment() as SocketUser;
+    if (await this.sessions.hasEnded(ws, user, Date.now())) {
+      this.send(ws, { t: 'error', code: SIGNED_OUT_CODE, message: SIGNED_OUT_MESSAGE });
+      ws.close(CLOSE_SIGNED_OUT, SIGNED_OUT_CODE);
+      return;
+    }
     try {
       if (typeof message !== 'string') throw new RoomError('bad_message', 'Tin nhắn không hợp lệ.');
       const msg = parseClientMessage(message);
-      const user = ws.deserializeAttachment() as SocketUser;
       await this.handle(user, msg);
     } catch (err) {
       if (err instanceof RoomError) this.send(ws, { t: 'error', code: err.code, message: err.message });
@@ -337,6 +358,7 @@ export class RoomDO extends DurableObject<Env> {
         room.pausedAt = null;
         planTurn(room, this.connectedUsers(), now, this.timings);
         await this.commit([]);
+        this.count(humanUsers(room).length > 1 ? 'match_started_group' : 'match_started_solo');
         return;
       }
       case 'roll': {
@@ -418,12 +440,18 @@ export class RoomDO extends DurableObject<Env> {
     room.game = result.state;
     if (result.state.phase === 'finished') {
       room.status = 'finished';
+      this.count('match_finished');
       room.dueAt = null;
       room.actionDueAt = null;
     } else {
       planTurn(room, this.connectedUsers(), Date.now(), this.timings);
     }
     await this.commit(result.events);
+  }
+
+  /** Counts a match milestone in the launch funnel without delaying the room. */
+  private count(event: 'match_started_solo' | 'match_started_group' | 'match_finished'): void {
+    this.ctx.waitUntil(countEvent(this.env, event, NO_SOURCE));
   }
 
   private async leave(userId: string): Promise<void> {
@@ -572,6 +600,15 @@ export class RoomDO extends DurableObject<Env> {
     );
   }
 
+  /** Sockets that never send a message (waiting, spectating) are still checked whenever the alarm runs. */
+  private async endExpiredSockets(now: number): Promise<void> {
+    const ended = await this.sessions.endedAmong(this.openSockets(), (ws) => ws.deserializeAttachment() as SocketUser, now);
+    for (const ws of ended) {
+      this.send(ws, { t: 'error', code: SIGNED_OUT_CODE, message: SIGNED_OUT_MESSAGE });
+      ws.close(CLOSE_SIGNED_OUT, SIGNED_OUT_CODE);
+    }
+  }
+
   /**
    * The one alarm. Whatever time it was armed for, what is due is re-derived
    * from persisted state, so a late or repeated firing does the right thing.
@@ -580,6 +617,9 @@ export class RoomDO extends DurableObject<Env> {
     const room = this.room;
     if (!room) return;
     const now = Date.now();
+    await this.endExpiredSockets(now);
+    // The room may have closed or been replaced while the lookup was in flight.
+    if (this.room !== room) return;
     const before = JSON.stringify(room);
     const connected = this.connectedUsers();
     reconcileConnections(room, connected, now, this.timings);
@@ -615,6 +655,7 @@ export class RoomDO extends DurableObject<Env> {
         events = result.events;
         if (result.state.phase === 'finished') {
           room.status = 'finished';
+          this.count('match_finished');
           room.dueAt = null;
           room.actionDueAt = null;
         } else {

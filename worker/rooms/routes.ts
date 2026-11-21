@@ -5,14 +5,15 @@ import {
   type ApiError,
   type CreateRoomRequest,
   type CreateRoomResponse,
-  type PublicUser,
 } from '../../shared/protocol';
+import { countEvent, requestSource } from '../analytics/count';
 import { requireSameOrigin } from '../auth/routes';
-import { getSessionUser } from '../auth/session';
+import { getSessionIdentity, getSessionUser, type SessionIdentity } from '../auth/session';
 import { sanitizeText } from '../auth/validate';
 import type { Env } from '../env';
-import { MAX_ROOM_NAME, USER_HEADER } from './constants';
+import { MAX_ROOM_NAME, SESSION_HEADER, USER_HEADER } from './constants';
 import { generateRoomCode, isRoomCode } from './room-code';
+import { allowSummaryLookup, summaryLimitBody } from './summary-limit';
 
 type AppContext = Context<{ Bindings: Env }>;
 
@@ -35,9 +36,17 @@ function sameOrigin(c: AppContext): boolean {
   }
 }
 
-/** Forwards a WebSocket upgrade to a Durable Object with the authenticated user attached. */
-function forwardUpgrade(user: PublicUser, stub: { fetch(request: Request): Promise<Response> }) {
-  const headers = new Headers({ Upgrade: 'websocket', [USER_HEADER]: encodeURIComponent(JSON.stringify(user)) });
+/**
+ * Forwards a WebSocket upgrade to a Durable Object with the authenticated user and the hash of
+ * its session attached. The hash goes in its own header so it cannot end up inside the user object
+ * that rooms store and broadcast.
+ */
+function forwardUpgrade(identity: SessionIdentity, stub: { fetch(request: Request): Promise<Response> }) {
+  const headers = new Headers({
+    Upgrade: 'websocket',
+    [USER_HEADER]: encodeURIComponent(JSON.stringify(identity.user)),
+    [SESSION_HEADER]: identity.sessionHash,
+  });
   return stub.fetch(new Request('https://do.internal/ws', { headers }));
 }
 
@@ -67,7 +76,10 @@ roomRoutes.post('/rooms', requireSameOrigin, async (c) => {
   for (let attempt = 0; attempt < 8; attempt++) {
     const code = generateRoomCode();
     const created = await c.env.ROOMS.getByName(code).create({ code, name, visibility: input.visibility, seats, host: user });
-    if (created) return c.json<CreateRoomResponse>({ code }, 201);
+    if (created) {
+      c.executionCtx.waitUntil(countEvent(c.env, 'room_created', requestSource(c.req.raw)));
+      return c.json<CreateRoomResponse>({ code }, 201);
+    }
   }
   return c.json<ApiError>({ error: { code: 'code_exhausted', message: 'Không tạo được phòng, vui lòng thử lại.' } }, 503);
 });
@@ -75,24 +87,26 @@ roomRoutes.post('/rooms', requireSameOrigin, async (c) => {
 roomRoutes.get('/rooms/:code', async (c) => {
   const code = c.req.param('code').toUpperCase();
   if (!isRoomCode(code)) return notFound(c);
+  // Only lookups that would wake a room object count against the per-address limit.
+  if (!(await allowSummaryLookup(c.env, c.req.raw))) return c.json(summaryLimitBody, 429);
   const summary = await c.env.ROOMS.getByName(code).summary();
   return summary ? c.json(summary) : notFound(c);
 });
 
 roomRoutes.get('/rooms/:code/ws', async (c) => {
-  const user = await getSessionUser(c.req.raw, c.env);
-  if (!user) return unauthorized(c);
+  const identity = await getSessionIdentity(c.req.raw, c.env);
+  if (!identity) return unauthorized(c);
   if (!sameOrigin(c)) return fail(c, 403, 'forbidden_origin', 'Yêu cầu không hợp lệ.');
   if (c.req.header('Upgrade') !== 'websocket') return fail(c, 400, 'expected_websocket', 'Cần kết nối WebSocket.');
   const code = c.req.param('code').toUpperCase();
   if (!isRoomCode(code)) return notFound(c);
-  return forwardUpgrade(user, c.env.ROOMS.getByName(code));
+  return forwardUpgrade(identity, c.env.ROOMS.getByName(code));
 });
 
 roomRoutes.get('/lobby/ws', async (c) => {
-  const user = await getSessionUser(c.req.raw, c.env);
-  if (!user) return unauthorized(c);
+  const identity = await getSessionIdentity(c.req.raw, c.env);
+  if (!identity) return unauthorized(c);
   if (!sameOrigin(c)) return fail(c, 403, 'forbidden_origin', 'Yêu cầu không hợp lệ.');
   if (c.req.header('Upgrade') !== 'websocket') return fail(c, 400, 'expected_websocket', 'Cần kết nối WebSocket.');
-  return forwardUpgrade(user, c.env.LOBBY.getByName('lobby'));
+  return forwardUpgrade(identity, c.env.LOBBY.getByName('lobby'));
 });

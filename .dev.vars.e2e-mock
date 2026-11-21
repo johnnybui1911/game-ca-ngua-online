@@ -7,6 +7,8 @@ X_CLIENT_ID=mock-x-id
 X_CLIENT_SECRET=mock-x-secret
 OAUTH_TEST_BASE_URL=http://127.0.0.1:5199
 ROOM_FAST_TIMERS=1
+# Every e2e request comes from one address; keep the room summary limit out of the way.
+ROOM_SUMMARY_LIMIT_OFF=1
 GUEST_LIMIT_PER_HOUR=10000
 # Existing specs sign in and up many times from one address; keep the auth limits out of their way.
 SIGNIN_PAIR_LIMIT=100000
