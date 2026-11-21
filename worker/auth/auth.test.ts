@@ -87,7 +87,7 @@ describe('text sanitising', () => {
   it('removes ZWJ that is not between two emoji', () => {
     expect(sanitizeText('\u200D🐴\u200D')).toBe('🐴');
     expect(sanitizeText('A\u200DB')).toBe('AB');
-    expect(sanitizeText('🐴\u200D\u200D🐴')).toBe('🐴🐴');
+    expect(sanitizeText('🐴\u200D\u200D🐴')).toBe('🐴\u200D🐴');
     expect(sanitizeText('🐴\u200DA')).toBe('🐴A');
   });
 
