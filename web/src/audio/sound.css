@@ -1,27 +1,33 @@
+/* The speaker button and its popover. The app shell's bottom-left slot places it. */
 .sound-button {
-  position: fixed;
-  z-index: 50;
-  right: calc(var(--space-3) + env(safe-area-inset-right));
-  bottom: calc(var(--space-3) + env(safe-area-inset-bottom));
+  position: relative;
   display: grid;
-  justify-items: end;
-  gap: var(--space-2);
 }
 
 .sound-toggle {
-  width: var(--touch);
-  padding: 0;
-  border-radius: 50%;
-  font-size: var(--text-lg);
+  background: var(--glass-fill);
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  backdrop-filter: blur(var(--glass-blur));
+}
+
+html[data-quality='low'] .sound-toggle {
+  background: var(--glass-fill-solid);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
 }
 
 .sound-popover {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + var(--space-2));
+  width: max-content;
   padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
 }
 
 .sound-switches {
   display: grid;
-  gap: var(--space-2);
+  gap: var(--space-1);
   text-align: left;
 }
 
@@ -29,11 +35,12 @@
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  min-height: 36px;
+  min-height: var(--touch);
   cursor: pointer;
 }
 
 .sound-switches input {
   width: 20px;
   height: 20px;
+  accent-color: var(--color-accent);
 }

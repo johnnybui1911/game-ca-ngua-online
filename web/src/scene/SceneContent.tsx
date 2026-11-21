@@ -8,8 +8,24 @@ import { HORSES_PER_COLOR } from '../../../shared/game/types';
 import type { Color } from '../../../shared/game/types';
 import { Assets } from './assets';
 import Board from './Board';
-import { NO_INSETS, defaultPolar, fitCameraDistance, freeBand, seatCameraPosition } from './camera';
-import type { HudInsets } from './camera';
+import {
+  HOME_ORBIT_SECONDS,
+  NO_INSETS,
+  SEAT_FLIGHT_SECONDS,
+  defaultPolar,
+  farPlane,
+  fitCameraDistance,
+  fitOrbitDistance,
+  followShare,
+  freeBand,
+  freeBandX,
+  homePose,
+  mixPose,
+  poseOf,
+  posePosition,
+  seatPose,
+} from './camera';
+import type { CameraPose, HudInsets } from './camera';
 import { Director, QUICK_SEGMENT_SECONDS } from './director';
 import type { SceneView } from './director';
 import LockMarkers from './LockMarkers';
@@ -17,7 +33,8 @@ import { Celebration, Die, Horse } from './Pieces';
 import { createSceneState } from './scene-state';
 import type { SceneState } from './scene-state';
 import { unconsumed } from '../room/batches';
-import type { GameSceneProps, HorseLabelElements } from './props';
+import type { GameSceneProps, HorseLabelElements, SceneStaging } from './props';
+import { useQuality } from './render/QualityProvider';
 import RenderPipeline from './render/RenderPipeline';
 import { sound } from '../audio/sound';
 
@@ -52,48 +69,139 @@ function createView(state: SceneState): SceneView {
   };
 }
 
-function Rig({ myColor, insets }: { myColor: Color | null; insets: HudInsets }) {
+const UP = new Vector3(0, 1, 0);
+/** How far past the fitted distance the player may zoom out. */
+const MAX_ZOOM_OUT = 1.25;
+
+function prefersReducedMotion(): boolean {
+  return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
+
+function easeInOut(t: number): number {
+  return t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2;
+}
+
+interface RigProps {
+  /** Colour whose seat the camera takes; null leaves the camera free (home orbit). */
+  seat: Color | null;
+  /** Changes with the game on the board: a new game with a seat is flown to. */
+  sourceKey: string;
+  insets: HudInsets;
+  orbit: boolean;
+}
+
+/**
+ * Camera and orbit controls. The board centre stays the orbit pivot; panels around it are answered by
+ * sliding the picture window and backing the camera off, both eased so the board glides when a
+ * panel opens. Taking a seat flies the camera there from wherever it was.
+ */
+function Rig({ seat, sourceKey, insets, orbit }: RigProps) {
   const camera = useThree((s) => s.camera) as PerspectiveCamera;
   const size = useThree((s) => s.size);
+  const { activity } = useQuality();
   const controls = useRef<ElementRef<typeof OrbitControls>>(null);
-  const seat = useRef<{ color: Color; fit: number } | null>(null);
-  const color: Color = myColor ?? 0;
   const aspect = size.width / Math.max(1, size.height);
   const band = freeBand(insets, size.height);
-  const fit = fitCameraDistance(aspect, camera.fov, defaultPolar(aspect), band.fraction);
+  const bandX = freeBandX(insets, size.width);
+  const polar = defaultPolar(aspect);
+  // A seat looks along an arm; a free camera may be anywhere around the board, so it backs off for the corners.
+  const fit = (seat === null ? fitOrbitDistance : fitCameraDistance)(aspect, camera.fov, polar, band.fraction, bandX.fraction);
+  // A paused canvas only draws single frames on request, so nothing can be eased there.
+  const instant = activity === 'paused' || prefersReducedMotion();
 
-  // Slide the picture window so the board centre (the orbit pivot) sits in the middle of the band the HUD leaves free.
-  useLayoutEffect(() => {
-    camera.setViewOffset(size.width, size.height, 0, band.shiftPx, size.width, size.height);
-    return () => camera.clearViewOffset();
-  }, [camera, size.width, size.height, band.shiftPx]);
+  /** Framing as currently drawn; follows `fit` and the band shifts. */
+  const frame = useRef<{ fit: number; x: number; y: number; width: number; height: number } | null>(null);
+  const placed = useRef<string | null>(null);
+  const flight = useRef<{ from: CameraPose; to: CameraPose; t: number } | null>(null);
+  const dragging = useRef(false);
+
+  useLayoutEffect(() => () => camera.clearViewOffset(), [camera]);
 
   useLayoutEffect(() => {
-    const prev = seat.current;
-    if (!prev || prev.color !== color) {
-      camera.position.set(...seatCameraPosition(color, fit, defaultPolar(aspect)));
+    const key = `${sourceKey}:${seat ?? 'free'}`;
+    if (!frame.current) {
+      // First picture: no flight, the camera starts where it belongs.
+      frame.current = { fit, x: bandX.shiftPx, y: band.shiftPx, width: size.width, height: size.height };
+      camera.position.set(...posePosition(seat === null ? homePose(polar) : seatPose(seat, polar), fit));
       camera.lookAt(0, 0, 0);
-    } else if (Math.abs(prev.fit - fit) / prev.fit > 0.03) {
-      // Window resized: keep the viewing direction, rescale the distance.
-      camera.position.multiplyScalar(fit / prev.fit);
+      camera.far = farPlane(fit * MAX_ZOOM_OUT);
+      camera.setViewOffset(size.width, size.height, bandX.shiftPx, band.shiftPx, size.width, size.height);
+    } else if (placed.current !== key && seat !== null) {
+      const to = seatPose(seat, polar);
+      if (instant) {
+        flight.current = null;
+        camera.position.set(...posePosition(to, frame.current.fit));
+        camera.lookAt(0, 0, 0);
+      } else {
+        flight.current = { from: poseOf(camera.position.toArray(), frame.current.fit), to, t: 0 };
+      }
     }
-    seat.current = { color, fit };
-    controls.current?.update();
-  }, [camera, color, fit, aspect]);
+    placed.current = key;
+    const c = controls.current;
+    if (c) {
+      c.minDistance = frame.current.fit * 0.4;
+      c.maxDistance = frame.current.fit * MAX_ZOOM_OUT;
+      c.update();
+    }
+    // Only a new seat or game places the camera; the framing is followed in the frame loop below.
+  }, [camera, seat, sourceKey]);
+
+  useFrame((_, dt) => {
+    const f = frame.current;
+    if (!f) return;
+    const resized = f.width !== size.width || f.height !== size.height;
+    const k = instant || resized ? 1 : followShare(dt);
+    const follow = (from: number, to: number, snap: number) => (Math.abs(to - from) < snap ? to : from + (to - from) * k);
+    const nextFit = follow(f.fit, fit, f.fit * 0.001);
+    const x = follow(f.x, bandX.shiftPx, 0.25);
+    const y = follow(f.y, band.shiftPx, 0.25);
+
+    const fl = flight.current;
+    if (fl) {
+      fl.t = instant ? 1 : Math.min(1, fl.t + dt / SEAT_FLIGHT_SECONDS);
+      camera.position.set(...posePosition(mixPose(fl.from, fl.to, easeInOut(fl.t)), nextFit));
+      camera.lookAt(0, 0, 0);
+      if (fl.t >= 1) flight.current = null;
+    } else {
+      if (nextFit !== f.fit) camera.position.multiplyScalar(nextFit / f.fit);
+      if (orbit && seat === null && !dragging.current && !instant) {
+        camera.position.applyAxisAngle(UP, (dt * 2 * Math.PI) / HOME_ORBIT_SECONDS);
+        camera.lookAt(0, 0, 0);
+      }
+    }
+    const far = farPlane(nextFit * MAX_ZOOM_OUT);
+    const refar = camera.far !== far;
+    camera.far = far;
+    // Setting the view offset also rebuilds the projection.
+    if (refar || resized || x !== f.x || y !== f.y) camera.setViewOffset(size.width, size.height, x, y, size.width, size.height);
+    frame.current = { fit: nextFit, x, y, width: size.width, height: size.height };
+
+    const c = controls.current;
+    if (c) {
+      c.minDistance = nextFit * 0.4;
+      c.maxDistance = nextFit * MAX_ZOOM_OUT;
+      c.enabled = flight.current === null;
+    }
+  });
 
   return (
     <OrbitControls
       ref={controls}
       makeDefault
       enablePan={false}
+      enableZoom={seat !== null}
       enableDamping
       dampingFactor={0.12}
       rotateSpeed={0.7}
-      minDistance={fit * 0.4}
-      maxDistance={fit * 1.25}
       minPolarAngle={0.12}
       maxPolarAngle={1.32}
       target={[0, 0, 0]}
+      onStart={() => {
+        dragging.current = true;
+      }}
+      onEnd={() => {
+        dragging.current = false;
+      }}
     />
   );
 }
@@ -109,7 +217,10 @@ export default function SceneContent({
   onBusyChange,
   insets = NO_INSETS,
   labels,
-}: GameSceneProps & { insets?: HudInsets; labels?: HorseLabelElements }) {
+  sourceKey = 'match',
+  view = 'seat',
+  orbit = false,
+}: GameSceneProps & SceneStaging & { insets?: HudInsets; labels?: HorseLabelElements }) {
   const game = room.game;
   const assets = useMemo(() => new Assets(), []);
   const state = useMemo(createSceneState, []);
@@ -136,12 +247,18 @@ export default function SceneContent({
   const gameRef = useRef(game);
   gameRef.current = game;
 
-  // Colours (and so the horse meshes) changed, or first mount: show the game as it is.
+  // Colours (and so the horse meshes) or the game itself changed, or first mount: show the game as it is.
   useEffect(() => {
     if (gameRef.current) director.reset(gameRef.current);
-  }, [director, colorsKey]);
+  }, [director, colorsKey, sourceKey]);
 
+  const sourceRef = useRef(sourceKey);
   useEffect(() => {
+    if (sourceRef.current !== sourceKey) {
+      // Another game took the board: its history is not this scene's to animate.
+      sourceRef.current = sourceKey;
+      seqRef.current = null;
+    }
     if (seqRef.current === null) {
       seqRef.current = room.seq;
       return;
@@ -150,7 +267,22 @@ export default function SceneContent({
     if (fresh.length === 0) return;
     seqRef.current = fresh[fresh.length - 1]?.room.seq ?? seqRef.current;
     for (const batch of fresh) if (batch.room.game) director.push(batch.room.game, batch.events);
-  }, [director, room.seq, batches]);
+  }, [director, room.seq, batches, sourceKey]);
+
+  // A paused canvas has no frame loop: draw one picture whenever what it shows changes.
+  const { activity } = useQuality();
+  const advance = useThree((s) => s.advance);
+  const left = insets.left ?? 0;
+  const right = insets.right ?? 0;
+  useEffect(() => {
+    if (activity !== 'paused') return;
+    let frames = 2;
+    let id = requestAnimationFrame(function draw() {
+      advance(performance.now() / 1000);
+      if (--frames > 0) id = requestAnimationFrame(draw);
+    });
+    return () => cancelAnimationFrame(id);
+  }, [activity, advance, size.width, size.height, insets.top, insets.bottom, left, right, myColor, sourceKey, view, room.seq]);
 
   useFrame((_, dt) => {
     state.time += dt;
@@ -214,7 +346,7 @@ export default function SceneContent({
         )),
       )}
       <Celebration assets={assets} state={state} />
-      <Rig myColor={myColor} insets={insets} />
+      <Rig seat={view === 'seat' ? (myColor ?? 0) : null} sourceKey={sourceKey} insets={insets} orbit={orbit} />
     </>
   );
 }
