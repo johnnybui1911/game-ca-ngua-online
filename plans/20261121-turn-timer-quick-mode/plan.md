@@ -75,26 +75,31 @@ The user chose the rule variant and answered the open questions below; this sect
 
 ## Measurement (all-CPU matches, Thường level)
 
-`PACING_REPORT=1 npx vitest run shared/game/pacing.test.ts` plays 200 games per row (seeds 1000..1199, the same dice for every mode) with `shared/game/pacing.ts`. "Phút theo nhịp server" is the pause the server imposes after every commit (700 ms per action in a classic room; 400 ms per animated segment of the commit in a quick room); it is the floor set by the server, not the match duration: people's thinking and clicking time is not modelled. All 200 games of every row finished.
+`PACING_REPORT=1 npx vitest run shared/game/pacing.test.ts` plays 200 games per row (seeds 1000..1199, the same dice for every mode, every seat a Thường CPU, the CPU code of this branch) with `shared/game/pacing.ts`. All 200 games of every row finished. Columns:
 
-| Ghế | Chế độ | Thao tác TB / trung vị / p90 | Commit TB / trung vị / p90 | Phút nhịp server TB / trung vị / p90 | Lượt chọn ngựa TB | Nước bắt buộc TB | Đá ngựa TB |
-|---|---|---|---|---|---|---|---|
-| 2 | thường | 472 / 468 / 574 | 472 / 468 / 574 | 5,5 / 5,5 / 6,7 | 144 | 81 | 12,8 |
-| 2 | luật nhanh, nhịp thường | 112 / 98 / 176 | 112 / 98 / 176 | 1,3 / 1,1 / 2,1 | 40 | 16 | 3,5 |
-| 2 | **ván nhanh (N3)** | 112 / 98 / 176 | 96 / 83 / 153 | 0,7 / 0,7 / 1,2 | 40 | 16 | 3,5 |
-| 3 | thường | 1001 / 985 / 1330 | 1001 / 985 / 1330 | 11,7 / 11,5 / 15,5 | 295 | 176 | 46,5 |
-| 3 | luật nhanh, nhịp thường | 200 / 161 / 325 | 200 / 161 / 325 | 2,3 / 1,9 / 3,8 | 64 | 32 | 10,5 |
-| 3 | **ván nhanh (N3)** | 200 / 161 / 325 | 167 / 136 / 277 | 1,3 / 1,1 / 2,2 | 64 | 32 | 10,5 |
-| 4 | thường | 1992 / 1934 / 2720 | 1992 / 1934 / 2720 | 23,2 / 22,6 / 31,7 | 562 | 364 | 118,1 |
-| 4 | luật nhanh, nhịp thường | 347 / 274 / 619 | 347 / 274 / 619 | 4,1 / 3,2 / 7,2 | 105 | 60 | 22,2 |
-| 4 | **ván nhanh (N3)** | 347 / 274 / 619 | 288 / 226 / 522 | 2,3 / 1,8 / 4,1 | 105 | 60 | 22,2 |
+- *Thao tác*: every roll and every move.
+- *Commit khi người chơi*: server commits when people take every action. A classic room is one commit per action; a quick room merges a roll with its move when exactly one horse can move.
+- *Commit khi máy chơi*: commits when CPUs take every action. Since the automated-turn change (one step for a CPU roll and its move) this is one commit per roll in both modes.
+- *Phút theo nhịp server*: the pause the server imposes after commits when it plays for CPUs: 700 ms per action in a classic room, 400 ms per animated segment in a quick room. It is the floor set by the server, not the match duration: people's thinking and clicking time is not modelled.
+
+| Ghế | Chế độ | Thao tác TB / trung vị / p90 | Commit khi người chơi | Commit khi máy chơi | Phút nhịp server | Lượt chọn ngựa TB | Nước bắt buộc TB | Đá ngựa TB |
+|---|---|---|---|---|---|---|---|---|
+| 2 | thường | 472 / 468 / 574 | 472 / 468 / 574 | 248 / 245 / 304 | 5,5 / 5,5 / 6,7 | 144 | 81 | 12,8 |
+| 2 | luật nhanh, nhịp thường | 112 / 98 / 176 | 112 / 98 / 176 | 57 / 50 / 90 | 1,3 / 1,1 / 2,1 | 39 | 16 | 3,4 |
+| 2 | **ván nhanh (N3)** | 112 / 98 / 176 | 96 / 83 / 153 | 57 / 50 / 90 | 0,7 / 0,7 / 1,2 | 39 | 16 | 3,4 |
+| 3 | thường | 1001 / 985 / 1330 | 1001 / 985 / 1330 | 530 / 523 / 701 | 11,7 / 11,5 / 15,5 | 295 | 176 | 46,5 |
+| 3 | luật nhanh, nhịp thường | 199 / 161 / 317 | 199 / 161 / 317 | 103 / 83 / 166 | 2,3 / 1,9 / 3,7 | 64 | 32 | 10,4 |
+| 3 | **ván nhanh (N3)** | 199 / 161 / 317 | 166 / 136 / 273 | 103 / 83 / 166 | 1,3 / 1,1 / 2,1 | 64 | 32 | 10,4 |
+| 4 | thường | 1992 / 1934 / 2720 | 1992 / 1934 / 2720 | 1066 / 1037 / 1452 | 23,2 / 22,6 / 31,7 | 562 | 364 | 118,1 |
+| 4 | luật nhanh, nhịp thường | 346 / 269 / 619 | 346 / 269 / 619 | 182 / 142 / 325 | 4,0 / 3,1 / 7,2 | 105 | 59 | 22,0 |
+| 4 | **ván nhanh (N3)** | 346 / 269 / 619 | 287 / 223 / 522 | 182 / 142 / 325 | 2,3 / 1,8 / 4,1 | 105 | 59 | 22,0 |
 
 Reading it:
 
 - The classic 4-seat median of 1934 actions reproduces the "about 1900" of issue #6; the figure is now reproducible from the repo.
-- N3 cuts the 4-seat median from 1934 to 274 actions (about 7 times fewer), 2-seat from 468 to 98, 3-seat from 985 to 161. Most of the gain comes from the rule change (the "luật nhanh, nhịp thường" rows), the pace changes add the merge of forced moves (commits 274 -> 226 at 4 seats) and the shorter pause.
-- Human time is not in the table. For a 4-player quick match the median of 274 actions finishes within 10 minutes only if an action takes 2.2 s or less on average (600 s / 274); the p90 of 619 actions needs 1 s or less. The 4-seat figure is therefore not "far below": it depends on how fast people play, and it should be re-checked with real matches (the funnel counts `match_started_quick` and `match_finished_quick`).
-- The merge of forced moves removes `Nước bắt buộc` commits per match (16 / 32 / 60 on average at 2 / 3 / 4 seats): the only reduction in storage writes per match this feature makes.
+- N3 cuts the 4-seat median from 1934 to 269 actions (about 7 times fewer), 2-seat from 468 to 98, 3-seat from 985 to 161. Most of the gain comes from the rule change (the "luật nhanh, nhịp thường" rows); the pace changes add the merge of forced moves for people (commits 269 -> 223 at 4 seats) and the shorter pause (4-seat server pacing 3,1 -> 1,8 minutes at the median).
+- Human time is not in the table. For a 4-player quick match the median of 269 actions finishes within 10 minutes only if an action takes 2,2 s or less on average (600 s / 269); at the p90 of 619 actions it needs 0,97 s or less. The 4-seat figure is therefore not "far above 10 minutes" on the server side, but with people it depends on how fast they play and should be re-checked with real matches (the funnel counts `match_started_quick` and `match_finished_quick`).
+- Storage writes (issue #6): the commits-per-match change is the merge of forced moves for people (16 / 32 / 59 per match at 2 / 3 / 4 seats on average) and nothing else; CPU commits already merge roll and move since the automated-turn change. Settings add no write per action.
 
 CPU strength in quick matches (1000 games, seeds 100000.., 95% Wilson interval; the stronger level plays one seat and rotates over the colours):
 

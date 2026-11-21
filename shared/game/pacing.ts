@@ -2,9 +2,12 @@ import { applyMove, applyRoll, createGame, rollAndSettle, segmentsOf } from './e
 import type { Color, DiceValue, GameEvent, GameState, RuleVariant } from './types';
 
 /**
- * Pacing model of a match played only by the server (every seat a CPU), no I/O.
- * `normal`: one commit per action (a roll, or a move), as a classic room plays.
- * `quick`: a roll with exactly one legal horse is merged with its move into one commit.
+ * Pacing model of a match, no I/O. The server pauses 700 ms per action (`normal`) or 400 ms per animated segment
+ * (`quick`) before it plays for a CPU, so that pause is the pacing floor of an all-CPU match.
+ * Commits are counted for two kinds of seat:
+ * - a person's actions: `normal` is one commit per action (a roll, or a move); `quick` merges a roll with exactly
+ *   one legal horse with its move (`commits`);
+ * - a CPU: the server rolls and moves in one step in both modes (`automatedCommits`, one per roll).
  */
 export type PacingPolicy = 'normal' | 'quick';
 
@@ -20,8 +23,10 @@ export interface GameCounters {
   actions: number;
   rolls: number;
   moves: number;
-  /** Server commits under the policy. */
+  /** Server commits under the policy when people take every action. */
   commits: number;
+  /** Server commits when CPUs take every action: one per roll, the move rides in the same commit. */
+  automatedCommits: number;
   /** Moves with two or more legal horses, i.e. a real choice for a person. */
   humanPrompts: number;
   /** Move phases with exactly one legal horse. */
@@ -49,6 +54,7 @@ export function playGame(
     rolls: 0,
     moves: 0,
     commits: 0,
+    automatedCommits: 0,
     humanPrompts: 0,
     singleMoves: 0,
     extraRolls: 0,
@@ -62,6 +68,7 @@ export function playGame(
     for (const e of events) {
       if (e.type === 'rolled') {
         c.rolls++;
+        c.automatedCommits++;
         c.actions++;
         if (e.dice === 1 || e.dice === 6) c.extraRolls++;
       } else if (e.type === 'moved') {

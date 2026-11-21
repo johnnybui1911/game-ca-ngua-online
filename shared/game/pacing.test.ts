@@ -31,6 +31,9 @@ describe('playGame', () => {
         expect(normal.finished && quick.finished).toBe(true);
         expect(normal.commits).toBe(normal.actions);
         expect(quick.commits).toBe(quick.actions - quick.singleMoves);
+        // A CPU plays a roll and its move in one commit whatever the mode.
+        expect(normal.automatedCommits).toBe(normal.rolls);
+        expect(quick.automatedCommits).toBe(quick.rolls);
       }
     }
   });
@@ -99,8 +102,8 @@ describe.skipIf(env.PACING_REPORT !== '1')('pacing report', () => {
   it('prints actions, commits and projected minutes per match', () => {
     const lines = [
       `Seeds 1000..${999 + GAMES}, ${GAMES} games per row, every seat Thường CPU.`,
-      '| Ghế | Chế độ | Hoàn tất | Thao tác (TB / trung vị / p90) | Commit (TB / trung vị / p90) | Phút theo nhịp server (TB / trung vị / p90) | Lượt chọn ngựa (TB) | Nước bắt buộc (TB) | Đá ngựa (TB) |',
-      '|---|---|---|---|---|---|---|---|---|',
+      '| Ghế | Chế độ | Hoàn tất | Thao tác (TB / trung vị / p90) | Commit khi người chơi (TB / trung vị / p90) | Commit khi máy chơi (TB / trung vị / p90) | Phút theo nhịp server (TB / trung vị / p90) | Lượt chọn ngựa (TB) | Nước bắt buộc (TB) | Đá ngựa (TB) |',
+      '|---|---|---|---|---|---|---|---|---|---|',
     ];
     for (const seats of [2, 3, 4]) {
       const colors = SEAT_COLORS[seats] ?? [];
@@ -110,7 +113,7 @@ describe.skipIf(env.PACING_REPORT !== '1')('pacing report', () => {
         const col = (f: (r: GameCounters) => number) => summarize(done.map(f));
         const three = (s: ReturnType<typeof summarize>, d = 0) => `${fmt(s.mean, d)} / ${fmt(s.median, d)} / ${fmt(s.p90, d)}`;
         lines.push(
-          `| ${seats} | ${m.name} | ${done.length}/${runs.length} | ${three(col((r) => r.actions))} | ${three(col((r) => r.commits))} | ${three(col((r) => r.pacingSeconds / 60), 1)} | ${fmt(col((r) => r.humanPrompts).mean)} | ${fmt(col((r) => r.singleMoves).mean)} | ${fmt(col((r) => r.kicks).mean, 1)} |`,
+          `| ${seats} | ${m.name} | ${done.length}/${runs.length} | ${three(col((r) => r.actions))} | ${three(col((r) => r.commits))} | ${three(col((r) => r.automatedCommits))} | ${three(col((r) => r.pacingSeconds / 60), 1)} | ${fmt(col((r) => r.humanPrompts).mean)} | ${fmt(col((r) => r.singleMoves).mean)} | ${fmt(col((r) => r.kicks).mean, 1)} |`,
         );
       }
     }
