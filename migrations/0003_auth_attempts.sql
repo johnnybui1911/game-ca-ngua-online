@@ -7,3 +7,6 @@ CREATE TABLE auth_attempts (
 );
 
 CREATE INDEX auth_attempts_key_time ON auth_attempts (kind, key_hash, created_at);
+
+-- Pruning deletes by kind and age.
+CREATE INDEX auth_attempts_kind_time ON auth_attempts (kind, created_at);
