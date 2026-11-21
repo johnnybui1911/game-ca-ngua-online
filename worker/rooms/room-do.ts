@@ -3,7 +3,10 @@ import { applyMove, applyRoll, createGame } from '../../shared/game/engine';
 import { chooseCpuMove } from '../../shared/game/cpu';
 import type { GameEvent, StepResult } from '../../shared/game/types';
 import {
+  CLOSE_SIGNED_OUT,
   SEAT_COLORS,
+  SIGNED_OUT_CODE,
+  SIGNED_OUT_MESSAGE,
   type PublicUser,
   type RoomClientMessage,
   type RoomServerMessage,
@@ -12,17 +15,15 @@ import {
 } from '../../shared/protocol';
 import type { Env } from '../env';
 import { SessionGuard, type SocketBinding } from './session-guard';
+import { KeyedQueue } from './socket-queue';
 import { KeyedTokenBuckets, TokenBucket } from './token-bucket';
 import {
-  CLOSE_SIGNED_OUT,
   HOST_ACTION_BURST,
   HOST_ACTION_REFILL_PER_SEC,
   MAX_MESSAGE_BYTES,
   MAX_SOCKETS_PER_USER,
   SESSION_HEADER,
   SESSION_RECHECK_MS,
-  SIGNED_OUT_CODE,
-  SIGNED_OUT_MESSAGE,
   SOCKET_BURST,
   SOCKET_REFILL_PER_SEC,
   USER_HEADER,
@@ -114,6 +115,7 @@ export class RoomDO extends DurableObject<Env> {
   private readonly hostBudget = new KeyedTokenBuckets(HOST_ACTION_BURST, HOST_ACTION_REFILL_PER_SEC);
   private readonly timings: Timings;
   private readonly sessions: SessionGuard;
+  private readonly inbox = new KeyedQueue<WebSocket>();
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
@@ -217,7 +219,12 @@ export class RoomDO extends DurableObject<Env> {
 
   // ------------------------------------------------------------ sockets
 
-  override async webSocketMessage(ws: WebSocket, message: string | ArrayBuffer): Promise<void> {
+  /** One socket's messages are handled in arrival order, though handling awaits. */
+  override webSocketMessage(ws: WebSocket, message: string | ArrayBuffer): Promise<void> {
+    return this.inbox.run(ws, () => this.handleMessage(ws, message));
+  }
+
+  private async handleMessage(ws: WebSocket, message: string | ArrayBuffer): Promise<void> {
     if (!this.room) return;
     let bucket = this.buckets.get(ws);
     if (!bucket) {
@@ -537,6 +544,15 @@ export class RoomDO extends DurableObject<Env> {
     );
   }
 
+  /** Sockets that never send a message (waiting, spectating) are still checked whenever the alarm runs. */
+  private async endExpiredSockets(now: number): Promise<void> {
+    const ended = await this.sessions.endedAmong(this.openSockets(), (ws) => ws.deserializeAttachment() as SocketUser, now);
+    for (const ws of ended) {
+      this.send(ws, { t: 'error', code: SIGNED_OUT_CODE, message: SIGNED_OUT_MESSAGE });
+      ws.close(CLOSE_SIGNED_OUT, SIGNED_OUT_CODE);
+    }
+  }
+
   /**
    * The one alarm. Whatever time it was armed for, what is due is re-derived
    * from persisted state, so a late or repeated firing does the right thing.
@@ -545,6 +561,9 @@ export class RoomDO extends DurableObject<Env> {
     const room = this.room;
     if (!room) return;
     const now = Date.now();
+    await this.endExpiredSockets(now);
+    // The room may have closed or been replaced while the lookup was in flight.
+    if (this.room !== room) return;
     const before = JSON.stringify(room);
     const connected = this.connectedUsers();
     reconcileConnections(room, connected, now, this.timings);

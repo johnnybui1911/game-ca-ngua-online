@@ -55,10 +55,6 @@ export const SOCKET_REFILL_PER_SEC = 50;
 export const USER_HEADER = 'X-Ca-User';
 /** Internal header carrying the hash of the session the socket was opened under; never sent to a client. */
 export const SESSION_HEADER = 'X-Ca-Session';
-/** Close code and error code for a socket whose session has ended (signed out, expired, or its user deleted). */
-export const CLOSE_SIGNED_OUT = 4006;
-export const SIGNED_OUT_CODE = 'signed_out';
-export const SIGNED_OUT_MESSAGE = 'Phiên đăng nhập đã kết thúc.';
 /** A socket's session is looked up again when it sends a message and its last lookup is at least this old. */
 export const SESSION_RECHECK_MS = 30_000;
 /** Rooms a user may host at once that have not finished. */
