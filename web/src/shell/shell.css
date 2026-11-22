@@ -1,0 +1,355 @@
+/*
+ * App shell: the one canvas behind every page, the poster shown while it loads, the panel that
+ * holds every screen between the home page and a match, and the three corner controls.
+ *
+ * Stacking is by document order: the scene first, then the corner controls, then the page.
+ * A page's fixed boxes therefore cover the corner controls, which is what its dialogs need.
+ */
+
+.shell-scene {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  background: var(--color-bg-deep);
+}
+
+.shell-canvas {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity var(--dur-slower) var(--ease-out);
+}
+
+.shell-scene[data-load='ready'] .shell-canvas {
+  opacity: 1;
+}
+
+/* Foreground band: grounds the controls at the bottom edge. A match has its own HUD there. */
+.shell-scene[data-match]::after {
+  opacity: 0;
+}
+
+.shell-scene::after {
+  content: '';
+  position: absolute;
+  inset: auto 0 0;
+  height: min(38%, 320px);
+  background: linear-gradient(to top, rgb(13 8 6 / 82%), rgb(13 8 6 / 45%) 45%, transparent);
+  pointer-events: none;
+  transition: opacity var(--dur-slower) var(--ease-out);
+}
+
+.shell-poster {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: var(--space-4);
+  pointer-events: none;
+  transition:
+    opacity var(--dur-slower) var(--ease-out),
+    visibility 0s linear var(--dur-slower);
+}
+
+.shell-scene[data-load='ready'] .shell-poster {
+  opacity: 0;
+  visibility: hidden;
+}
+
+/* The picture wrapper must not take a grid row, or the loading card drops below centre. */
+.shell-poster > picture {
+  position: absolute;
+  inset: 0;
+}
+
+.shell-poster-image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  /* While the board loads the poster is only a backdrop behind the loading card: soften it. */
+  filter: blur(8px) brightness(0.55) saturate(1.15);
+  transform: scale(1.08);
+}
+
+/* The poster is the backdrop for good (no canvas on this device yet): show more of it. */
+.shell-scene[data-load='poster'] .shell-poster-image {
+  filter: blur(3px) brightness(0.6) saturate(1.1);
+}
+
+.shell-poster-card {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: var(--space-2);
+  padding: var(--space-4) var(--space-5);
+  color: var(--color-text);
+  text-align: center;
+  background: var(--glass-fill-solid);
+  border: 1px solid var(--glass-stroke);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--glass-specular), var(--glass-shadow);
+}
+
+.shell-poster-card .brand {
+  margin: 0;
+}
+
+.shell-poster-name {
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  letter-spacing: var(--tracking-title);
+  text-transform: uppercase;
+  color: var(--color-gold-strong);
+}
+
+.shell-poster-progress {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+
+/* The match page is drawn over the shell's canvas instead of its own backdrop. */
+.shell .match {
+  background: transparent;
+}
+
+/* Corner controls */
+
+.shell-slot {
+  position: fixed;
+  display: flex;
+  transition:
+    right var(--dur-slow) var(--ease-out),
+    bottom var(--dur-slow) var(--ease-out);
+}
+
+.shell-slot--top-right {
+  top: calc(var(--space-3) + env(safe-area-inset-top));
+  right: calc(var(--space-3) + env(safe-area-inset-right) + var(--shell-panel-right, 0px));
+}
+
+.shell-slot--bottom-left {
+  left: calc(var(--space-3) + env(safe-area-inset-left));
+  bottom: calc(var(--space-3) + env(safe-area-inset-bottom) + var(--shell-panel-bottom, 0px));
+}
+
+.shell-slot--bottom-right {
+  right: calc(var(--space-3) + env(safe-area-inset-right) + var(--shell-panel-right, 0px));
+  bottom: calc(var(--space-3) + env(safe-area-inset-bottom) + var(--shell-panel-bottom, 0px));
+}
+
+/* Panel: a sheet over the lower part of a narrow screen, a column beside the board on a wide one. */
+
+.shell-panel {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  max-height: 58dvh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: var(--space-2) calc(var(--space-2) + env(safe-area-inset-right)) calc(var(--space-2) + env(safe-area-inset-bottom))
+    calc(var(--space-2) + env(safe-area-inset-left));
+  /*
+   * Short, so the panel's controls are at rest almost at once. No fill mode: once in place the
+   * panel has no transform, so fixed dialogs inside it still cover the screen.
+   */
+  animation: shell-sheet-in var(--dur-base) var(--ease-out);
+}
+
+.shell-panel-body {
+  display: grid;
+  min-width: 0;
+}
+
+@media (min-width: 900px) {
+  .shell-panel {
+    top: 0;
+    left: auto;
+    width: min(460px, 42vw);
+    max-height: none;
+    display: flex;
+    flex-direction: column;
+    padding: calc(var(--space-5) + env(safe-area-inset-top)) calc(var(--space-5) + env(safe-area-inset-right))
+      calc(var(--space-5) + env(safe-area-inset-bottom)) var(--space-2);
+    animation-name: shell-side-in;
+  }
+
+  .shell-panel--wide {
+    width: min(560px, 46vw);
+  }
+
+  /* Centred while it fits, scrolling from its top once it does not. */
+  .shell-panel-body {
+    margin-block: auto;
+  }
+}
+
+/* The copy of a panel that gave the board to a match: it leaves the way it came. */
+.shell-panel--leaving {
+  pointer-events: none;
+  animation: shell-sheet-out var(--dur-slow) var(--ease-in-out) forwards;
+}
+
+@media (min-width: 900px) {
+  .shell-panel--leaving {
+    animation-name: shell-side-out;
+  }
+}
+
+@keyframes shell-sheet-out {
+  to {
+    opacity: 0;
+    transform: translateY(40px);
+  }
+}
+
+@keyframes shell-side-out {
+  to {
+    opacity: 0;
+    transform: translateX(40px);
+  }
+}
+
+@keyframes shell-sheet-in {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+}
+
+@keyframes shell-side-in {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+}
+
+/* Pages that are still cards of their own take the panel's width instead of the screen's. */
+.shell-panel-body > :is(.auth-page, .room-page) {
+  display: block;
+  min-height: 0;
+  padding: 0;
+}
+
+.shell-panel-body :is(.auth-card, .room-card, .room-panel) {
+  width: 100%;
+  /* The panel itself slides in; its content does not enter a second time. */
+  animation: none;
+}
+
+/* The waiting room is laid out for the panel's width, not the screen's: one column. */
+.shell-panel-body .room-columns {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* Glass surface inside the panel, and the form pieces on it. */
+
+.shell-glass {
+  display: grid;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.shell-glass-title {
+  font-size: var(--text-xl);
+  overflow-wrap: anywhere;
+}
+
+.shell-glass > .ui-eyebrow {
+  margin-bottom: calc(-1 * var(--space-3));
+}
+
+.shell-status {
+  margin: 0;
+  padding: var(--space-4) var(--space-5);
+  text-align: center;
+  font-weight: var(--weight-semibold);
+}
+
+/* Home page */
+
+.home-title {
+  position: fixed;
+  top: calc(var(--space-5) + env(safe-area-inset-top));
+  left: calc(var(--space-5) + env(safe-area-inset-left));
+  max-width: calc(100% - 2 * var(--space-5));
+  display: grid;
+  gap: var(--space-1);
+  padding-bottom: var(--space-3);
+  pointer-events: none;
+  text-shadow: 0 2px 18px rgb(0 0 0 / 70%);
+}
+
+.home-title h1 {
+  font-size: clamp(2.25rem, 5vw, 3.75rem);
+}
+
+.home-band {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: grid;
+  justify-items: center;
+  gap: var(--space-2);
+  padding: var(--space-4) calc(var(--space-3) + env(safe-area-inset-right)) calc(var(--space-4) + env(safe-area-inset-bottom))
+    calc(var(--space-3) + env(safe-area-inset-left));
+  pointer-events: none;
+  animation: home-band-in var(--dur-base) var(--ease-out);
+}
+
+.home-band > * {
+  pointer-events: auto;
+}
+
+@keyframes home-band-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+}
+
+.home-links {
+  /* Narrower than the screen by the corner controls on both sides. */
+  max-width: calc(100vw - 2 * (var(--touch) + 2 * var(--space-3)));
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0 var(--space-1);
+}
+
+.home-link {
+  padding: 0 var(--space-3);
+  font-size: var(--text-sm);
+  color: var(--color-text);
+  text-shadow: 0 1px 8px rgb(0 0 0 / 80%);
+}
+
+.home-join {
+  display: grid;
+  gap: var(--space-2);
+  width: min(100%, 420px);
+  padding: var(--space-4);
+}
+
+.home-join .lobby-section {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.home-join h2 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  color: var(--color-gold-strong);
+}
+
+@media (max-width: 720px) {
+  .home-title {
+    top: calc(var(--space-4) + env(safe-area-inset-top));
+    left: calc(var(--space-4) + env(safe-area-inset-left));
+  }
+}

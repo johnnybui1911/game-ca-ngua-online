@@ -2,29 +2,17 @@
  * Development-only harness: plays a local game with the real engine and CPU
  * and feeds each step to GameScene as a server batch would.
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import type { CSSProperties } from 'react';
 import { PerspectiveCamera, Vector3 } from 'three';
-import { applyMove, applyRoll, createGame } from '../../../../shared/game/engine';
-import { chooseCpuMove } from '../../../../shared/game/cpu';
 import { DEFAULT_CPU_LEVEL, isCpuLevel, type CpuLevel } from '../../../../shared/game/cpu-level';
-import type { DiceValue, GameEvent, GameState } from '../../../../shared/game/types';
 import { DEFAULT_ROOM_SETTINGS, SEAT_COLORS } from '../../../../shared/protocol';
 import type { RoomSnapshot } from '../../../../shared/protocol';
+import { DemoDriver } from '../../demo/demo-driver';
 import { defaultPolar, fitCameraDistance, seatCameraPosition } from '../camera';
 import GameScene from '../GameScene';
 import { STABLE, horseGround } from '../layout';
-
-function mulberry32(seed: number): () => number {
-  let a = seed >>> 0;
-  return () => {
-    a = (a + 0x6d2b79f5) >>> 0;
-    let t = a;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
+import type { ShowcaseStep } from '../props';
 
 /** `?level=easy|normal|hard` makes the harness CPUs play at that level (default Thường). */
 /** `?quick=1` plays the quick match variant at quick pace. */
@@ -37,13 +25,9 @@ function devLevel(): CpuLevel {
   return isCpuLevel(level) ? level : DEFAULT_CPU_LEVEL;
 }
 
-interface Step {
-  game: GameState;
-  events: GameEvent[];
-  seq: number;
-}
+const DEFAULT_SEED = 7;
 
-function snapshot(step: Step, players: number): RoomSnapshot {
+function snapshot(step: ShowcaseStep, players: number): RoomSnapshot {
   const colors = SEAT_COLORS[players] ?? SEAT_COLORS[4]!;
   return {
     code: 'DEV000',
@@ -74,29 +58,18 @@ const bar: CSSProperties = {
 
 export default function DevApp() {
   const [players, setPlayers] = useState(4);
-  const [seed, setSeed] = useState(7);
+  const [seed, setSeed] = useState(DEFAULT_SEED);
   const [delay, setDelay] = useState(700);
   const [playMe, setPlayMe] = useState(false);
   const [paused, setPaused] = useState(false);
   const [picks, setPicks] = useState(0);
-  const rng = useRef(mulberry32(seed));
-  const [step, setStep] = useState<Step>(() => ({ game: createGame(SEAT_COLORS[4]!, devQuick() ? 'quick' : 'classic'), events: [], seq: 1 }));
+  // The game lives outside React state: the die is drawn once per action, whatever React re-runs.
+  const [driver] = useState(
+    () => new DemoDriver({ seed: DEFAULT_SEED, colors: SEAT_COLORS[4]!, variant: devQuick() ? 'quick' : 'classic', level: devLevel() }),
+  );
+  const step = useSyncExternalStore(driver.subscribe, driver.getStep);
 
-  const restart = useCallback((count: number, nextSeed: number) => {
-    rng.current = mulberry32(nextSeed);
-    setStep((prev) => ({ game: createGame(SEAT_COLORS[count]!, devQuick() ? 'quick' : 'classic'), events: [], seq: prev.seq + 1 }));
-  }, []);
-
-  const advance = useCallback((fn: (g: GameState) => { state: GameState; events: GameEvent[] }) => {
-    setStep((prev) => {
-      const r = fn(prev.game);
-      return { game: r.state, events: r.events, seq: prev.seq + 1 };
-    });
-  }, []);
-
-  const roll = useCallback(() => {
-    advance((g) => applyRoll(g, (1 + Math.floor(rng.current() * 6)) as DiceValue));
-  }, [advance]);
+  const restart = (count: number, nextSeed: number) => driver.deal({ colors: SEAT_COLORS[count]!, seed: nextSeed });
 
   const { game } = step;
   const humanTurn = playMe && game.turn === 0;
@@ -104,18 +77,18 @@ export default function DevApp() {
   useEffect(() => {
     if (game.phase === 'finished' || paused || humanTurn) return;
     const id = window.setTimeout(() => {
-      if (game.phase === 'roll') roll();
-      else advance((g) => applyMove(g, chooseCpuMove(g, devLevel())));
+      if (driver.game.phase === 'roll') driver.roll();
+      else driver.cpuMove();
     }, delay);
     return () => window.clearTimeout(id);
-  }, [game, paused, humanTurn, delay, roll, advance, step.seq]);
+  }, [driver, game, paused, humanTurn, delay]);
 
   const onPickHorse = useCallback(
     (horse: number) => {
       setPicks((n) => n + 1);
-      advance((g) => applyMove(g, horse));
+      driver.move(horse);
     },
-    [advance],
+    [driver],
   );
 
   const room = useMemo(() => snapshot(step, players), [step, players]);
@@ -184,7 +157,7 @@ export default function DevApp() {
           <input type="checkbox" checked={paused} onChange={(e) => setPaused(e.target.checked)} /> Tạm dừng
         </label>
         {humanTurn && game.phase === 'roll' && (
-          <button id="roll" onClick={roll}>
+          <button id="roll" onClick={() => driver.roll()}>
             Tung xúc xắc
           </button>
         )}

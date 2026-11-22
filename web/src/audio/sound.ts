@@ -15,6 +15,7 @@ export interface SoundSettings {
 const STORAGE_KEY = 'ca-ngua:sound';
 const LOOKAHEAD_S = 0.15;
 const TICK_MS = 30;
+const DEFAULT_FADE_IN_S = 1;
 
 interface Voice {
   wave: OscillatorType | 'noise' | 'kick';
@@ -113,8 +114,10 @@ class SoundEngine {
   private master: GainNode | null = null;
   private noise: AudioBuffer | null = null;
   private wanted: Track | null = null;
+  private fadeIn = DEFAULT_FADE_IN_S;
   private playing: Playing | null = null;
   private settings: SoundSettings = loadSettings();
+  private boardMuted = false;
   private readonly listeners = new Set<() => void>();
 
   getSettings = (): SoundSettings => this.settings;
@@ -135,8 +138,13 @@ class SoundEngine {
     this.syncMusic();
   }
 
-  /** Track to loop from now on; switching fades the previous one out. */
-  setTrack(track: Track | null): void {
+  /**
+   * Track to loop from now on; switching fades the previous one out. `fadeInSeconds` is how
+   * gently it comes in when it starts (also when it can only start later, on the first gesture);
+   * asking again for the track already wanted keeps the fade it was asked with.
+   */
+  setTrack(track: Track | null, fadeInSeconds?: number): void {
+    if (track !== this.wanted || fadeInSeconds !== undefined) this.fadeIn = fadeInSeconds ?? DEFAULT_FADE_IN_S;
     this.wanted = track;
     this.syncMusic();
   }
@@ -202,11 +210,20 @@ class SoundEngine {
   }
 
   /**
+   * Holds back the effects the board plays by itself (hooves, kicks) while `muted`: the home page's
+   * demo game must not be heard under a panel the player is reading. Music and every other effect
+   * are not affected.
+   */
+  setBoardEffectsMuted(muted: boolean): void {
+    this.boardMuted = muted;
+  }
+
+  /**
    * Hoof beats for a horse moving `hops` cells, one "clip-clop" per hop, spaced like the board
    * animation; with `kickAt` (seconds from now) a heavy knock where it kicks an opponent home.
    */
   playHooves(hops: number, hopSeconds: number, kickAt: number | null): void {
-    const ctx = this.effectsContext();
+    const ctx = this.boardMuted ? null : this.effectsContext();
     if (!ctx) return;
     const t0 = ctx.currentTime;
     const gap = Math.max(0.05, hopSeconds);
@@ -271,7 +288,9 @@ class SoundEngine {
     const song = SONGS[track];
     const bus = ctx.createGain();
     bus.gain.setValueAtTime(0, ctx.currentTime);
-    bus.gain.linearRampToValueAtTime(1, ctx.currentTime + 1);
+    bus.gain.linearRampToValueAtTime(1, ctx.currentTime + this.fadeIn);
+    // The gentle entry belongs to the request that asked for it; later starts (unmuting) use the default.
+    this.fadeIn = DEFAULT_FADE_IN_S;
     bus.connect(master);
     const stepS = 60 / song.bpm / 4;
     let step = 0;

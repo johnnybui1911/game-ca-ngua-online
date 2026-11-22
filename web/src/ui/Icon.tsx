@@ -1,0 +1,137 @@
+import {
+  ArrowLeft,
+  BookOpen,
+  Bot,
+  Check,
+  CircleHelp,
+  Copy,
+  Crown,
+  Dices,
+  Lock,
+  LockOpen,
+  LogOut,
+  Menu,
+  MessageSquareText,
+  Pause,
+  Pencil,
+  Play,
+  Music,
+  Settings,
+  Share2,
+  Smile,
+  Timer,
+  Trophy,
+  User,
+  UserMinus,
+  UserPlus,
+  Vibrate,
+  Volume2,
+  VolumeX,
+  WifiOff,
+  X,
+  type LucideIcon,
+} from 'lucide-react';
+
+/**
+ * App icon set. Controls use these names instead of emoji or text glyphs:
+ *
+ * | name        | replaces                         | lucide             |
+ * |-------------|----------------------------------|--------------------|
+ * | sound-on    | 🔊 sound toggle (unmuted)        | Volume2            |
+ * | sound-off   | 🔇 sound toggle (muted)          | VolumeX            |
+ * | music       | "Nhạc nền" switch                | Music              |
+ * | menu        | "Menu" button in a match         | Menu               |
+ * | leave       | "Rời phòng" button               | LogOut             |
+ * | copy-link   | "Sao chép liên kết" button       | Copy               |
+ * | share       | "Chia sẻ" button                 | Share2             |
+ * | rules       | "Luật chơi" button               | BookOpen           |
+ * | settings    | "Cài đặt ván" / settings entry   | Settings           |
+ * | feedback    | "Góp ý" entry                    | MessageSquareText  |
+ * | emote       | 💬 emote picker button           | Smile              |
+ * | close       | "Đóng" / ✕ on dialogs and sheets | X                  |
+ * | back        | "Quay lại" / back to lobby       | ArrowLeft          |
+ * | dice        | "Đổ xúc xắc" roll button         | Dices              |
+ * | user        | player / account                 | User               |
+ * | crown       | host badge, winner               | Crown              |
+ * | win         | win dialog / ranking             | Trophy             |
+ * | check       | confirmed / copied               | Check              |
+ * | lock        | 🔒 home column locked (quick)    | Lock               |
+ * | unlock      | 🔓 home column open (quick)      | LockOpen           |
+ * | pause       | "Tạm dừng ván đấu" (host)        | Pause              |
+ * | play        | "Tiếp tục" (host)                | Play               |
+ * | timer       | turn countdown                   | Timer              |
+ * | bot         | CPU player badge                 | Bot                |
+ * | user-plus   | "Thêm CPU"                       | UserPlus           |
+ * | user-minus  | "Bỏ CPU"                         | UserMinus          |
+ * | pencil      | "Đặt tên quân"                   | Pencil             |
+ * | wifi-off    | offline player badge             | WifiOff            |
+ * | shake       | shake-to-roll                    | Vibrate            |
+ * | help        | "?" rules button in a match      | CircleHelp         |
+ */
+const ICONS = {
+  'sound-on': Volume2,
+  'sound-off': VolumeX,
+  music: Music,
+  menu: Menu,
+  leave: LogOut,
+  'copy-link': Copy,
+  share: Share2,
+  rules: BookOpen,
+  settings: Settings,
+  feedback: MessageSquareText,
+  emote: Smile,
+  close: X,
+  back: ArrowLeft,
+  dice: Dices,
+  user: User,
+  crown: Crown,
+  win: Trophy,
+  check: Check,
+  lock: Lock,
+  unlock: LockOpen,
+  pause: Pause,
+  play: Play,
+  timer: Timer,
+  bot: Bot,
+  'user-plus': UserPlus,
+  'user-minus': UserMinus,
+  pencil: Pencil,
+  'wifi-off': WifiOff,
+  shake: Vibrate,
+  help: CircleHelp,
+} as const satisfies Record<string, LucideIcon>;
+
+export type IconName = keyof typeof ICONS;
+
+export const ICON_NAMES = Object.keys(ICONS) as IconName[];
+
+/** Pixel sizes; md matches body text inside a 48px control. */
+const SIZES = { sm: 16, md: 20, lg: 24, xl: 32 } as const;
+
+export type IconSize = keyof typeof SIZES;
+
+/** Rendered stroke in px, kept equal across sizes (lucide scales stroke with its 24px viewBox). */
+const STROKE_PX = 1.75;
+
+interface IconProps {
+  name: IconName;
+  size?: IconSize;
+  /** Accessible name. Omit when the icon sits next to visible text or inside a labelled control. */
+  label?: string;
+  className?: string;
+}
+
+export function Icon({ name, size = 'md', label, className }: IconProps) {
+  const Glyph = ICONS[name];
+  return (
+    <Glyph
+      className={className ? `ui-icon ${className}` : 'ui-icon'}
+      size={SIZES[size]}
+      strokeWidth={(STROKE_PX * 24) / SIZES[size]}
+      aria-hidden={label ? undefined : true}
+      aria-label={label}
+      role={label ? 'img' : undefined}
+      focusable="false"
+    />
+  );
+}

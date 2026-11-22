@@ -1,39 +1,122 @@
+/* The speaker button and its popover. The app shell's bottom-left slot places it. */
 .sound-button {
-  position: fixed;
-  z-index: 50;
-  right: calc(var(--space-3) + env(safe-area-inset-right));
-  bottom: calc(var(--space-3) + env(safe-area-inset-bottom));
+  position: relative;
   display: grid;
-  justify-items: end;
-  gap: var(--space-2);
+}
+
+html[data-quality='low'] .sound-toggle {
+  background: var(--glass-fill-solid);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
 }
 
 .sound-toggle {
-  width: var(--touch);
-  padding: 0;
-  border-radius: 50%;
-  font-size: var(--text-lg);
+  color: var(--color-text);
+  background: var(--glass-fill);
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  backdrop-filter: blur(var(--glass-blur));
+  box-shadow: var(--glass-specular), var(--shadow-sm);
 }
 
-.sound-popover {
-  padding: var(--space-3) var(--space-4);
+.glass.sound-popover {
+  width: min(280px, calc(100vw - 2 * var(--space-3)));
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-md);
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + var(--space-2));
+  transform-origin: bottom left;
+  animation: sound-popover-in var(--dur-slow) var(--ease-out);
+}
+
+@keyframes sound-popover-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.97);
+  }
 }
 
 .sound-switches {
   display: grid;
-  gap: var(--space-2);
   text-align: left;
+  color: var(--color-text);
 }
 
-.sound-switches label {
+.sound-switch {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
-  min-height: 36px;
+  gap: var(--space-3);
+  min-height: var(--touch);
   cursor: pointer;
 }
 
-.sound-switches input {
-  width: 20px;
-  height: 20px;
+.sound-switch > .ui-icon {
+  color: var(--color-gold);
+}
+
+.sound-switch > span {
+  flex: 1;
+}
+
+.sound-switch + .sound-switch {
+  border-top: 1px solid var(--color-border);
+}
+
+/* "Hoạt cảnh" in the match menu: a sound-switch row whose control is two pills, not a switch. */
+.motion-switch {
+  flex-wrap: wrap;
+  cursor: default;
+}
+
+.sound-switch > .motion-level-pills {
+  flex: none;
+}
+
+/*
+ * On/off switch drawn on the native checkbox so keyboard, forms and tests keep working.
+ * Room settings, the emote picker and the match menu reuse `.switch-input`.
+ */
+.switch-input {
+  appearance: none;
+  flex: none;
+  position: relative;
+  width: 44px;
+  height: 26px;
+  margin: 0;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-pill);
+  background: rgb(245 234 210 / 10%);
+  cursor: pointer;
+  transition:
+    background-color var(--dur-base) var(--ease-out),
+    border-color var(--dur-base) var(--ease-out);
+}
+
+.switch-input::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--color-text-muted);
+  transition:
+    transform var(--dur-base) var(--ease-out),
+    background-color var(--dur-base) var(--ease-out);
+}
+
+.switch-input:checked {
+  background: var(--color-accent);
+  border-color: var(--color-gold);
+}
+
+.switch-input:checked::after {
+  transform: translateX(18px);
+  background: var(--color-text-on-accent);
+}
+
+.switch-input:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
 }

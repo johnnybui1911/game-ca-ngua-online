@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { ORIGIN_HEADER, PASSWORD, control, signUp, uniqueEmail, whoAmI } from './auth-helpers';
+import { ORIGIN_HEADER, PASSWORD, control, openLobby, signUp, uniqueEmail, whoAmI } from './auth-helpers';
 import { createRoom, newGuest, newPlayer, ORIGIN } from './helpers/rooms';
 
 test.beforeEach(async () => {
@@ -44,6 +44,34 @@ test('an unknown room code says so and continues to the lobby', async ({ browser
   await context.close();
 });
 
+test('each panel takes the focus on its title, so nothing is left focused on the page body', async ({ browser }) => {
+  const context = await browser.newContext({ baseURL: ORIGIN, locale: 'vi-VN' });
+  const page = await context.newPage();
+  await page.goto('/');
+  await page.getByTestId('play-now').click();
+  await expect(page.getByTestId('panel-host').locator('h1')).toBeFocused();
+  await page.getByTestId('guest-name').fill('Khách Bàn Phím');
+  await page.getByTestId('guest-submit').click();
+  await expect(page.getByTestId('greeting')).toBeFocused();
+  await page.getByTestId('lobby-home').click();
+  await expect(page.getByTestId('home').locator('h1')).toBeFocused();
+  await page.getByTestId('play-now').click();
+  await page.getByTestId('create-name').fill('Phòng bàn phím');
+  await page.getByTestId('create-submit').click();
+  await expect(page.getByTestId('room-name')).toBeFocused();
+  await context.close();
+
+  const visitor = await browser.newContext({ baseURL: ORIGIN, locale: 'vi-VN' });
+  const signIn = await visitor.newPage();
+  await signIn.goto('/bat-dau');
+  await signIn.getByTestId('to-signin').click();
+  await expect(signIn.locator('#auth-title')).toBeFocused();
+  await signIn.getByTestId('to-signup').click();
+  await expect(signIn.locator('#auth-title')).toHaveText('Đăng ký');
+  await expect(signIn.locator('#auth-title')).toBeFocused();
+  await visitor.close();
+});
+
 test('the entry screen validates the name and /bat-dau with a session goes on to returnTo', async ({ browser }) => {
   const context = await browser.newContext({ baseURL: ORIGIN, locale: 'vi-VN' });
   const page = await context.newPage();
@@ -61,11 +89,23 @@ test('the entry screen validates the name and /bat-dau with a session goes on to
   await context.close();
 });
 
-test('a visitor at / enters a name, reaches the lobby and keeps the same user after reload', async ({ browser }) => {
+test('a visitor at / sees the home page, enters a name after "Chơi ngay", reaches the lobby and keeps the same user after reload', async ({ browser }) => {
   const context = await browser.newContext({ baseURL: ORIGIN, locale: 'vi-VN' });
   const page = await context.newPage();
+  const sockets: string[] = [];
+  page.on('websocket', (ws) => sockets.push(ws.url()));
   await page.goto('/');
-  await expect(page).toHaveURL(/\/bat-dau\?returnTo=%2F$/);
+  // The home page is public: the board with one button, no name asked yet and no lobby connection.
+  await expect(page).toHaveURL('/');
+  await expect(page.getByTestId('play-now')).toHaveText('Chơi ngay');
+  await expect(page.getByTestId('home-rules')).toHaveAttribute('href', '/co-ca-ngua-online');
+  await expect(page.getByTestId('guest-name')).toHaveCount(0);
+  await expect(page.getByTestId('greeting')).toHaveCount(0);
+  expect(await whoAmI(page)).toBeNull();
+  expect(sockets.filter((url) => url.includes('/api/lobby/ws'))).toEqual([]);
+
+  await page.getByTestId('play-now').click();
+  await expect(page).toHaveURL('/bat-dau');
   await expect(page.getByTestId('guest-submit')).toHaveText('Chơi ngay');
   await expect(page.getByTestId('entry-room')).toHaveCount(0);
   await page.getByTestId('guest-name').fill('Khách Sảnh');
@@ -87,15 +127,20 @@ test('a visitor at / enters a name, reaches the lobby and keeps the same user af
   await expect(page.getByTestId('greeting')).toBeVisible();
   await page.getByTestId('signout').click();
   await page.getByTestId('signout-confirm').click();
-  await expect(page).toHaveURL(/\/bat-dau/);
+  // Signed out: back on the home page.
+  await expect(page.getByTestId('play-now')).toBeVisible();
+  await expect(page).toHaveURL('/');
   expect(await whoAmI(page)).toBeNull();
+
+  // The name panel offers the name this browser last played under.
+  await page.getByTestId('play-now').click();
+  await expect(page.getByTestId('guest-name')).toHaveValue('Khách Sảnh');
   await context.close();
 });
 
 test('a registered player sees no guest notice and the usual sign-out', async ({ browser }) => {
   const p = await newPlayer(browser, 'Người Đã Đăng Ký');
-  await p.page.goto('/');
-  await expect(p.page.getByTestId('greeting')).toBeVisible();
+  await openLobby(p.page);
   await expect(p.page.getByTestId('guest-notice')).toHaveCount(0);
   await expect(p.page.getByTestId('signout')).toHaveText('Đăng xuất');
   await p.context.close();
@@ -240,7 +285,25 @@ test('a guest signing in with Google whose verified email belongs to an account 
   await owner.close();
 });
 
-test('the landing page explains the game and its play button leads to the entry screen', async ({ browser }) => {
+test('the home page opens a room from its code: an unknown code says so, a known one asks the visitor for a name', async ({ browser }) => {
+  const host = await newPlayer(browser, 'Chủ Phòng Mã');
+  const code = await createRoom(host, { name: 'Phòng nhập mã', visibility: 'private', seats: 2 });
+  const context = await browser.newContext({ baseURL: ORIGIN, locale: 'vi-VN' });
+  const page = await context.newPage();
+  await page.goto('/');
+  await page.getByTestId('home-join-open').click();
+  await page.getByTestId('join-input').fill('ZZZZ22');
+  await page.getByTestId('join-submit').click();
+  await expect(page.getByTestId('join-error')).toHaveText('Không tìm thấy phòng');
+  await page.getByTestId('join-input').fill(code.toLowerCase());
+  await page.getByTestId('join-submit').click();
+  await expect(page).toHaveURL(new RegExp(`/bat-dau\\?returnTo=%2Fr%2F${code}$`));
+  await expect(page.getByTestId('entry-room-name')).toHaveText('Phòng nhập mã');
+  await context.close();
+  await host.context.close();
+});
+
+test('the landing page explains the game and its play button leads to the home page', async ({ browser }) => {
   const context = await browser.newContext({ baseURL: ORIGIN, locale: 'vi-VN' });
   const page = await context.newPage();
   await page.goto('/co-ca-ngua-online?utm_source=facebook');
@@ -248,7 +311,8 @@ test('the landing page explains the game and its play button leads to the entry 
   await expect(page.locator('#luat-choi')).toBeVisible();
   expect((await context.cookies()).find((c) => c.name === 'ca_src')?.value).toBe('facebook');
   await page.getByTestId('landing-play').click();
-  await expect(page).toHaveURL(/\/bat-dau\?returnTo=%2F$/);
-  await expect(page.getByTestId('entry-landing-link')).toHaveAttribute('href', '/co-ca-ngua-online');
+  await expect(page).toHaveURL('/');
+  await expect(page.getByTestId('play-now')).toBeVisible();
+  await expect(page.getByTestId('home-rules')).toHaveAttribute('href', '/co-ca-ngua-online');
   await context.close();
 });

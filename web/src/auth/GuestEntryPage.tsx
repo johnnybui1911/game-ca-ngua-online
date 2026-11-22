@@ -2,13 +2,33 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { Link, Navigate, useSearchParams } from 'react-router';
 import type { RoomSummary } from '../../../shared/protocol';
 import { api, ApiRequestError } from '../api';
+import { useMusic } from '../audio/SoundControls';
 import { parseRoomCode } from '../lobby/room-code';
-import { AuthLayout } from './AuthLayout';
+import { GlassPanel, PanelHost } from '../shell/PanelHost';
+import { Icon } from '../ui/Icon';
 import { sanitizeReturnTo } from './return-to';
 import { useSession } from './session-context';
 
 const MIN_NAME_LENGTH = 2;
 const MAX_NAME_LENGTH = 24;
+/** The name this browser last played under, offered again to a returning visitor. */
+const NAME_KEY = 'ca-ngua:guest-name';
+
+function rememberedName(): string {
+  try {
+    return (localStorage.getItem(NAME_KEY) ?? '').slice(0, MAX_NAME_LENGTH);
+  } catch {
+    return '';
+  }
+}
+
+function rememberName(name: string): void {
+  try {
+    localStorage.setItem(NAME_KEY, name);
+  } catch {
+    // private mode: nothing to remember
+  }
+}
 
 type RoomState = { kind: 'none' } | { kind: 'loading' } | { kind: 'found'; room: RoomSummary } | { kind: 'missing' } | { kind: 'limited'; message: string }
   | { kind: 'failed' };
@@ -43,7 +63,7 @@ function useRoomSummary(code: string | null): RoomState {
   return state;
 }
 
-/** The first screen for a visitor without a session: a name and one button. */
+/** The name panel for a visitor without a session: a name and one button, over the board. */
 export function GuestEntryPage() {
   const { ready, user, playAsGuest } = useSession();
   const [params] = useSearchParams();
@@ -51,7 +71,8 @@ export function GuestEntryPage() {
   const code = roomCodeOf(returnTo);
   const room = useRoomSummary(code);
 
-  const [name, setName] = useState('');
+  const [name, setName] = useState(rememberedName);
+  useMusic('lobby');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -60,7 +81,8 @@ export function GuestEntryPage() {
   const target = missing ? '/' : returnTo;
   const entering = code !== null && !missing;
 
-  if (!ready) return <p className="page-status" role="status">Đang tải…</p>;
+  // The board (or its poster) is already on screen; nothing to add until the session is known.
+  if (!ready) return null;
   if (user) return <Navigate to={target} replace />;
 
   const signInLink = `/dang-nhap${returnTo === '/' ? '' : `?returnTo=${encodeURIComponent(returnTo)}`}`;
@@ -77,6 +99,7 @@ export function GuestEntryPage() {
     try {
       // The session change re-renders this page, which then navigates to the target.
       await playAsGuest(name);
+      rememberName(name.trim().replace(/\s+/g, ' '));
     } catch (err) {
       setError(err instanceof ApiRequestError ? err.message : 'Có lỗi xảy ra, vui lòng thử lại.');
       setBusy(false);
@@ -84,65 +107,63 @@ export function GuestEntryPage() {
   }
 
   return (
-    <AuthLayout title={entering ? 'Vào phòng chơi' : 'Chơi ngay'}>
-      {room.kind === 'found' && (
-        <p className="entry-room" data-testid="entry-room">
-          Vào phòng <strong data-testid="entry-room-name">{room.room.name}</strong> của{' '}
-          <strong data-testid="entry-room-host">{room.room.hostName}</strong>
-        </p>
-      )}
-      {missing && (
-        <p className="entry-room entry-room-missing" role="status" data-testid="entry-room-missing">
-          Không tìm thấy phòng. Bạn vẫn có thể vào sảnh và chơi.
-        </p>
-      )}
-      {room.kind === 'limited' && (
-        <p className="entry-room" role="status" data-testid="entry-room-limited">
-          {room.message}
-        </p>
-      )}
-      {code === null && (
-        <div className="entry-pitch" data-testid="entry-pitch">
-          <img src="/board.jpg" alt="Bàn cờ cá ngựa 3D với ngựa bốn màu" width={800} height={420} />
-          <ul>
-            <li>Không cài app, nhập tên là chơi</li>
-            <li>Tạo phòng, gửi link rủ cả nhóm</li>
-            <li>Thiếu người? Có máy chơi cùng</li>
-          </ul>
-          <a className="entry-pitch-more" href="/co-ca-ngua-online" data-testid="entry-landing-link">
-            Luật chơi và giới thiệu
-          </a>
-        </div>
-      )}
-      <form className="form" onSubmit={(e) => void submit(e)} noValidate>
-        <div className="field">
-          <label htmlFor="guest-name">Tên của bạn</label>
-          <input
-            id="guest-name"
-            data-testid="guest-name"
-            type="text"
-            autoComplete="nickname"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            aria-invalid={!!error}
-            aria-describedby={error ? 'guest-name-error' : undefined}
-          />
-        </div>
-        {error && (
-          <p className="form-error" id="guest-name-error" role="alert" data-testid="guest-error">
-            {error}
+    <PanelHost>
+      <GlassPanel title={entering ? 'Vào phòng chơi' : 'Chơi ngay'} className="entry-panel">
+        {room.kind === 'found' && (
+          <p className="entry-room" data-testid="entry-room">
+            Vào phòng <strong data-testid="entry-room-name">{room.room.name}</strong> của{' '}
+            <strong data-testid="entry-room-host">{room.room.hostName}</strong>
           </p>
         )}
-        <button type="submit" className="btn btn-primary" data-testid="guest-submit" disabled={busy || room.kind === 'loading'}>
-          {busy ? 'Đang vào…' : entering ? 'Vào phòng' : 'Chơi ngay'}
-        </button>
-      </form>
-      <p className="switch-link">
-        Đã có tài khoản?{' '}
-        <Link to={signInLink} data-testid="to-signin">
-          Đăng nhập
+        {missing && (
+          <p className="entry-room entry-room-missing" role="status" data-testid="entry-room-missing">
+            Không tìm thấy phòng. Bạn vẫn có thể vào sảnh và chơi.
+          </p>
+        )}
+        {room.kind === 'limited' && (
+          <p className="entry-room" role="status" data-testid="entry-room-limited">
+            {room.message}
+          </p>
+        )}
+        {code === null && (
+          <p className="entry-lead" data-testid="entry-pitch">
+            Nhập tên là chơi: không cài app, không cần đăng ký.
+          </p>
+        )}
+        <form className="form" onSubmit={(e) => void submit(e)} noValidate>
+          <div className="field">
+            <label htmlFor="guest-name">Tên của bạn</label>
+            <input
+              id="guest-name"
+              data-testid="guest-name"
+              type="text"
+              autoComplete="nickname"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              aria-invalid={!!error}
+              aria-describedby={error ? 'guest-name-error' : undefined}
+            />
+          </div>
+          {error && (
+            <p className="form-error" id="guest-name-error" role="alert" data-testid="guest-error">
+              {error}
+            </p>
+          )}
+          <button type="submit" className="ui-btn ui-btn--primary" data-testid="guest-submit" disabled={busy || room.kind === 'loading'}>
+            {busy ? 'Đang vào…' : entering ? 'Vào phòng' : 'Chơi ngay'}
+          </button>
+        </form>
+        <p className="switch-link">
+          Đã có tài khoản?{' '}
+          <Link to={signInLink} data-testid="to-signin">
+            Đăng nhập
+          </Link>
+        </p>
+        <Link className="ui-btn ui-btn--ghost entry-home" to="/" data-testid="entry-home">
+          <Icon name="back" size="sm" />
+          Về trang chủ
         </Link>
-      </p>
-    </AuthLayout>
+      </GlassPanel>
+    </PanelHost>
   );
 }

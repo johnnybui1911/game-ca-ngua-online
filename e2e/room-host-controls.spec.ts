@@ -50,6 +50,9 @@ test('a player names their horses in the waiting room and everyone sees the name
 test('the host pauses and resumes a game; nobody can play while it is paused', async ({ browser }) => {
   const raw: Page[] = [];
   const { a, b } = await startTwoPlayerGame(browser, ['Chủ Phòng', 'Khách Mời'], async (pa, pb, code) => {
+    // The longest turn: the server must not roll for the host before this test does, however slow the browser is.
+    await pa.page.getByTestId('turn-seconds').selectOption('60');
+    await expect(pb.page.getByTestId('turn-seconds')).toHaveText('60 giây');
     raw.push(await openRawSocket(pa, code), await openRawSocket(pb, code));
   });
   const [rawA, rawB] = raw as [Page, Page];

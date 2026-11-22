@@ -1,4 +1,5 @@
 import { useEffect, useState, useSyncExternalStore } from 'react';
+import { Icon } from '../ui/Icon';
 import { sound, type Track } from './sound';
 import './sound.css';
 
@@ -14,29 +15,35 @@ export function SoundSwitches() {
   const settings = useSyncExternalStore(sound.subscribe, sound.getSettings);
   return (
     <div className="sound-switches" data-testid="sound-switches">
-      <label>
+      <label className="sound-switch">
+        <Icon name="music" />
+        <span>Nhạc nền</span>
         <input
           type="checkbox"
+          role="switch"
+          className="switch-input"
           data-testid="sound-music"
           checked={settings.music}
           onChange={(e) => sound.setSettings({ ...settings, music: e.target.checked })}
         />
-        Nhạc nền
       </label>
-      <label>
+      <label className="sound-switch">
+        <Icon name="sound-on" />
+        <span>Hiệu ứng âm thanh</span>
         <input
           type="checkbox"
+          role="switch"
+          className="switch-input"
           data-testid="sound-effects"
           checked={settings.effects}
           onChange={(e) => sound.setSettings({ ...settings, effects: e.target.checked })}
         />
-        Hiệu ứng âm thanh
       </label>
     </div>
   );
 }
 
-/** Floating speaker button that opens the switches; for screens without their own menu. */
+/** Speaker button that opens the switches; the app shell docks it in its bottom-left corner. */
 export function SoundButton() {
   const settings = useSyncExternalStore(sound.subscribe, sound.getSettings);
   const [open, setOpen] = useState(false);
@@ -44,19 +51,19 @@ export function SoundButton() {
   return (
     <div className="sound-button">
       {open && (
-        <div className="card sound-popover" role="dialog" aria-label="Âm thanh">
+        <div className="glass sound-popover" role="dialog" aria-label="Âm thanh">
           <SoundSwitches />
         </div>
       )}
       <button
         type="button"
-        className="btn btn-secondary sound-toggle"
+        className="ui-btn ui-btn--icon sound-toggle"
         data-testid="sound-button"
         aria-expanded={open}
         aria-label="Âm thanh"
         onClick={() => setOpen((o) => !o)}
       >
-        {muted ? '🔇' : '🔊'}
+        <Icon name={muted ? 'sound-off' : 'sound-on'} />
       </button>
     </div>
   );

@@ -1,4 +1,8 @@
-/* Public landing page: static content for visitors from search and ads, no app shell. */
+/*
+ * Public landing page: static content for visitors from search and ads, no app shell.
+ * Mobile first. A fixed render of the board sits behind the page; each section is a
+ * glass panel scrolling over it, solid where blur is unsupported or data is saved.
+ */
 *,
 *::before,
 *::after {
@@ -7,59 +11,173 @@
 
 body.landing {
   margin: 0;
-  font-family: var(--font-body);
-  font-size: 17px;
-  line-height: 1.55;
-  color: var(--ink);
-  background: var(--paper);
+  background: var(--color-bg-deep);
+  color: var(--color-text);
+  font-family: var(--font-ui);
+  font-size: var(--text-md);
+  line-height: var(--leading-normal);
+  -webkit-text-size-adjust: 100%;
+}
+
+.lp-sprite {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+}
+
+.lp-icon {
+  flex: none;
+  width: 1.25em;
+  height: 1.25em;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .landing h1,
 .landing h2 {
-  font-family: var(--font-display);
-  line-height: 1.15;
   margin: 0 0 var(--space-4);
+  font-family: var(--font-display);
+  font-weight: var(--weight-bold);
+  line-height: var(--leading-tight);
+  color: var(--color-text);
+  text-wrap: balance;
 }
 
 .landing h2 {
   font-size: var(--text-xl);
 }
 
+.landing h2::after {
+  content: '';
+  display: block;
+  width: 56px;
+  height: 3px;
+  margin-top: var(--space-3);
+  border-radius: var(--radius-pill);
+  background: linear-gradient(90deg, var(--color-accent), var(--color-gold));
+}
+
 .landing a {
-  color: var(--felt-600);
+  color: var(--color-gold);
 }
 
 .landing a:focus-visible,
 .landing summary:focus-visible {
-  outline: 3px solid var(--focus);
-  outline-offset: 3px;
+  outline: none;
+  box-shadow: var(--focus-ring);
 }
 
 .lp-wrap {
-  width: min(100% - 2 * var(--space-5), 1080px);
+  width: min(100% - 2 * var(--space-4), 1080px);
   margin-inline: auto;
 }
 
-.lp-hero {
-  padding: var(--space-6) 0;
-  color: var(--wood-100);
-  background: radial-gradient(circle at 70% 20%, var(--wood-700), var(--wood-900) 70%);
+/* Fixed board behind everything. A fixed element, not background-attachment, so iOS keeps it still. */
+.lp-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background:
+    linear-gradient(180deg, rgb(13 8 6 / 62%), rgb(13 8 6 / 40%) 45%, rgb(13 8 6 / 66%)),
+    url('/landing/board-bg.jpg') center / cover no-repeat,
+    var(--color-bg-deep);
 }
 
-.lp-hero-grid {
-  display: grid;
-  gap: var(--space-5);
-  align-items: center;
+/* The creator's mark, as the game shows it top right: decorative-sized, not a link. */
+.lp-creator {
+  position: absolute;
+  top: calc(var(--space-3) + env(safe-area-inset-top));
+  right: calc(var(--space-3) + env(safe-area-inset-right));
+  z-index: 2;
+  display: block;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--color-bg-deep);
+  border: 1px solid var(--color-gold);
+  box-shadow: var(--shadow-sm), 0 0 0 3px rgb(13 8 6 / 35%);
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.lp-creator img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  -webkit-user-drag: none;
+}
+
+/*
+ * Hero: full-bleed render fading into the fixed board below. Narrow screens show the portrait
+ * render above the copy; wide screens put the copy over the left of the landscape clip.
+ */
+.lp-hero {
+  position: relative;
+  padding: 52svh 0 var(--space-6);
+  isolation: isolate;
+  background: linear-gradient(180deg, transparent 40%, rgb(13 8 6 / 88%) 62%, rgb(13 8 6 / 70%) 90%, transparent);
+}
+
+.lp-hero-media {
+  position: absolute;
+  inset: 0 0 auto;
+  z-index: -1;
+  height: 72svh;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(180deg, #000 55%, transparent);
+  mask-image: linear-gradient(180deg, #000 55%, transparent);
+}
+
+.lp-hero-media::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgb(13 8 6 / 35%), transparent 25%, transparent 50%, rgb(13 8 6 / 70%));
+}
+
+.lp-hero-poster,
+.lp-hero-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 52%;
+}
+
+.lp-hero-video {
+  opacity: 0;
+  transition: opacity var(--dur-slower) var(--ease-out);
+}
+
+.lp-hero-video.is-playing {
+  opacity: 1;
+}
+
+.lp-hero-text {
+  position: relative;
 }
 
 .lp-hero h1 {
-  font-size: clamp(2rem, 6vw, 3.2rem);
-  color: #fff8ea;
+  max-width: 14ch;
+  font-size: var(--text-hero);
+  font-weight: var(--weight-extrabold);
+  text-shadow: 0 2px 24px rgb(0 0 0 / 55%);
 }
 
 .lp-lead {
+  max-width: 36rem;
   margin: 0 0 var(--space-5);
-  font-size: 1.15rem;
+  font-size: var(--text-lg);
+  color: var(--color-text-muted);
+  text-shadow: 0 1px 12px rgb(0 0 0 / 60%);
 }
 
 .lp-dots {
@@ -69,10 +187,11 @@ body.landing {
 }
 
 .lp-dots span {
-  width: 16px;
-  height: 16px;
+  width: 12px;
+  height: 12px;
   border-radius: 50%;
   background: var(--horse-red);
+  box-shadow: 0 0 10px currentColor;
 }
 
 .lp-dots span:nth-child(2) {
@@ -97,50 +216,106 @@ body.landing {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: var(--space-2);
   min-height: var(--touch);
-  padding: 0 var(--space-6);
-  font-weight: 800;
-  font-size: 1.05rem;
+  padding: 0 var(--space-5);
+  border-radius: var(--radius-pill);
+  font-weight: var(--weight-bold);
+  font-size: var(--text-md);
   text-decoration: none;
-  border-radius: 999px;
+  transition:
+    background-color var(--dur-base) var(--ease-out),
+    border-color var(--dur-base) var(--ease-out),
+    transform var(--dur-fast) var(--ease-out);
+}
+
+.lp-btn:active {
+  transform: translateY(1px);
 }
 
 .landing .lp-btn-primary {
-  color: var(--wood-900);
-  background: var(--horse-yellow);
-  box-shadow: 0 5px 0 var(--wood-500);
+  min-height: var(--touch-hero);
+  padding: 0 var(--space-6);
+  border: 1px solid var(--color-gold);
+  background: linear-gradient(180deg, var(--lacquer-400), var(--color-accent) 55%, var(--lacquer-700));
+  color: var(--color-text-on-accent);
+  font-size: var(--text-lg);
+  box-shadow: var(--shadow-glow-gold), inset 0 1px 0 rgb(255 220 190 / 35%);
+}
+
+.landing .lp-btn-primary:hover {
+  background: linear-gradient(180deg, #e0563f, var(--color-accent-hover) 55%, var(--lacquer-600));
+}
+
+.landing .lp-btn-primary .lp-icon {
+  fill: currentColor;
+  stroke-width: 1.5;
 }
 
 .landing .lp-btn-ghost {
-  color: var(--wood-100);
-  border: 2px solid var(--wood-300);
+  border: 1px solid var(--color-border-strong);
+  background: rgb(28 18 13 / 55%);
+  color: var(--color-text);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+}
+
+.landing .lp-btn-ghost:hover {
+  border-color: var(--color-gold);
 }
 
 .lp-note {
-  margin: var(--space-4) 0 0;
-  color: var(--wood-300);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  margin: var(--space-5) 0 0;
   font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  color: var(--color-text-muted);
 }
 
-.lp-hero-img {
-  display: block;
-  width: 100%;
-  height: auto;
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-card);
+.lp-note > span:not(.lp-sep) {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
 }
 
+.lp-note .lp-icon {
+  color: var(--color-gold);
+}
+
+/* The dots read as a list once each item has its own icon; keep them in the text only. */
+.lp-sep {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* Sections: glass panels over the fixed board. */
 .lp-section {
-  padding: var(--space-6) 0;
+  padding: var(--space-3) 0;
 }
 
-.lp-alt {
-  background: var(--wood-100);
+.lp-section:first-of-type {
+  padding-top: 0;
+}
+
+.lp-panel {
+  padding: var(--space-5) var(--space-4);
+  border: 1px solid var(--glass-stroke);
+  border-radius: var(--radius-lg);
+  background: var(--glass-fill);
+  box-shadow: var(--glass-specular), var(--glass-shadow);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
 }
 
 .lp-steps {
   display: grid;
-  gap: var(--space-4);
+  gap: var(--space-3);
   margin: 0;
   padding: 0;
   list-style: none;
@@ -149,152 +324,326 @@ body.landing {
 
 .lp-steps li {
   display: grid;
-  gap: var(--space-1);
-  padding: var(--space-4) var(--space-4) var(--space-4) 64px;
-  position: relative;
-  background: #fff;
-  border: 2px solid var(--wood-300);
+  grid-template-columns: auto 1fr;
+  column-gap: var(--space-4);
+  align-items: start;
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
+  background: rgb(255 240 210 / 4%);
   counter-increment: step;
 }
 
-.lp-steps li::before {
-  content: counter(step);
-  position: absolute;
-  left: var(--space-4);
-  top: var(--space-4);
+.lp-step-icon {
+  position: relative;
+  grid-row: span 2;
   display: grid;
   place-items: center;
-  width: 34px;
-  height: 34px;
-  font-weight: 800;
-  color: #fff;
-  background: var(--felt-600);
+  width: var(--touch);
+  height: var(--touch);
+  border: 1px solid var(--color-border-strong);
   border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, var(--lacquer-600), var(--lacquer-800));
+  color: var(--color-gold-strong);
+}
+
+.lp-step-icon::after {
+  content: counter(step);
+  position: absolute;
+  right: -6px;
+  bottom: -4px;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--color-gold);
+  color: var(--lim-900);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-bold);
 }
 
 .lp-steps strong {
   font-size: var(--text-lg);
 }
 
-.lp-two {
-  display: grid;
-  gap: var(--space-5);
-  align-items: start;
+.lp-steps li > span:last-child {
+  color: var(--color-text-muted);
 }
 
 .lp-rules {
-  margin: 0 0 var(--space-4);
-  padding-left: 1.3em;
+  margin: 0 0 var(--space-5);
+  padding-left: var(--space-5);
 }
 
 .lp-rules li {
   margin-bottom: var(--space-2);
+  padding-left: var(--space-1);
 }
 
-.lp-muted {
-  color: var(--ink-soft);
+.lp-rules li::marker {
+  color: var(--color-gold);
+  font-weight: var(--weight-bold);
+}
+
+.lp-rules strong,
+.lp-table tbody th {
+  color: var(--color-gold-strong);
+}
+
+.lp-figs {
+  display: grid;
+  gap: var(--space-4);
+  margin-bottom: var(--space-5);
+}
+
+.lp-figs figure {
+  margin: 0;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+
+.lp-figs img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.lp-figs figcaption {
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-3) var(--space-4) var(--space-4);
+  color: var(--color-text-muted);
   font-size: var(--text-sm);
 }
 
-.lp-phone {
-  display: block;
-  width: min(100%, 300px);
-  height: auto;
-  margin-inline: auto;
-  border: 8px solid var(--wood-900);
-  border-radius: 32px;
-  box-shadow: var(--shadow-card);
+.lp-figs figcaption strong {
+  color: var(--color-text);
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+}
+
+.lp-muted {
+  margin: 0;
+  color: var(--color-text-muted);
 }
 
 .lp-table-wrap {
+  margin-bottom: var(--space-4);
   overflow-x: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
 }
 
 .lp-table {
   width: 100%;
+  min-width: 300px;
   border-collapse: collapse;
-  background: #fff;
-  border-radius: var(--radius-md);
-  overflow: hidden;
+  font-size: var(--text-sm);
 }
 
 .lp-table th,
 .lp-table td {
-  padding: var(--space-3);
+  padding: var(--space-2);
+  border-bottom: 1px solid var(--color-border);
   text-align: left;
-  border-bottom: 1px solid var(--wood-300);
   vertical-align: top;
 }
 
+.lp-table tbody tr:last-child > * {
+  border-bottom: 0;
+}
+
 .lp-table thead th {
-  color: var(--wood-100);
-  background: var(--wood-800);
+  background: rgb(255 240 210 / 6%);
+  color: var(--color-gold);
+  font-weight: var(--weight-bold);
 }
 
 .lp-table tbody th {
   width: 26%;
+  font-weight: var(--weight-semibold);
 }
 
-.lp-table td:nth-child(2) {
-  font-weight: 700;
-  color: var(--felt-800);
+.lp-table-ours td:nth-child(2) {
+  background: rgb(184 40 31 / 14%);
+  color: var(--color-text);
+  font-weight: var(--weight-semibold);
+}
+
+.lp-table-ours td:nth-child(3) {
+  color: var(--color-text-muted);
 }
 
 .landing details {
-  margin-bottom: var(--space-3);
-  padding: var(--space-3) var(--space-4);
-  background: #fff;
-  border: 2px solid var(--wood-300);
-  border-radius: var(--radius-md);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.landing details:last-child {
+  border-bottom: 0;
 }
 
 .landing summary {
-  min-height: 28px;
-  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  min-height: var(--touch);
+  padding: var(--space-3) 0;
+  border-radius: var(--radius-sm);
+  font-weight: var(--weight-semibold);
   cursor: pointer;
+  list-style: none;
+}
+
+.landing summary::-webkit-details-marker {
+  display: none;
+}
+
+.landing summary .lp-icon {
+  color: var(--color-gold);
+  transition: transform var(--dur-base) var(--ease-out);
+}
+
+.landing details[open] summary .lp-icon {
+  transform: rotate(180deg);
 }
 
 .landing details p {
-  margin: var(--space-2) 0 0;
+  margin: 0 0 var(--space-4);
+  color: var(--color-text-muted);
 }
 
 .lp-final {
   text-align: center;
+  background:
+    radial-gradient(ellipse at 50% 0%, rgb(184 40 31 / 28%), transparent 70%),
+    var(--glass-fill);
+}
+
+.lp-final h2::after {
+  margin-inline: auto;
+}
+
+.lp-final p {
+  margin: 0 0 var(--space-5);
+  color: var(--color-text-muted);
 }
 
 .lp-footer {
-  padding: var(--space-5) 0 var(--space-6);
-  color: var(--ink-soft);
+  padding: var(--space-6) 0 var(--space-7);
+  color: var(--color-text-subtle);
   font-size: var(--text-sm);
   text-align: center;
 }
 
-@media (min-width: 800px) {
-  .lp-hero {
-    padding: 72px 0;
+.lp-footer a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--touch);
+  padding: 0 var(--space-1);
+}
+
+@media (min-width: 768px) {
+  .lp-creator {
+    width: 56px;
+    height: 56px;
   }
 
-  .lp-hero-grid {
-    grid-template-columns: 1fr 1.1fr;
+  .lp-hero {
+    display: flex;
+    align-items: flex-end;
+    min-height: min(92svh, 860px);
+    padding: var(--space-8) 0;
+    background: none;
+  }
+
+  .lp-hero-media {
+    inset: 0;
+    height: auto;
+    -webkit-mask-image: linear-gradient(180deg, #000 72%, transparent);
+    mask-image: linear-gradient(180deg, #000 72%, transparent);
+  }
+
+  /* The copy sits on the left over bright board cells: the scrim stays dark under all of it (≥ 4.5:1).
+     Its stops follow the copy (lead is at most 36rem wide), not the hero width, so narrow desktops stay covered. */
+  .lp-hero-media::after {
+    background:
+      linear-gradient(90deg, rgb(13 8 6 / 88%) 0, rgb(13 8 6 / 84%) clamp(40rem, 50%, 56rem), transparent clamp(56rem, 85%, 80rem)),
+      linear-gradient(180deg, rgb(13 8 6 / 30%), transparent 20%);
+  }
+
+  .lp-hero-poster,
+  .lp-hero-video {
+    object-position: center;
+  }
+
+  .lp-section {
+    padding: var(--space-6) 0;
+  }
+
+  .lp-panel {
+    padding: var(--space-7) var(--space-7);
+  }
+
+  .landing h2 {
+    font-size: var(--text-2xl);
   }
 
   .lp-steps {
     grid-template-columns: repeat(3, 1fr);
   }
 
-  .lp-two {
-    grid-template-columns: 1.4fr 1fr;
+  .lp-steps li {
+    grid-template-columns: 1fr;
+    row-gap: var(--space-2);
   }
-}
 
-@media (max-width: 520px) {
+  .lp-step-icon {
+    grid-row: auto;
+    margin-bottom: var(--space-2);
+  }
+
+  .lp-figs {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
   .lp-table {
-    font-size: 15px;
+    font-size: var(--text-md);
   }
 
   .lp-table th,
   .lp-table td {
-    padding: var(--space-2);
+    padding: var(--space-3);
+  }
+}
+
+/* Solid panels where glass cannot blur, or where the visitor saves data or transparency. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .lp-panel {
+    background: var(--glass-fill-solid);
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .lp-panel,
+  .landing .lp-btn-ghost {
+    background: var(--glass-fill-solid);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+
+@media (prefers-reduced-data: reduce) {
+  .lp-backdrop {
+    background: radial-gradient(ellipse at 50% 0%, var(--lim-800), var(--color-bg-deep) 70%);
+  }
+
+  .lp-panel {
+    background: var(--glass-fill-solid);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
   }
 }

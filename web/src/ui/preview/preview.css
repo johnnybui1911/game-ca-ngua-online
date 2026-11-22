@@ -1,0 +1,167 @@
+/* Layout for the dev-only design preview page. Not shipped with the app. */
+
+body {
+  color: var(--color-text);
+  background:
+    linear-gradient(rgb(13 8 6 / 35%), rgb(13 8 6 / 70%)),
+    url('/board.jpg') center / cover fixed,
+    var(--color-bg);
+}
+
+.preview {
+  display: grid;
+  gap: var(--space-5);
+  width: min(100% - 2 * var(--space-4), 1100px);
+  margin: 0 auto;
+  padding: var(--space-6) 0 var(--space-8);
+}
+
+.preview-hero {
+  min-height: 70vh;
+  display: grid;
+  place-items: center;
+}
+
+.preview-hero-panel {
+  display: grid;
+  gap: var(--space-4);
+  justify-items: center;
+  max-width: 640px;
+  text-align: center;
+  padding: var(--space-6);
+}
+
+.preview-hero-title {
+  font-size: var(--text-hero);
+  font-weight: var(--weight-extrabold);
+  text-shadow: 0 2px 18px rgb(0 0 0 / 55%);
+}
+
+.preview-hero-copy {
+  margin: 0;
+  max-width: 46ch;
+}
+
+.preview-section {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.preview-h2 {
+  font-size: var(--text-xl);
+}
+
+.preview-h3 {
+  margin-top: var(--space-3);
+}
+
+.preview-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+}
+
+.preview-section .preview-row {
+  justify-content: flex-start;
+}
+
+.preview-palette-group {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.preview-swatches {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: var(--space-3);
+}
+
+.preview-swatch {
+  display: grid;
+  gap: 2px;
+  font-size: var(--text-xs);
+}
+
+.preview-swatch-chip {
+  height: 52px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--glass-stroke);
+  box-shadow: var(--shadow-sm);
+}
+
+.preview-type {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.preview-scale {
+  margin: 0;
+  line-height: var(--leading-tight);
+  overflow-wrap: anywhere;
+}
+
+.preview-scale code {
+  font-size: var(--text-xs);
+  color: var(--color-text-subtle);
+  margin-right: var(--space-3);
+}
+
+.preview-button-grid {
+  display: grid;
+  grid-template-columns: repeat(4, max-content);
+  gap: var(--space-3) var(--space-4);
+  align-items: center;
+  overflow-x: auto;
+  padding: var(--space-2);
+}
+
+.preview-force-focus {
+  box-shadow: var(--focus-ring);
+}
+
+.preview-icons {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: var(--space-3);
+}
+
+.preview-icons li {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: rgb(245 234 210 / 4%);
+  color: var(--color-gold-strong);
+}
+
+.preview-icons code,
+.preview-icon-sizes code {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+.preview-icon-sizes span {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+@media (max-width: 560px) {
+  .preview-button-grid {
+    grid-template-columns: repeat(2, max-content);
+  }
+
+  .preview-button-grid > .ui-eyebrow {
+    display: none;
+  }
+}

@@ -13,8 +13,11 @@ test('sign up, keep session on reload, sign out, sign in again', async ({ page }
   await signOut(page);
   await page.reload();
   await expect(page).toHaveURL(/\/dang-nhap/);
+  // Signed out, `/` is the public home page and the lobby is not shown.
   await page.goto('/');
-  await expect(page).toHaveURL(/\/bat-dau\?returnTo=%2F$/);
+  await expect(page.getByTestId('play-now')).toBeVisible();
+  await expect(page).toHaveURL('/');
+  await expect(page.getByTestId('greeting')).toHaveCount(0);
   await page.goto('/dang-nhap');
 
   await page.getByTestId('signin-email').fill(email.toUpperCase());

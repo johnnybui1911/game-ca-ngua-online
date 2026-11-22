@@ -1,15 +1,33 @@
+/* Name panel (on the shell's glass surface) */
+
 .entry-room {
-  margin: 0 0 var(--space-4);
-  text-align: center;
+  margin: 0;
   overflow-wrap: anywhere;
+}
+
+.entry-room strong {
+  color: var(--color-gold-strong);
 }
 
 .entry-room-missing {
   padding: var(--space-3);
-  color: var(--danger);
-  background: var(--danger-bg);
+  color: var(--color-danger);
+  background: var(--color-danger-bg);
   border-radius: var(--radius-sm);
 }
+
+.entry-lead {
+  margin: 0;
+  color: var(--color-text-muted);
+}
+
+.entry-home {
+  justify-self: start;
+  margin: calc(-1 * var(--space-2)) 0 calc(-1 * var(--space-2)) calc(-1 * var(--space-4));
+  font-size: var(--text-sm);
+}
+
+/* Lobby panel: guest notice and the sign-out question */
 
 .guest-notice {
   display: flex;
@@ -18,15 +36,13 @@
   justify-content: space-between;
   gap: var(--space-2) var(--space-4);
   padding: var(--space-3) var(--space-4);
-  color: var(--wood-800);
-  font-weight: 700;
-  background: var(--wood-100);
-  border: 2px solid var(--wood-300);
+  font-weight: var(--weight-semibold);
+  background: rgb(230 194 122 / 10%);
+  border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-md);
 }
 
 .signout-confirm {
-  grid-column: 1 / -1;
   display: grid;
   gap: var(--space-2);
 }
@@ -41,57 +57,12 @@
   gap: var(--space-2);
 }
 
-.lobby-header .signout-confirm {
-  grid-row: auto;
-}
-
-.lobby-header .signout-confirm .btn {
-  grid-column: auto;
-  grid-row: auto;
-}
-
-.save-account {
-  display: grid;
-  gap: var(--space-3);
-  padding: var(--space-4);
-  text-align: left;
-  background: var(--wood-100);
-  border: 2px solid var(--wood-300);
-  border-radius: var(--radius-md);
-}
-
-.save-account h3 {
-  margin: 0;
-  font-family: var(--font-display);
-  font-size: var(--text-lg);
-}
-
 .save-account .form {
   gap: var(--space-3);
 }
 
 .save-account .divider {
   margin: var(--space-2) 0;
-}
-
-.save-account-done {
-  margin: 0;
-  color: var(--felt-800);
-  font-weight: 700;
-  text-align: center;
-}
-
-.btn-link {
-  justify-self: center;
-  min-height: var(--touch);
-  padding: 0 var(--space-3);
-  font: inherit;
-  font-weight: 700;
-  color: var(--felt-600);
-  background: none;
-  border: 0;
-  text-decoration: underline;
-  cursor: pointer;
 }
 
 /* A dialog taller than the screen scrolls instead of hiding its buttons. */
@@ -110,8 +81,7 @@
     grid-template-columns: 1fr 1fr;
   }
 
-  .save-account .form > .form-error,
-  .save-account .form > .btn {
+  .save-account .form > .form-error {
     grid-column: 1 / -1;
   }
 
@@ -120,45 +90,6 @@
   }
 
   .save-account .btn-provider {
-    min-height: 44px;
+    min-height: 48px;
   }
-}
-
-/* Visitors from a shared post see what the game looks like before choosing a name. */
-.entry-pitch {
-  display: grid;
-  gap: var(--space-3);
-  margin: 0 0 var(--space-4);
-}
-
-.entry-pitch img {
-  display: block;
-  width: 100%;
-  height: auto;
-  aspect-ratio: 800 / 420;
-  object-fit: cover;
-  border-radius: var(--radius-md);
-  background: var(--wood-800);
-}
-
-.entry-pitch ul {
-  display: grid;
-  gap: var(--space-1);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  text-align: left;
-}
-
-.entry-pitch li::before {
-  content: '✓';
-  margin-right: var(--space-2);
-  color: var(--felt-600);
-  font-weight: 800;
-}
-
-.entry-pitch-more {
-  justify-self: start;
-  font-weight: 700;
-  color: var(--felt-600);
 }

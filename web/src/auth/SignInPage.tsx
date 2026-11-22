@@ -13,7 +13,7 @@ const QUERY_ERRORS: Record<string, string> = {
 };
 
 export function SignInPage() {
-  const { ready, user, guest, refresh } = useSession();
+  const { user, guest, refresh } = useSession();
   const [params] = useSearchParams();
   const returnTo = sanitizeReturnTo(params.get('returnTo'));
   const queryError = QUERY_ERRORS[params.get('error') ?? ''] ?? null;
@@ -24,7 +24,6 @@ export function SignInPage() {
   const [serverError, setServerError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  if (!ready) return <p className="page-status" role="status">Đang tải…</p>;
   if (user && !guest) return <Navigate to={returnTo} replace />;
 
   async function submit(e: FormEvent) {
@@ -93,7 +92,7 @@ export function SignInPage() {
             {shownError}
           </p>
         )}
-        <button type="submit" className="btn btn-primary" data-testid="signin-submit" disabled={busy}>
+        <button type="submit" className="ui-btn ui-btn--primary" data-testid="signin-submit" disabled={busy}>
           {busy ? 'Đang đăng nhập…' : 'Đăng nhập'}
         </button>
       </form>
