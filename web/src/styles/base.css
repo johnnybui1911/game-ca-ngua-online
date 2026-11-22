@@ -14,8 +14,7 @@ body {
   font-family: var(--font-ui);
   font-size: var(--text-md);
   line-height: var(--leading-normal);
-  /* Legacy: unmigrated screens put all text on parchment cards and light HUD panels. */
-  color: var(--ink);
+  color: var(--color-text);
   background-color: var(--color-bg);
   background-image:
     radial-gradient(ellipse 80% 55% at 50% -10%, rgb(184 40 31 / 26%), transparent 70%),
@@ -40,7 +39,7 @@ h1 {
 :focus-visible {
   outline: 3px solid var(--color-focus);
   outline-offset: 2px;
-  /* Dark inner halo keeps the gold ring visible on light parchment too. */
+  /* Dark inner halo keeps the gold ring visible over the bright board too. */
   box-shadow: 0 0 0 2px var(--color-bg);
 }
 
@@ -53,82 +52,4 @@ h1 {
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
-}
-
-/* Legacy components — remove after screen migration (new UI uses web/src/ui/ui.css). */
-
-.card {
-  color: var(--ink);
-  background: var(--paper);
-  border: 1px solid var(--wood-300);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-card);
-  padding: var(--space-5);
-}
-
-.btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-2);
-  min-height: var(--touch);
-  padding: 0 var(--space-5);
-  border: 2px solid transparent;
-  border-radius: var(--radius-md);
-  font: inherit;
-  font-weight: var(--weight-bold);
-  text-decoration: none;
-  cursor: pointer;
-  transition:
-    background-color var(--dur-base) var(--ease-out),
-    transform var(--dur-fast) var(--ease-out);
-}
-
-.btn:active:not(:disabled) {
-  transform: scale(0.98);
-}
-
-.btn:disabled {
-  cursor: not-allowed;
-  opacity: 0.6;
-}
-
-.btn-primary {
-  background: var(--felt-600);
-  color: var(--color-text-on-accent);
-  border-color: var(--felt-800);
-}
-
-.btn-primary:hover:not(:disabled) {
-  background: var(--felt-800);
-}
-
-.btn-secondary {
-  background: var(--wood-100);
-  color: var(--wood-800);
-  border-color: var(--wood-500);
-}
-
-.page-status {
-  color: var(--color-text);
-  text-align: center;
-  padding: var(--space-6);
-}
-
-.home-page {
-  min-height: 100dvh;
-  display: grid;
-  place-items: center;
-  padding: var(--space-4);
-}
-
-.home-card {
-  display: grid;
-  gap: var(--space-4);
-  justify-items: start;
-  width: min(100%, 420px);
-}
-
-.home-card h1 {
-  margin: 0;
 }

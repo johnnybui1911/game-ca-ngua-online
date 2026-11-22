@@ -57,48 +57,12 @@
   gap: var(--space-2);
 }
 
-.save-account {
-  display: grid;
-  gap: var(--space-3);
-  padding: var(--space-4);
-  text-align: left;
-  background: var(--wood-100);
-  border: 2px solid var(--wood-300);
-  border-radius: var(--radius-md);
-}
-
-.save-account h3 {
-  margin: 0;
-  font-family: var(--font-display);
-  font-size: var(--text-lg);
-}
-
 .save-account .form {
   gap: var(--space-3);
 }
 
 .save-account .divider {
   margin: var(--space-2) 0;
-}
-
-.save-account-done {
-  margin: 0;
-  color: var(--felt-800);
-  font-weight: 700;
-  text-align: center;
-}
-
-.btn-link {
-  justify-self: center;
-  min-height: var(--touch);
-  padding: 0 var(--space-3);
-  font: inherit;
-  font-weight: 700;
-  color: var(--felt-600);
-  background: none;
-  border: 0;
-  text-decoration: underline;
-  cursor: pointer;
 }
 
 /* A dialog taller than the screen scrolls instead of hiding its buttons. */
@@ -117,8 +81,7 @@
     grid-template-columns: 1fr 1fr;
   }
 
-  .save-account .form > .form-error,
-  .save-account .form > .btn {
+  .save-account .form > .form-error {
     grid-column: 1 / -1;
   }
 

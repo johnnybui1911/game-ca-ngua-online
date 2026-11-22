@@ -101,14 +101,14 @@ export function LobbyProvider({ children }: { children: ReactNode }) {
       <div className="toast-stack" aria-live="polite">
         {toasts.map((t) =>
           t.kind === 'invite' ? (
-            <div className="toast" role="alert" data-testid="invite-toast" key={t.id}>
+            <div className="glass toast" role="alert" data-testid="invite-toast" key={t.id}>
               <p>
                 {t.from.displayName} mời bạn vào phòng {t.roomName}
               </p>
               <div className="toast-actions">
                 <button
                   type="button"
-                  className="btn btn-primary"
+                  className="ui-btn ui-btn--primary"
                   data-testid="invite-accept"
                   onClick={() => {
                     dismiss(t.id);
@@ -117,13 +117,13 @@ export function LobbyProvider({ children }: { children: ReactNode }) {
                 >
                   Vào
                 </button>
-                <button type="button" className="btn btn-secondary" data-testid="invite-dismiss" onClick={() => dismiss(t.id)}>
+                <button type="button" className="ui-btn ui-btn--secondary" data-testid="invite-dismiss" onClick={() => dismiss(t.id)}>
                   Bỏ qua
                 </button>
               </div>
             </div>
           ) : (
-            <div className="toast" role="status" data-testid="lobby-notice" key={t.id}>
+            <div className="glass toast" role="status" data-testid="lobby-notice" key={t.id}>
               <p>{t.text}</p>
             </div>
           ),
