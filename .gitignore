@@ -16,3 +16,9 @@ coverage/
 # Generated agent tooling (reinstalled by `ak kit init`)
 .claude/
 .omp/
+
+# Report screenshots stay out of git (attach them to PRs/issues instead)
+plans/reports/**/*.png
+plans/reports/**/*.jpg
+plans/reports/**/*.jpeg
+plans/reports/**/*.webp
