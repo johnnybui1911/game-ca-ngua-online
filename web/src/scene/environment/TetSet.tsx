@@ -19,13 +19,13 @@ import {
   TEA_TRAY_TOP,
   coupletStand,
   createLanternBody,
-  fruitTray,
   lanternStand,
   platform,
   riceCakes,
   sprayBranches,
   sweetsBox,
   teaTray,
+  watermelonPlates,
 } from './pieces';
 import { SURFACES, SetBuilder, place } from './set-builder';
 import { SetKit } from './set-kit';
@@ -47,8 +47,8 @@ const FLOWERS: Record<QualityTier, number> = { low: 36, medium: 64, high: 96 };
 const PETALS = ['#f6c61e', '#f39ab5'];
 const BUDS = ['#b9c634', '#d64f78'];
 
-/** Offering in front of each seat's far side: fruit, rice cakes, tea, sweets. */
-const OFFERINGS = [fruitTray, riceCakes, teaTray, sweetsBox];
+/** Offering in front of each seat's far side: watermelon, rice cakes, tea, sweets. */
+const OFFERINGS = [watermelonPlates, riceCakes, teaTray, sweetsBox];
 const TEA_SIDE = OFFERINGS.indexOf(teaTray);
 
 const LAMP_COLOUR = '#ff9d5c';

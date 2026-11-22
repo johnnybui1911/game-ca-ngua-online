@@ -6,7 +6,7 @@ Code: `web/src/scene/environment/`. Assets and licences: `public/models/` ([LICE
 
 The board lies on a low lacquer platform (sập) with gold line inlay. Each of the four sides carries the same tableau, laid out for the player sitting opposite it:
 
-- an offering at the centre: fruit tray (mâm ngũ quả), bánh chưng with lì xì, tea service, sweets box (khay mứt);
+- an offering at the centre: a porcelain plate of watermelon slices with a dish of red melon seeds (dưa hấu, hạt dưa), bánh chưng with lì xì, tea service, sweets box (khay mứt);
 - two red lanterns on wooden stands behind it;
 - a pair of couplets on stands, the folk verse "Thịt mỡ dưa hành câu đối đỏ / Cây nêu tràng pháo bánh chưng xanh" lettered on canvas;
 - a blue-and-white vase with a mai (yellow) or đào (pink) branch on each corner.
@@ -33,7 +33,7 @@ Real match page with the HUD (guest against three CPUs, local worker): [1440×90
 | `public/models/tea-set.glb` | 140,728 |
 | `public/models/ceramic-vase.glb` | 80,348 |
 | **Environment assets, total** | **221,076 (0.21 MB of the 3 MB budget)** |
-| `TetSet` code chunk (loaded after the board) | 94,840 raw / 30,290 gzip |
+| `TetSet` code chunk (loaded after the board) | 95,551 raw / 30,580 gzip |
 
 ## Tiers
 
