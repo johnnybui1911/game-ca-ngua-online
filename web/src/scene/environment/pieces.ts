@@ -5,19 +5,19 @@
  */
 import {
   BoxGeometry,
+  BufferGeometry,
   CatmullRomCurve3,
   CylinderGeometry,
-  IcosahedronGeometry,
+  Float32BufferAttribute,
   LatheGeometry,
   Matrix4,
-  QuadraticBezierCurve3,
   SphereGeometry,
   TorusGeometry,
   TubeGeometry,
   Vector2,
   Vector3,
 } from 'three';
-import type { BufferGeometry } from 'three';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import type { Spray } from './blossom';
 import { FLOOR_Y, LANTERN_HEIGHT, LANTERN_REACH, TABLE_HALF, TABLE_TOP_Y } from './layout';
 import { place } from './set-builder';
@@ -118,50 +118,141 @@ export function sprayBranches(b: SetBuilder, m: Matrix4, spray: Spray): void {
   }
 }
 
-/** Mâm ngũ quả: a footed lacquer tray with a hand of green bananas cradling a pomelo, oranges, persimmons and a custard apple. */
-export function fruitTray(b: SetBuilder, m: Matrix4): void {
-  const profile = [
-    [0.85, 0],
-    [0.95, 0.06],
-    [0.5, 0.2],
-    [0.45, 0.4],
-    [1.2, 0.6],
-    [2.02, 0.7],
-    [2.12, 0.78],
-    [1.98, 0.76],
-    [0, 0.72],
-  ].map(([r, y]) => new Vector2(r, y));
-  b.add('gloss', new LatheGeometry(profile, 28), RED, m);
-  b.add('metal', new TorusGeometry(2.08, 0.045, 6, 32), GOLD, place(m, [0, 0.78, 0], [QUARTER, 0, 0]));
-  const y0 = 0.74;
-
-  b.add('matte', new SphereGeometry(0.82, 18, 12), '#cdb53a', place(m, [0, y0 + 0.78, -0.25], [0, 0, 0], [1, 0.95, 1]));
-  b.add('matte', new CylinderGeometry(0.05, 0.07, 0.14, 6), '#4d5a22', place(m, [0, y0 + 1.6, -0.25]));
-
-  for (let i = 0; i < 6; i++) {
-    const turn = (i - 2.5) * 0.36;
-    const at = (r: number, y: number) => new Vector3(Math.sin(turn) * r, y, Math.cos(turn) * r + 0.15);
-    const curve = new QuadraticBezierCurve3(at(0.25, y0 + 0.24), at(1.72, y0 + 0.12), at(2.02, y0 + 1.22));
-    b.add('matte', new TubeGeometry(curve, 10, 0.19, 6, false), i % 2 === 0 ? '#8fa63a' : '#a6b040', m);
-    const tip = at(2.02, y0 + 1.22);
-    b.add('matte', new SphereGeometry(0.2, 6, 5), '#6f7d2c', place(m, [tip.x, tip.y, tip.z]));
-    b.add('matte', new SphereGeometry(0.07, 5, 4), '#35260f', place(m, [tip.x, tip.y + 0.19, tip.z]));
+/**
+ * A flat slab cut from a ring: the part of the ring between `inner` and `outer` that lies
+ * within `angle` around the downward axis, `thickness` deep along z, centred on the origin.
+ * Closed on its faces, its outer edge and its two cut ends; the side towards the centre is
+ * left open for the next slab to fill (with `inner` 0 the slab is a full wedge).
+ */
+export function createArcSlab(inner: number, outer: number, angle: number, thickness: number, segments: number): BufferGeometry {
+  const positions: number[] = [];
+  const normals: number[] = [];
+  const half = thickness / 2;
+  const at = (radius: number, step: number, z: number) => {
+    const a = -angle / 2 + (angle * step) / segments;
+    return new Vector3(radius * Math.sin(a), -radius * Math.cos(a), z);
+  };
+  const edge = new Vector3();
+  const normal = new Vector3();
+  const triangle = (a: Vector3, b: Vector3, c: Vector3) => {
+    normal.subVectors(b, a).cross(edge.subVectors(c, a));
+    // A wedge has no inner edge: the triangles that would span it are empty.
+    if (normal.lengthSq() < 1e-12) return;
+    normal.normalize();
+    for (const p of [a, b, c]) {
+      positions.push(p.x, p.y, p.z);
+      normals.push(normal.x, normal.y, normal.z);
+    }
+  };
+  /** Corners counter-clockwise as seen from outside. */
+  const quad = (a: Vector3, b: Vector3, c: Vector3, d: Vector3) => {
+    triangle(a, b, c);
+    triangle(a, c, d);
+  };
+  for (let i = 0; i < segments; i++) {
+    quad(at(inner, i, half), at(outer, i, half), at(outer, i + 1, half), at(inner, i + 1, half));
+    quad(at(inner, i + 1, -half), at(outer, i + 1, -half), at(outer, i, -half), at(inner, i, -half));
+    quad(at(outer, i, half), at(outer, i, -half), at(outer, i + 1, -half), at(outer, i + 1, half));
   }
-  b.add('matte', new BoxGeometry(0.5, 0.3, 0.42), '#5d6b2a', place(m, [0, y0 + 0.2, 0.38]));
+  quad(at(inner, 0, half), at(inner, 0, -half), at(outer, 0, -half), at(outer, 0, half));
+  quad(at(inner, segments, half), at(outer, segments, half), at(outer, segments, -half), at(inner, segments, -half));
+  const geometry = new BufferGeometry();
+  geometry.setAttribute('position', new Float32BufferAttribute(positions, 3));
+  geometry.setAttribute('normal', new Float32BufferAttribute(normals, 3));
+  return geometry;
+}
 
-  const round = [110, 150, 180, 210, 250];
-  round.forEach((degrees, i) => {
-    const a = (degrees * Math.PI) / 180;
-    const persimmon = i % 2 === 1;
-    b.add(
-      'matte',
-      new SphereGeometry(0.42, 12, 9),
-      persimmon ? '#c9401f' : '#e58a2b',
-      place(m, [Math.sin(a) * 1.42, y0 + (persimmon ? 0.33 : 0.42), Math.cos(a) * 1.42], [0, 0, 0], [1, persimmon ? 0.78 : 1, 1]),
-    );
+export interface SeedSpot {
+  x: number;
+  z: number;
+  /** Yaw of the seed lying there. */
+  turn: number;
+}
+
+/** Evenly spread places for `count` seeds on a disc: a sunflower spiral, the same every time. */
+export function seedSpots(count: number, radius: number): SeedSpot[] {
+  const golden = Math.PI * (3 - Math.sqrt(5));
+  return Array.from({ length: count }, (_, i) => {
+    const r = radius * Math.sqrt((i + 0.5) / count);
+    return { x: Math.cos(i * golden) * r, z: Math.sin(i * golden) * r, turn: (i * 1.7) % Math.PI };
   });
-  b.add('matte', new IcosahedronGeometry(0.42, 1), '#86a653', place(m, [-0.62, y0 + 1.2, -1.05]));
-  b.add('matte', new SphereGeometry(0.4, 12, 9), '#c9401f', place(m, [0.62, y0 + 1.17, -1.05], [0, 0, 0], [1, 0.8, 1]));
+}
+
+/** One geometry from many small ones, which are released. */
+function gathered(parts: BufferGeometry[]): BufferGeometry {
+  const out = mergeGeometries(parts, false);
+  for (const part of parts) part.dispose();
+  return out;
+}
+
+const PORCELAIN = '#ebe8de';
+const COBALT = '#28489a';
+
+/** A white porcelain dish with a cobalt lip; returns the height of its well. */
+function porcelainDish(b: SetBuilder, m: Matrix4, radius: number, height: number): number {
+  const lathe = (profile: number[][]) => new LatheGeometry(profile.map(([r, y]) => new Vector2(r! * radius, y! * height)), 24);
+  b.add('gloss', lathe([[0.55, 0], [0.6, 0.18], [0.9, 0.7], [0.89, 0.85], [0.6, 0.42], [0, 0.36]]), PORCELAIN, m);
+  b.add('gloss', lathe([[0.9, 0.7], [1, 0.88], [0.98, 1], [0.89, 0.85]]), COBALT, m);
+  return 0.36 * height;
+}
+
+const SLICES = 5;
+const SLICE_RADIUS = 1.5;
+const SLICE_ANGLE = Math.PI / 3;
+const SLICE_THICKNESS = 0.26;
+const SLICE_LEAN = 0.55;
+/** Black seeds on the face of a slice: angle from its axis, and distance from its tip as a share of the radius. */
+const SLICE_SEEDS = [
+  [-0.3, 0.62],
+  [0, 0.7],
+  [0.3, 0.62],
+  [-0.13, 0.42],
+  [0.13, 0.42],
+];
+const MELON_SEEDS = 34;
+
+/**
+ * Dưa hấu and hạt dưa: a porcelain plate of watermelon slices standing on their rind, leaning
+ * back in a staggered row so their red faces show to the player opposite, and beside it a
+ * small dish heaped with red melon seeds.
+ */
+export function watermelonPlates(b: SetBuilder, m: Matrix4): void {
+  const plate = place(m, [-0.72, 0, 0.1]);
+  const well = porcelainDish(b, plate, 1.7, 0.28);
+  const rind: BufferGeometry[] = [];
+  const pith: BufferGeometry[] = [];
+  const flesh: BufferGeometry[] = [];
+  const pips: BufferGeometry[] = [];
+  const R = SLICE_RADIUS;
+  for (let i = 0; i < SLICES; i++) {
+    const u = i - (SLICES - 1) / 2;
+    // Standing on the lowest point of the rind, each slice a step behind and beside the last.
+    const slice = place(place(plate, [u * 0.4, well + 0.04, -u * 0.36], [-SLICE_LEAN, u * 0.06, 0]), [0, R, 0]);
+    rind.push(createArcSlab(R * 0.93, R, SLICE_ANGLE, SLICE_THICKNESS, 4).applyMatrix4(slice));
+    pith.push(createArcSlab(R * 0.87, R * 0.93, SLICE_ANGLE, SLICE_THICKNESS, 4).applyMatrix4(slice));
+    flesh.push(createArcSlab(0, R * 0.87, SLICE_ANGLE, SLICE_THICKNESS, 4).applyMatrix4(slice));
+    for (const [a, r] of SLICE_SEEDS) {
+      const at = [Math.sin(a!) * r! * R, -Math.cos(a!) * r! * R, SLICE_THICKNESS / 2] as const;
+      // A seed is a coarse ball, flattened and stretched.
+      pips.push(new SphereGeometry(1, 4, 2).applyMatrix4(place(slice, at, [0, 0, a!], [0.055, 0.1, 0.03])));
+    }
+  }
+  b.add('matte', gathered(rind), '#1f5c2a', new Matrix4());
+  b.add('matte', gathered(pith), '#e6edcf', new Matrix4());
+  b.add('matte', gathered(flesh), '#d62f3a', new Matrix4());
+  b.add('matte', gathered(pips), '#140c0a', new Matrix4());
+
+  const dish = place(m, [1.7, 0, 0.35]);
+  const floor = porcelainDish(b, dish, 0.68, 0.3);
+  const heap = 0.2;
+  b.add('matte', new SphereGeometry(1, 10, 3, 0, Math.PI * 2, 0, QUARTER), '#8c1512', place(dish, [0, floor, 0], [0, 0, 0], [0.54, heap, 0.54]));
+  const shades: BufferGeometry[][] = [[], []];
+  seedSpots(MELON_SEEDS, 0.48).forEach((spot, i) => {
+    const y = floor + heap * Math.sqrt(1 - (Math.hypot(spot.x, spot.z) / 0.54) ** 2) + 0.012;
+    shades[i % 2]!.push(new SphereGeometry(1, 4, 2).applyMatrix4(place(dish, [spot.x, y, spot.z], [0, spot.turn, 0], [0.05, 0.028, 0.09])));
+  });
+  b.add('matte', gathered(shades[0]!), '#c9211c', new Matrix4());
+  b.add('matte', gathered(shades[1]!), '#e2482c', new Matrix4());
 }
 
 /** Height of the tray floor the tea service model stands on. */
