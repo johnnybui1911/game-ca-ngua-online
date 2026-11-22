@@ -10,7 +10,7 @@ import {
 import { Icon } from '../ui/Icon';
 import { RulesSheet } from './RulesSheet';
 import { nextSettings } from './settings';
-import { motionSetting, useMotionLevel, type MotionLevel } from '../scene/motion/motion-setting';
+import { MotionLevelControl } from './MotionLevelControl';
 
 interface Props {
   room: RoomSnapshot;
@@ -21,11 +21,6 @@ interface Props {
   actionError: string | null;
   send: (msg: RoomClientMessage) => void;
 }
-
-const MOTION_LEVELS: [MotionLevel, string][] = [
-  ['full', 'Đầy đủ'],
-  ['reduced', 'Giảm'],
-];
 
 /**
  * Waiting room: the host picks turn time, Ván nhanh and auto-roll; everyone else reads the choice.
@@ -45,8 +40,6 @@ export function GameSettings({ room, isHost, offline, actionError, send }: Props
   };
 
   const summary = settings.quick ? QUICK_MODE_SUMMARY : CLASSIC_MODE_SUMMARY;
-  // Each player's own choice, kept in this browser; not a room setting.
-  const motion = useMotionLevel();
 
   return (
     <section className="game-settings" aria-labelledby="game-settings-title" data-testid="game-settings">
@@ -119,35 +112,7 @@ export function GameSettings({ room, isHost, offline, actionError, send }: Props
         <p className="ui-muted setting-help">Máy đổ giúp sau 1,5 giây.</p>
       </div>
 
-      {/* Toggle buttons, not a select or radios: those are the host's room settings here, and a guest's panel has none. */}
-      <div
-        className="setting-row"
-        style={{ flexWrap: 'wrap' }}
-        role="group"
-        aria-labelledby="motion-level-label"
-        data-testid="motion-level"
-        data-level={motion}
-      >
-        <span id="motion-level-label" className="setting-label" style={{ whiteSpace: 'nowrap' }}>
-          <Icon name="play" size="sm" />
-          Hoạt cảnh
-        </span>
-        <span style={{ display: 'flex', gap: 'var(--space-2)' }}>
-          {MOTION_LEVELS.map(([level, text]) => (
-            <button
-              key={level}
-              type="button"
-              className="ui-pill"
-              style={{ whiteSpace: 'nowrap' }}
-              data-testid={`motion-level-${level}`}
-              aria-pressed={motion === level}
-              onClick={() => motionSetting.setLevel(level)}
-            >
-              {text}
-            </button>
-          ))}
-        </span>
-      </div>
+      <MotionLevelControl />
 
       {rulesOpen && <RulesSheet settings={settings} secondsLeft={null} onClose={() => setRulesOpen(false)} />}
     </section>

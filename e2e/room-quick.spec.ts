@@ -103,6 +103,11 @@ test('the rules sheet lists the quick differences first in a quick room, from th
   await expect(sheet.locator('h3').first()).toHaveText('Ván nhanh khác ván thường');
   await host.page.keyboard.press('Escape');
   await host.page.getByTestId('match-menu-button').click();
+  // The waiting room's "Hoạt cảnh" choice is in the match menu too, stored for this browser.
+  const menu = host.page.getByTestId('match-menu');
+  await menu.getByTestId('motion-level-reduced').click();
+  await expect(menu.getByTestId('motion-level')).toHaveAttribute('data-level', 'reduced');
+  expect(await host.page.evaluate(() => localStorage.getItem('ca-ngua:motion'))).toBe('reduced');
   await host.page.getByTestId('menu-rules').click();
   await expect(sheet.locator('h3').first()).toHaveText('Ván nhanh khác ván thường');
   await host.context.close();
