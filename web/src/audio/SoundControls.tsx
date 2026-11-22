@@ -1,4 +1,4 @@
-import { useEffect, useState, useSyncExternalStore } from 'react';
+import { createContext, useContext, useEffect, useState, useSyncExternalStore } from 'react';
 import { Icon } from '../ui/Icon';
 import { sound, type Track } from './sound';
 import './sound.css';
@@ -9,6 +9,12 @@ export function useMusic(track: Track): void {
     sound.setTrack(track);
   }, [track]);
 }
+
+/**
+ * Where `SoundButton` shows. The app shell docks one sound button in its bottom-left corner and
+ * marks the pages `docked`, so a page that still mounts its own button does not show a second one.
+ */
+export const SoundPlacement = createContext<'inline' | 'docked'>('inline');
 
 /** The two on/off switches (music, effects), stored in this browser. */
 export function SoundSwitches() {
@@ -43,10 +49,12 @@ export function SoundSwitches() {
   );
 }
 
-/** Floating speaker button that opens the switches; for screens without their own menu. */
+/** Speaker button that opens the switches; for screens without their own menu. */
 export function SoundButton() {
+  const placement = useContext(SoundPlacement);
   const settings = useSyncExternalStore(sound.subscribe, sound.getSettings);
   const [open, setOpen] = useState(false);
+  if (placement === 'docked') return null;
   const muted = !settings.music && !settings.effects;
   return (
     <div className="sound-button">

@@ -9,9 +9,16 @@ import {
   closeUpFraming,
   defaultPolar,
   fitCameraDistance,
+  fitOrbitDistance,
+  followShare,
   freeBand,
+  freeBandX,
+  mixPose,
+  poseOf,
+  posePosition,
   reserveInsets,
   seatCameraPosition,
+  seatPose,
   shakeOffset,
 } from './camera';
 import { SLAB_HALF } from './layout';
@@ -139,6 +146,86 @@ describe('camera fit', () => {
       expect(reserveInsets(r, { top: 56, bottom: 120 }, 844, 390)).toEqual({ width: 844, height: 390, top: 56, bottom: 120 });
       expect(reserveInsets(r, { top: 56, bottom: 120 }, 390, 700)).toMatchObject({ top: 56, bottom: 120 });
     });
+  });
+});
+
+describe('framing beside a panel and on the home orbit', () => {
+  // Viewport, then what covers it: the home page's title and call-to-action band, a side panel, a bottom sheet.
+  for (const [name, w, h, insets] of [
+    ['home desktop', 1440, 900, { top: 0, bottom: 150 }],
+    ['home phone', 390, 844, { top: 96, bottom: 190 }],
+    ['side panel', 1440, 900, { top: 0, bottom: 0, right: 460 }],
+    ['bottom sheet', 390, 844, { top: 0, bottom: 480 }],
+  ] as const) {
+    it(`keeps every slab corner in the free area at every orbit angle, ${name}`, () => {
+      const aspect = w / h;
+      const polar = defaultPolar(aspect);
+      const y = freeBand(insets, h);
+      const x = freeBandX(insets, w);
+      const fit = fitOrbitDistance(aspect, 40, polar, y.fraction, x.fraction);
+      const left = 'left' in insets ? Number(insets.left) : 0;
+      const right = 'right' in insets ? insets.right : 0;
+      for (let step = 0; step < 72; step++) {
+        const pos = posePosition({ azimuth: (step * Math.PI) / 36, polar, zoom: 1 }, fit);
+        for (const sx of [-1, 1]) {
+          for (const sz of [-1, 1]) {
+            const n = project(pos, [sx * SLAB_HALF, 0, sz * SLAB_HALF], 40, aspect);
+            // Screen px from the top-left corner; the window slid right/down moves the picture left/up.
+            const px = ((n.x + 1) / 2) * w - x.shiftPx;
+            const py = ((1 - n.y) / 2) * h - y.shiftPx;
+            expect(px).toBeGreaterThanOrEqual(left - 0.5);
+            expect(px).toBeLessThanOrEqual(w - right + 0.5);
+            expect(py).toBeGreaterThanOrEqual(insets.top - 0.5);
+            expect(py).toBeLessThanOrEqual(h - insets.bottom + 0.5);
+          }
+        }
+      }
+    });
+  }
+
+  it('never asks for less distance than a seat view does', () => {
+    for (const aspect of [390 / 844, 1.6]) {
+      expect(fitOrbitDistance(aspect, 40)).toBeGreaterThanOrEqual(fitCameraDistance(aspect, 40));
+    }
+  });
+
+  it('centres the board between side panels', () => {
+    expect(freeBandX({ top: 0, bottom: 0, right: 400 }, 1600)).toEqual({ fraction: 0.75, shiftPx: 200 });
+    expect(freeBandX({ top: 0, bottom: 0 }, 1600)).toEqual({ fraction: 1, shiftPx: 0 });
+  });
+});
+
+describe('camera poses', () => {
+  it('reads back the pose a position was built from', () => {
+    const pose = { azimuth: 2.2, polar: 0.8, zoom: 1.1 };
+    const back = poseOf(posePosition(pose, 20), 20);
+    expect(back.azimuth).toBeCloseTo(pose.azimuth, 9);
+    expect(back.polar).toBeCloseTo(pose.polar, 9);
+    expect(back.zoom).toBeCloseTo(pose.zoom, 9);
+  });
+
+  it('puts a seat pose where the seat camera stands', () => {
+    for (const color of COLORS) {
+      const expected = seatCameraPosition(color, 18, 0.9);
+      posePosition(seatPose(color, 0.9), 18).forEach((v, i) => expect(v).toBeCloseTo(expected[i]!, 9));
+    }
+  });
+
+  it('flies the shorter way round and lands exactly on the seat', () => {
+    const from = { azimuth: Math.PI - 0.2, polar: 0.7, zoom: 1.2 };
+    const to = { azimuth: -Math.PI + 0.2, polar: 0.9, zoom: 1 };
+    // 0.4 rad apart across the ±π seam, not 2π - 0.4 the long way.
+    expect(mixPose(from, to, 0.5).azimuth).toBeCloseTo(Math.PI, 9);
+    const end = posePosition(mixPose(from, to, 1), 10);
+    posePosition(to, 10).forEach((v, i) => expect(end[i]).toBeCloseTo(v, 9));
+    expect(mixPose(from, to, 0)).toEqual(from);
+  });
+
+  it('follows faster over longer frames and jumps when there is no time constant', () => {
+    expect(followShare(0)).toBe(0);
+    expect(followShare(0.1)).toBeGreaterThan(followShare(0.016));
+    expect(followShare(10)).toBeCloseTo(1, 6);
+    expect(followShare(0.016, 0)).toBe(1);
   });
 });
 

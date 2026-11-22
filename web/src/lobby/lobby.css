@@ -1,97 +1,110 @@
-.lobby-page {
-  min-height: 100dvh;
-  padding: var(--space-4);
-  display: grid;
-  align-content: start;
+/* The lobby panel, on the shell's glass surface. Form fields are styled for glass in styles/auth.css. */
+
+.lobby-panel {
   gap: var(--space-4);
-  width: min(100%, 960px);
-  margin: 0 auto;
 }
 
 .lobby-header {
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  gap: var(--space-2) var(--space-4);
+  gap: var(--space-2) var(--space-3);
 }
 
-.lobby-header h1 {
-  margin: 0;
+.lobby-who h1 {
+  font-size: var(--text-lg);
+  letter-spacing: var(--tracking-label);
   overflow-wrap: anywhere;
 }
 
-.lobby-header .muted {
-  grid-column: 1;
+.lobby-header > .ui-btn--secondary {
+  padding: 0 var(--space-4);
+}
+
+@media (max-width: 420px) {
+  .lobby-who h1 {
+    font-size: var(--text-md);
+  }
+}
+
+.lobby-who .muted {
   margin: 0;
+  font-size: var(--text-sm);
 }
 
-.lobby-header .btn {
-  grid-column: 2;
-  grid-row: 1 / span 2;
+.lobby-header .signout-confirm {
+  grid-column: 1 / -1;
 }
 
-.lobby-grid {
+.lobby-section {
   display: grid;
-  gap: var(--space-4);
-  grid-template-columns: 1fr;
+  gap: var(--space-3);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-border);
 }
 
-@media (min-width: 760px) {
-  .lobby-grid {
-    grid-template-columns: 1fr 1fr;
-    align-items: start;
-  }
-
-  .lobby-grid > :last-child {
-    grid-column: 1 / -1;
-  }
-}
-
-.lobby-card h2 {
-  margin: 0 0 var(--space-3);
+.lobby-section h2 {
+  margin: 0;
   font-family: var(--font-display);
   font-size: var(--text-lg);
+  color: var(--color-gold-strong);
+}
+
+.lobby-options {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.lobby-options .field {
+  flex: 1 1 130px;
+}
+
+.lobby-options .glass-select {
+  width: 100%;
+}
+
+
+.join-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: var(--space-2);
 }
 
 .muted {
-  color: var(--ink-soft);
-}
-
-.field select {
-  min-height: var(--touch);
-  padding: 0 var(--space-3);
-  font: inherit;
-  background: #fff;
-  border: 2px solid var(--wood-300);
-  border-radius: var(--radius-sm);
+  color: var(--color-text-muted);
 }
 
 .choice-row {
   display: flex;
-  gap: var(--space-4);
-  flex-wrap: wrap;
+  gap: var(--space-2);
+  min-width: 0;
   border: 0;
   padding: 0;
   margin: 0;
 }
 
 .choice-row legend {
-  font-weight: 700;
   padding: 0;
   margin-bottom: var(--space-1);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text-muted);
 }
 
-.choice {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  min-height: var(--touch);
-  cursor: pointer;
+.choice-row .ui-pill {
+  padding: 0 var(--space-3);
+  white-space: nowrap;
 }
 
-.choice input {
-  width: 22px;
-  height: 22px;
+.choice-row input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--color-gold);
 }
 
 .room-list {
@@ -99,7 +112,7 @@
   margin: 0;
   padding: 0;
   display: grid;
-  gap: var(--space-3);
+  gap: var(--space-2);
 }
 
 .room-item {
@@ -108,8 +121,8 @@
   justify-content: space-between;
   gap: var(--space-3);
   padding: var(--space-3);
-  background: #fff;
-  border: 2px solid var(--wood-300);
+  background: rgb(245 234 210 / 6%);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
 }
 
@@ -120,6 +133,10 @@
 
 .room-item-info strong {
   overflow-wrap: anywhere;
+}
+
+.room-item-info .muted {
+  font-size: var(--text-sm);
 }
 
 .toast-stack {

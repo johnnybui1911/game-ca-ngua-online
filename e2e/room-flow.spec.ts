@@ -1,11 +1,11 @@
 import { request } from 'node:http';
 import { expect, test } from '@playwright/test';
 import { createRoom, newPlayer, openRawSocket, ORIGIN, rawSend } from './helpers/rooms';
-import { PASSWORD, uniqueEmail } from './auth-helpers';
+import { PASSWORD, openLobby, uniqueEmail } from './auth-helpers';
 
 test('private room: a signed-out visitor registers from the entry screen link and lands seated beside the host', async ({ browser }) => {
   const host = await newPlayer(browser, 'Chủ Nhà');
-  await host.page.goto('/');
+  await openLobby(host.page);
   await host.page.getByTestId('create-name').fill('Phòng bạn bè');
   await host.page.getByTestId('create-visibility-private').check();
   await host.page.getByTestId('create-seats').selectOption('3');
@@ -40,6 +40,46 @@ test('private room: a signed-out visitor registers from the entry screen link an
   await guestContext.close();
 });
 
+test('one board for the whole visit: matches, the lobby and the waiting room between them share a single canvas', async ({ browser }) => {
+  const context = await browser.newContext({ baseURL: ORIGIN, locale: 'vi-VN', viewport: { width: 360, height: 520 } });
+  const page = await context.newPage();
+  const canvases = page.locator('[data-testid=scene-host] canvas');
+  /** Canvases created since the page loaded; a remount on a route change would raise it. */
+  const mounts = () => page.evaluate(() => document.documentElement.dataset.sceneMounts);
+  const playAgainstCpu = async () => {
+    await page.getByTestId('create-seats').selectOption('2');
+    await page.getByTestId('create-submit').click();
+    await expect(page).toHaveURL(/\/r\/[A-Z0-9]{6}$/);
+    await page.getByTestId('add-cpu-1').click();
+    await page.getByTestId('start-button').click();
+    await expect(page.getByTestId('hud')).toBeVisible();
+    // The match plays on the shared board: the roll button opens once the board has shown the turn.
+    await expect(page.getByTestId('roll-button')).toBeEnabled();
+    await expect(page.locator('[data-testid=scene-host][data-load=ready]')).toBeVisible();
+  };
+
+  // The whole way in from the home page. (Without a GPU, as in this suite, the board waits for
+  // the first match behind its poster; with one it is there from the home page on.)
+  await page.goto('/');
+  await page.getByTestId('play-now').click();
+  await page.getByTestId('guest-name').fill('Khách Một Bàn');
+  await page.getByTestId('guest-submit').click();
+  await expect(page.getByTestId('greeting')).toBeVisible();
+  await playAgainstCpu();
+  await expect(canvases).toHaveCount(1);
+  expect(await mounts()).toBe('1');
+
+  // Back to the lobby, through a second waiting room and into a second match: still that canvas.
+  await page.getByTestId('leave-room').click();
+  await page.getByTestId('leave-confirm').click();
+  await expect(page.getByTestId('greeting')).toBeVisible();
+  await expect(canvases).toHaveCount(1);
+  await playAgainstCpu();
+  await expect(canvases).toHaveCount(1);
+  expect(await mounts()).toBe('1');
+  await context.close();
+});
+
 test('join by code from the lobby, unknown code, public list shows public rooms only', async ({ browser }) => {
   const host = await newPlayer(browser, 'Chủ Công Khai');
   const other = await newPlayer(browser, 'Người Xem');
@@ -48,7 +88,7 @@ test('join by code from the lobby, unknown code, public list shows public rooms 
   await host.page.goto(`/r/${publicCode}`);
   await expect(host.page.getByTestId('seat-0-state')).toContainText('Đang kết nối');
 
-  await other.page.goto('/');
+  await openLobby(other.page);
   await expect(other.page.getByTestId(`room-item-${publicCode}`)).toContainText('Sảnh mở');
   await expect(other.page.getByTestId(`room-item-${publicCode}`)).toContainText('1/2 chỗ');
   await expect(other.page.getByTestId(`room-item-${privateCode}`)).toHaveCount(0);
@@ -66,7 +106,7 @@ test('join by code from the lobby, unknown code, public list shows public rooms 
   await other.page.getByTestId(`room-join-${publicCode}`).click();
   await expect(other.page).toHaveURL(`/r/${publicCode}`);
   await expect(other.page.getByTestId('seat-1-name')).toContainText('Người Xem (bạn)');
-  await other.page.goto('/');
+  await openLobby(other.page);
   await expect(other.page.getByTestId(`room-join-${publicCode}`)).toBeDisabled();
 
   await host.context.close();
@@ -79,6 +119,7 @@ test('unknown room code shows the not-found message with a way back', async ({ b
   await expect(p.page.getByTestId('room-error')).toHaveText('Không tìm thấy phòng.');
   await p.page.getByTestId('back-to-lobby').click();
   await expect(p.page).toHaveURL('/');
+  await expect(p.page.getByTestId('greeting')).toBeVisible();
   await p.context.close();
 });
 

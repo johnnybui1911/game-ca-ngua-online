@@ -1,4 +1,4 @@
-import type { Color } from '../../../shared/game/types';
+import type { Color, GameEvent, GameState } from '../../../shared/game/types';
 import type { RoomSnapshot } from '../../../shared/protocol';
 import type { StateBatch } from '../room/batches';
 
@@ -32,3 +32,41 @@ export interface GameSceneProps {
 
 /** DOM label of each horse, `[color][horse]`, owned by the scene's mount point and placed by the frame loop. */
 export type HorseLabelElements = (HTMLDivElement | null)[][];
+
+/** One step of a game shown without a room behind it: the state and the events that led to it. */
+export interface ShowcaseStep {
+  /** Increases with every step, like `RoomSnapshot.seq`. */
+  seq: number;
+  game: GameState;
+  events: GameEvent[];
+}
+
+/**
+ * A game the board plays by itself while no match owns it (the home page and the panels over it).
+ * `steps` follows the contract of `GameSceneProps.batches`: in `seq` order, newest last, never
+ * empty; the scene animates every step newer than the last one it showed and ends up showing the
+ * newest `game`. Nobody controls a colour, and nothing can be picked.
+ */
+export interface ShowcaseScene {
+  /** Changes when another game starts (a replay): the board shows it at once instead of animating into it. */
+  key?: string;
+  steps: ShowcaseStep[];
+  /** Quick animation pace, as in a quick match. */
+  quick?: boolean;
+}
+
+/** How the scene is staged around whatever game it shows. */
+export interface SceneStaging {
+  /**
+   * Identity of the game on the board. When it changes the scene shows the new game at once
+   * (no animation from the old one) and, in the `seat` view, flies the camera to the seat.
+   */
+  sourceKey?: string;
+  /**
+   * `seat` (default): the camera sits behind `myColor`'s stable (the first colour's when null).
+   * `free`: the camera belongs to nobody, as on the home page.
+   */
+  view?: 'seat' | 'free';
+  /** Slow turn around the board in the `free` view; stops while the player drags it. */
+  orbit?: boolean;
+}
