@@ -610,6 +610,70 @@ html[data-quality='low'] .hud-player {
   border-color: var(--seat-color);
 }
 
+/*
+ * Narrow screens: a two-row card so the name gets the full width beside the dot (wrapping to
+ * a second line when long) and the badges and finished-horse pips share the row below.
+ */
+@media (max-width: 719px) {
+  .hud-player {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas:
+      'dot name name'
+      'badges badges home';
+    align-items: center;
+    gap: 2px var(--space-2);
+    padding: var(--space-1) var(--space-2) 6px var(--space-1);
+    border-radius: var(--radius-md);
+  }
+
+  .hud-player .seat-dot {
+    grid-area: dot;
+    width: 28px;
+    height: 28px;
+  }
+
+  .hud-player-main {
+    display: contents;
+  }
+
+  .hud-name {
+    grid-area: name;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    line-height: var(--leading-tight);
+  }
+
+  .hud-badges {
+    grid-area: badges;
+    min-width: 0;
+    padding-left: 2px;
+  }
+
+  .hud-home {
+    grid-area: home;
+    align-self: end;
+  }
+
+  /* The pips say how many horses are home; the card's label keeps the count for screen readers. */
+  .hud-home > [aria-hidden='true']:not(.hud-home-pips) {
+    display: none;
+  }
+
+  .hud-home-pips {
+    gap: 2px;
+  }
+
+  .hud-home-pips > span {
+    width: 7px;
+    height: 7px;
+  }
+}
+
 /* Bottom bar: turn, clock, die and the turn's actions. */
 .glass.hud-bottom {
   position: absolute;
