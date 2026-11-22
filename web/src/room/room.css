@@ -999,6 +999,8 @@ html[data-quality='low'] .hud-player {
 }
 
 .match-menu {
+  max-height: calc(100dvh - 2 * var(--space-4));
+  overflow-y: auto;
   text-align: left;
 }
 
