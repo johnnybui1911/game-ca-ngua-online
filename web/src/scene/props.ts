@@ -8,8 +8,8 @@ import type { StateBatch } from '../room/batches';
  */
 export interface GameSceneProps {
   /**
-   * Latest snapshot. `room.game` is non-null whenever the scene is mounted. `room.settings.quick` sets the
-   * animation pace; a quick game (`room.game.variant`) also shows a lock on each closed home column.
+   * Latest snapshot. `room.game` is non-null whenever the scene is mounted. `room.settings.pace` and
+   * `room.settings.quick` pick the animation timings; a quick game (`room.game.variant`) also shows a lock on each closed home column.
    */
   room: RoomSnapshot;
   /**

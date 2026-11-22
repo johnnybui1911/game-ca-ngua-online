@@ -425,19 +425,22 @@
   border-bottom: 1px solid var(--color-border);
 }
 
-.cpu-level-options {
+.setting-pills {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);
 }
 
-.cpu-level-option {
+.setting-pill {
   flex: 1 1 0;
   justify-content: center;
+  padding: 0 var(--space-2);
+  white-space: nowrap;
 }
 
-.cpu-level-help {
-  margin: 0;
+.pace-title {
+  min-height: var(--touch);
+  font-weight: var(--weight-semibold);
 }
 
 /* ---- match: the stage fills the screen, the HUD hugs the top and bottom edges ---- */

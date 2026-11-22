@@ -34,14 +34,14 @@ export function CpuLevelControl({
         <Icon name="bot" size="sm" />
         Độ khó máy
       </span>
-      <div className="cpu-level-options" role="radiogroup" aria-label="Độ khó máy">
+      <div className="setting-pills" role="radiogroup" aria-label="Độ khó máy">
         {CPU_LEVELS.map((l) => (
           <button
             key={l}
             type="button"
             role="radio"
             aria-checked={level === l}
-            className="ui-pill cpu-level-option"
+            className="ui-pill setting-pill"
             data-testid={`cpu-level-${l}`}
             disabled={offline}
             onClick={() => level !== l && send({ t: 'cpuLevel', level: l })}

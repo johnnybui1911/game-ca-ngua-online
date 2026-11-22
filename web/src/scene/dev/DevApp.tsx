@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore
 import type { CSSProperties } from 'react';
 import { PerspectiveCamera, Vector3 } from 'three';
 import { DEFAULT_CPU_LEVEL, isCpuLevel, type CpuLevel } from '../../../../shared/game/cpu-level';
+import { DEFAULT_PACE, isPaceName, paceTimings, pauseSeconds, type PaceName } from '../../../../shared/game/pace';
 import { DEFAULT_ROOM_SETTINGS, SEAT_COLORS } from '../../../../shared/protocol';
 import type { RoomSnapshot } from '../../../../shared/protocol';
 import { DemoDriver } from '../../demo/demo-driver';
@@ -15,14 +16,28 @@ import { STABLE, horseGround } from '../layout';
 import type { ShowcaseStep } from '../props';
 
 /** `?level=easy|normal|hard` makes the harness CPUs play at that level (default Thường). */
-/** `?quick=1` plays the quick match variant at quick pace. */
+/** `?quick=1` plays the quick match variant with the quick table of the pace. */
 function devQuick(): boolean {
-  return new URLSearchParams(window.location.search).get('quick') === '1';
+  return devFlag('quick');
+}
+
+/**
+ * `?server=1` starts with "Nhịp máy chủ" on: every colour plays as a CPU does in a room, a roll and its move in
+ * one batch, the next one after the pause the server would leave. `?paused=1` starts paused.
+ */
+function devFlag(name: string): boolean {
+  return new URLSearchParams(window.location.search).get(name) === '1';
 }
 
 function devLevel(): CpuLevel {
   const level = new URLSearchParams(window.location.search).get('level');
   return isCpuLevel(level) ? level : DEFAULT_CPU_LEVEL;
+}
+
+/** `?pace=nhanh|vua|thu-thai` is the harness room's "Nhịp ván" (default Vừa). */
+function devPace(): PaceName {
+  const pace = new URLSearchParams(window.location.search).get('pace');
+  return isPaceName(pace) ? pace : DEFAULT_PACE;
 }
 
 const DEFAULT_SEED = 7;
@@ -40,7 +55,7 @@ function snapshot(step: ShowcaseStep, players: number): RoomSnapshot {
     turnDeadline: null,
     paused: false,
     cpuLevel: devLevel(),
-    settings: { ...DEFAULT_ROOM_SETTINGS, quick: devQuick() },
+    settings: { ...DEFAULT_ROOM_SETTINGS, quick: devQuick(), pace: devPace() },
     seq: step.seq,
   };
 }
@@ -60,8 +75,9 @@ export default function DevApp() {
   const [players, setPlayers] = useState(4);
   const [seed, setSeed] = useState(DEFAULT_SEED);
   const [delay, setDelay] = useState(700);
+  const [likeServer, setLikeServer] = useState(() => devFlag('server'));
   const [playMe, setPlayMe] = useState(false);
-  const [paused, setPaused] = useState(false);
+  const [paused, setPaused] = useState(() => devFlag('paused'));
   const [picks, setPicks] = useState(0);
   // The game lives outside React state: the die is drawn once per action, whatever React re-runs.
   const [driver] = useState(
@@ -76,12 +92,14 @@ export default function DevApp() {
 
   useEffect(() => {
     if (game.phase === 'finished' || paused || humanTurn) return;
+    const wait = likeServer ? pauseSeconds(step.events, paceTimings(devPace(), devQuick())) * 1000 : delay;
     const id = window.setTimeout(() => {
-      if (driver.game.phase === 'roll') driver.roll();
-      else driver.cpuMove();
-    }, delay);
+      if (driver.game.phase !== 'roll') driver.cpuMove();
+      else if (likeServer) driver.playTurn();
+      else driver.roll();
+    }, wait);
     return () => window.clearTimeout(id);
-  }, [driver, game, paused, humanTurn, delay]);
+  }, [driver, game, step, paused, humanTurn, delay, likeServer]);
 
   const onPickHorse = useCallback(
     (horse: number) => {
@@ -151,10 +169,14 @@ export default function DevApp() {
           <input type="range" min={5} max={1500} step={5} value={delay} onChange={(e) => setDelay(Number(e.target.value))} />
         </label>
         <label>
+          <input id="like-server" type="checkbox" checked={likeServer} onChange={(e) => setLikeServer(e.target.checked)} /> Nhịp máy chủ (
+          {devPace()})
+        </label>
+        <label>
           <input type="checkbox" checked={playMe} onChange={(e) => setPlayMe(e.target.checked)} /> Tự chơi màu đỏ
         </label>
         <label>
-          <input type="checkbox" checked={paused} onChange={(e) => setPaused(e.target.checked)} /> Tạm dừng
+          <input id="paused" type="checkbox" checked={paused} onChange={(e) => setPaused(e.target.checked)} /> Tạm dừng
         </label>
         {humanTurn && game.phase === 'roll' && (
           <button id="roll" onClick={() => driver.roll()}>

@@ -1,13 +1,19 @@
 import type { Env } from '../env';
 
 export interface Timings {
-  /** Pause before a CPU (or a CPU standing in for a human) plays its next action. */
+  /**
+   * True when the room's pace (its "Nhịp ván" setting) times the game: the server waits for the clients' animation
+   * of each commit before the next automated action and before a person's clock starts. False in fast mode,
+   * where nothing waits for an animation.
+   */
+  paced: boolean;
+  /** Pause before a CPU (or a CPU standing in for a human) plays its next action in fast mode; a paced room only uses it as the shortest takeover delay. */
   cpuDelayMs: number;
   /** Milliseconds per second of the host's turn-time choice; shortened in fast mode so timeouts are testable. */
   turnUnitMs: number;
   /** After this long into an action the server rolls for a human whose room has auto-roll on. */
   autoRollMs: number;
-  /** Pace of automatic play in a quick match, per animated segment (a roll or a move) of the last commit. */
+  /** The fast-mode pause in a quick match, per animated segment (a roll or a move) of the last commit. */
   quickSegmentMs: number;
   /** How long a disconnected human may hold up a game before a CPU plays for them. */
   playingDisconnectMs: number;
@@ -23,6 +29,7 @@ export interface Timings {
 export const IDLE_AUTOPLAY_AFTER = 2;
 
 const NORMAL: Timings = {
+  paced: true,
   cpuDelayMs: 700,
   turnUnitMs: 1_000,
   autoRollMs: 1_500,
@@ -34,6 +41,7 @@ const NORMAL: Timings = {
 };
 
 const FAST: Timings = {
+  paced: false,
   cpuDelayMs: 25,
   turnUnitMs: 400,
   autoRollMs: 20,

@@ -1,12 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { applyMove, applyRoll, createGame } from '../../shared/game/engine';
-import type { DiceValue } from '../../shared/game/types';
+import { PACES, PACE_NAMES, animationSeconds, pauseSeconds, type PaceName } from '../../shared/game/pace';
+import type { DiceValue, GameEvent } from '../../shared/game/types';
 import { DEFAULT_ROOM_SETTINGS, ROOM_CODE_ALPHABET, ROOM_CODE_LENGTH, TURN_SECONDS_OPTIONS, type RoomSettings } from '../../shared/protocol';
-import { IDLE_AUTOPLAY_AFTER, type Timings } from './constants';
+import type { Env } from '../env';
+import { IDLE_AUTOPLAY_AFTER, timingsFor, type Timings } from './constants';
 import { generateRoomCode, isRoomCode } from './room-code';
 import {
   cleanHorseNames,
   AlarmTracker,
+  animationMs,
   drawDie,
   dueDelay,
   levelForOccupant,
@@ -31,7 +34,9 @@ import {
   type RoomState,
 } from './room-state';
 
+/** Fixed pauses, as in fast mode: nothing waits for an animation. */
 const BASE: Timings = {
+  paced: false,
   cpuDelayMs: 700,
   turnUnitMs: 1_000,
   autoRollMs: 1_500,
@@ -42,6 +47,15 @@ const BASE: Timings = {
   lobbySweepMs: 180_000,
 };
 const T = timingsOf({} as RoomState, BASE);
+/** Events of a commit with this many animated segments: a roll, then moves. */
+const commitOf = (segments: number): GameEvent[] =>
+  (
+    [
+      { type: 'rolled', color: 0, dice: 3, legalHorses: [0] },
+      { type: 'moved', color: 0, horse: 0, from: 0, to: 3, kicked: null },
+      { type: 'moved', color: 0, horse: 0, from: 3, to: 6, kicked: null },
+    ] satisfies GameEvent[]
+  ).slice(0, segments);
 const ann = { id: 'u1', displayName: 'An' };
 const binh = { id: 'u2', displayName: 'Bình' };
 
@@ -393,11 +407,11 @@ describe('automated turn in one step', () => {
     expect(r.actionDueAt).toBe(1_000 + T.turnMs);
   });
 
-  it('adds the pause to the takeover delay of a disconnected human who plays next, not to their own clock', () => {
+  it('takes over for a disconnected human who plays next after the longer of the pause and the grace, leaving their own clock alone', () => {
     const r = dueRoom([cpuSeats[0]!, { color: 2, occupant: { kind: 'human', user: ann } }]);
     r.game = { ...r.game!, horses: [[5, -1, -1, -1], ...r.game!.horses.slice(1)] };
     playDueAction(r, new Set(), 1_000, T, () => 2);
-    expect(r.dueAt).toBe(1_000 + Math.max(T.cpuDelayMs, T.playingDisconnectMs) + T.cpuDelayMs);
+    expect(r.dueAt).toBe(1_000 + Math.max(2 * T.cpuDelayMs, T.playingDisconnectMs));
     expect(r.actionDueAt).toBe(1_000 + T.turnMs);
   });
 
@@ -515,7 +529,7 @@ describe('room settings', () => {
   const both = new Set(['u1', 'u2']);
 
   it('reads a room without settings as the defaults', () => {
-    expect(settingsOf(room())).toEqual({ turnSeconds: 30, quick: false, autoRoll: false });
+    expect(settingsOf(room())).toEqual({ turnSeconds: 30, quick: false, autoRoll: false, pace: 'vua' });
     expect(timingsOf(room(), BASE).turnMs).toBe(30_000);
     expect(paceMs(room(), BASE)).toBe(700);
   });
@@ -528,24 +542,39 @@ describe('room settings', () => {
   });
 
   it('accepts exactly the allowed settings and nothing else', () => {
-    expect(parseRoomSettings({ turnSeconds: 20, quick: true, autoRoll: false })).toEqual({ turnSeconds: 20, quick: true, autoRoll: false });
+    expect(parseRoomSettings({ turnSeconds: 20, quick: true, autoRoll: false, pace: 'vua' })).toEqual({
+      turnSeconds: 20,
+      quick: true,
+      autoRoll: false,
+      pace: 'vua',
+    });
     for (const turnSeconds of TURN_SECONDS_OPTIONS) {
-      expect(parseRoomSettings({ turnSeconds, quick: false, autoRoll: true })?.turnSeconds).toBe(turnSeconds);
+      expect(parseRoomSettings({ turnSeconds, quick: false, autoRoll: true, pace: 'vua' })?.turnSeconds).toBe(turnSeconds);
     }
+    for (const pace of PACE_NAMES) {
+      expect(parseRoomSettings({ turnSeconds: 30, quick: false, autoRoll: false, pace })?.pace).toBe(pace);
+    }
+    // A tab loaded before the pace setting existed sends no pace: accepted, the room keeps its own.
+    expect(parseRoomSettings({ turnSeconds: 30, quick: false, autoRoll: false })).toEqual({ turnSeconds: 30, quick: false, autoRoll: false });
     const bad: unknown[] = [
       null,
       'x',
       [],
       {},
-      { turnSeconds: 0, quick: false, autoRoll: false },
-      { turnSeconds: 31, quick: false, autoRoll: false },
-      { turnSeconds: '30', quick: false, autoRoll: false },
-      { turnSeconds: 30.5, quick: false, autoRoll: false },
-      { turnSeconds: 30, quick: 'true', autoRoll: false },
-      { turnSeconds: 30, quick: 1, autoRoll: false },
-      { turnSeconds: 30, quick: false, autoRoll: undefined },
-      { turnSeconds: 30, quick: false },
-      { turnSeconds: 30, quick: false, autoRoll: false, extra: 1 },
+      { turnSeconds: 0, quick: false, autoRoll: false, pace: 'vua' },
+      { turnSeconds: 31, quick: false, autoRoll: false, pace: 'vua' },
+      { turnSeconds: '30', quick: false, autoRoll: false, pace: 'vua' },
+      { turnSeconds: 30.5, quick: false, autoRoll: false, pace: 'vua' },
+      { turnSeconds: 30, quick: 'true', autoRoll: false, pace: 'vua' },
+      { turnSeconds: 30, quick: 1, autoRoll: false, pace: 'vua' },
+      { turnSeconds: 30, quick: false, autoRoll: undefined, pace: 'vua' },
+      { turnSeconds: 30, quick: false, pace: 'vua' },
+      { turnSeconds: 30, quick: false, autoRoll: false, pace: 'vua', extra: 1 },
+      { turnSeconds: 30, quick: false, autoRoll: false, pace: 'current' },
+      { turnSeconds: 30, quick: false, autoRoll: false, pace: 'Vừa' },
+      { turnSeconds: 30, quick: false, autoRoll: false, pace: 1 },
+      { turnSeconds: 30, quick: false, autoRoll: false, pace: null },
+      { turnSeconds: 30, quick: false, autoRoll: false, pace: 'toString' },
     ];
     for (const b of bad) expect(parseRoomSettings(b)).toBeNull();
   });
@@ -588,7 +617,7 @@ describe('room settings', () => {
     const r = playing(settings({ turnSeconds: 20, quick: true }), { dueAt: 1_700, actionDueAt: 20_000 });
     r.seats[1]!.misses = IDLE_AUTOPLAY_AFTER;
     const snap = toSnapshot(r, both);
-    expect(snap.settings).toEqual({ turnSeconds: 20, quick: true, autoRoll: false });
+    expect(snap.settings).toEqual({ turnSeconds: 20, quick: true, autoRoll: false, pace: 'vua' });
     expect(snap.seats.map((s) => s.auto)).toEqual([false, true]);
     expect(snap.turnDeadline).toBe(20_000);
     r.actionDueAt = null;
@@ -696,25 +725,25 @@ describe('quick match pace and auto-roll', () => {
     expect(createGame([0, 2]).horses.flat().every((p) => p < 0)).toBe(true);
   });
 
-  it('paces CPU, autopilot and takeover by segments of the last commit in a quick match only', () => {
+  it('paces CPU, autopilot and takeover by segments of the last commit', () => {
     const r = quick();
     r.seats[0]!.occupant = { kind: 'cpu', name: 'Máy 1' };
     const t = timingsOf(r, BASE);
     expect(dueDelay(r, both, t)).toBe(400);
-    expect(dueDelay(r, both, t, 2)).toBe(800);
-    expect(dueDelay(r, both, t, 0)).toBe(400);
-    planTurn(r, both, 1_000, t, 2);
+    expect(dueDelay(r, both, t, commitOf(2))).toBe(800);
+    expect(dueDelay(r, both, t, commitOf(0))).toBe(400);
+    planTurn(r, both, 1_000, t, commitOf(2));
     expect(r.dueAt).toBe(1_800);
 
     const normal = room({ status: 'playing', game: createGame([0, 2]) });
     normal.seats[0]!.occupant = { kind: 'cpu', name: 'Máy 1' };
-    expect(dueDelay(normal, both, T, 2)).toBe(700);
-    expect(dueDelay(normal, both, T, 1)).toBe(700);
+    expect(dueDelay(normal, both, T, commitOf(2))).toBe(1_400);
+    expect(dueDelay(normal, both, T, commitOf(1))).toBe(700);
 
     const auto = quick();
     auto.seats[0]!.misses = IDLE_AUTOPLAY_AFTER;
-    expect(dueDelay(auto, both, timingsOf(auto, BASE), 2)).toBe(800);
-    expect(dueDelay(auto, new Set(['u2']), timingsOf(auto, BASE), 2)).toBe(3_000);
+    expect(dueDelay(auto, both, timingsOf(auto, BASE), commitOf(2))).toBe(800);
+    expect(dueDelay(auto, new Set(['u2']), timingsOf(auto, BASE), commitOf(2))).toBe(3_000);
   });
 
   it('plays a forced single move in the same step in a quick match and passes segments to the clock', () => {
@@ -795,7 +824,7 @@ describe('quick match pace and auto-roll', () => {
   it('a quick match room with a human keeps pace segments out of the human turn clock', () => {
     const r = quick();
     const t = timingsOf(r, BASE);
-    planTurn(r, both, 0, t, 3);
+    planTurn(r, both, 0, t, commitOf(3));
     expect(r.dueAt).toBe(20_000);
     expect(r.actionDueAt).toBe(20_000);
   });
@@ -816,11 +845,114 @@ describe('quick match pace and auto-roll', () => {
 
 describe('rematch', () => {
   it('keeps the settings and clears missed turns', () => {
-    const r = room({ status: 'finished', game: createGame([0, 2]), settings: { turnSeconds: 15, quick: true, autoRoll: true } });
+    const r = room({ status: 'finished', game: createGame([0, 2]), settings: { turnSeconds: 15, quick: true, autoRoll: true, pace: 'thu-thai' } });
     r.seats[0]!.misses = 2;
     r.seats[1]!.misses = 1;
     clearMisses(r);
     expect(r.seats.map((s) => s.misses)).toEqual([undefined, undefined]);
-    expect(settingsOf(r)).toEqual({ turnSeconds: 15, quick: true, autoRoll: true });
+    expect(settingsOf(r)).toEqual({ turnSeconds: 15, quick: true, autoRoll: true, pace: 'thu-thai' });
+  });
+});
+
+describe('a room at the real pace', () => {
+  const LIVE = timingsFor({} as Env);
+  const both = new Set(['u1', 'u2']);
+  /** `pace` undefined: settings as stored before the pace setting existed. */
+  const cpuFirst = (quick: boolean, autoRoll = false, pace?: PaceName): RoomState =>
+    room({
+      status: 'playing',
+      game: createGame([0, 2], quick ? 'quick' : 'classic'),
+      settings: { turnSeconds: 30, quick, autoRoll, ...(pace ? { pace } : {}) },
+      seats: [
+        { color: 0, occupant: { kind: 'cpu', name: 'Máy 1' } },
+        { color: 2, occupant: { kind: 'human', user: ann } },
+      ],
+      dueAt: 1_000,
+    });
+  const ms = (seconds: number) => Math.round(seconds * 1_000);
+
+  it("waits before the next CPU action exactly as long as the board animates the commit at the room's pace, plus the beat", () => {
+    for (const name of PACE_NAMES) {
+      for (const quick of [false, true]) {
+        const timings = quick ? PACES[name].quick : PACES[name].normal;
+        const r = cpuFirst(quick, false, name);
+        r.seats[1]!.occupant = { kind: 'cpu', name: 'Máy 2' };
+        const t = timingsOf(r, LIVE);
+        // A six brings a horse out and earns another roll: the same CPU plays next.
+        const played = playDueAction(r, both, 1_000, t, () => 6)!;
+        expect(played.events.map((e) => e.type).slice(0, 2)).toEqual(['rolled', 'moved']);
+        expect(r.dueAt).toBe(1_000 + ms(pauseSeconds(played.events, timings)));
+        expect(r.dueAt! - 1_000).toBeGreaterThanOrEqual(ms(animationSeconds(played.events, timings) + timings.beat));
+      }
+    }
+  });
+
+  it('pauses longer the slower the pace the host chose, and a quick match pauses less at every pace', () => {
+    const batch: GameEvent[] = [
+      { type: 'rolled', color: 0, dice: 6, legalHorses: [0] },
+      { type: 'moved', color: 0, horse: 0, from: 0, to: 6, kicked: null },
+    ];
+    const pause = (pace: PaceName, quick: boolean) => paceMs(cpuFirst(quick, false, pace), LIVE, batch);
+    expect(pause('nhanh', false)).toBe(1_400);
+    expect(pause('vua', false)).toBeGreaterThan(pause('nhanh', false));
+    expect(pause('thu-thai', false)).toBeGreaterThan(pause('vua', false));
+    for (const name of PACE_NAMES) expect(pause(name, true)).toBeLessThan(pause(name, false));
+  });
+
+  it('plays a room stored before the pace setting, or with a pace it does not know, at Vừa', () => {
+    const batch: GameEvent[] = [{ type: 'moved', color: 0, horse: 0, from: 0, to: 6, kicked: null }];
+    const vua = cpuFirst(false, false, 'vua');
+    const old = JSON.parse(JSON.stringify(cpuFirst(false))) as RoomState;
+    expect(old.settings).toEqual({ turnSeconds: 30, quick: false, autoRoll: false });
+    const odd = cpuFirst(false, false, 'current' as PaceName);
+    for (const r of [old, odd]) {
+      expect(settingsOf(r).pace).toBe('vua');
+      expect(toSnapshot(r, both).settings.pace).toBe('vua');
+      expect(paceMs(r, LIVE, batch)).toBe(paceMs(vua, LIVE, batch));
+      expect(animationMs(r, LIVE, batch)).toBe(animationMs(vua, LIVE, batch));
+    }
+    expect(paceMs(room({ status: 'playing', game: createGame([0, 2]) }), LIVE, batch)).toBe(paceMs(vua, LIVE, batch));
+  });
+
+  it('pauses longer for a long move than for a short one', () => {
+    const r = cpuFirst(false);
+    const short: GameEvent[] = [{ type: 'moved', color: 0, horse: 0, from: 0, to: 1, kicked: null }];
+    const long: GameEvent[] = [{ type: 'moved', color: 0, horse: 0, from: 0, to: 6, kicked: null }];
+    expect(paceMs(r, LIVE, long)).toBeGreaterThan(paceMs(r, LIVE, short));
+    expect(paceMs(r, LIVE)).toBe(PACES.vua.normal.minSegmentPause * 1_000);
+  });
+
+  it('fast mode ignores the pace: fixed pauses, and a person\'s clock starts at once', () => {
+    const r = cpuFirst(false, false, 'thu-thai');
+    const long: GameEvent[] = [{ type: 'moved', color: 0, horse: 0, from: 0, to: 6, kicked: null }];
+    expect(paceMs(r, BASE, long)).toBe(BASE.cpuDelayMs);
+    expect(animationMs(r, BASE, long)).toBe(0);
+  });
+
+  it('starts a person\'s clock when the board has shown the action before theirs', () => {
+    const r = cpuFirst(false);
+    r.game = { ...r.game!, horses: [[5, -1, -1, -1], ...r.game!.horses.slice(1)] };
+    const t = timingsOf(r, LIVE);
+    const played = playDueAction(r, both, 1_000, t, () => 2)!;
+    expect(r.game!.turn).toBe(2);
+    const shown = animationMs(r, t, played.events);
+    expect(shown).toBe(ms(animationSeconds(played.events, PACES.vua.normal)));
+    expect(shown).toBeGreaterThan(1_000);
+    expect(r.actionDueAt).toBe(1_000 + shown + t.turnMs);
+    expect(r.dueAt).toBe(r.actionDueAt);
+    expect(toSnapshot(r, both).turnDeadline).toBe(r.actionDueAt);
+  });
+
+  it('auto-rolls for a person only after the board has shown the action before theirs', () => {
+    const r = cpuFirst(false, true);
+    r.game = { ...r.game!, horses: [[5, -1, -1, -1], ...r.game!.horses.slice(1)] };
+    const t = timingsOf(r, LIVE);
+    const played = playDueAction(r, both, 1_000, t, () => 2)!;
+    const shown = animationMs(r, t, played.events);
+    expect(r.dueAt).toBe(1_000 + shown + t.autoRollMs);
+    // Dropping and coming back re-derives the same moment, moved on by the 100 ms the game stood still with nobody connected.
+    reconcileConnections(r, new Set(['u2']), 1_100, t);
+    reconcileConnections(r, both, 1_200, t);
+    expect(r.dueAt).toBe(1_000 + shown + t.autoRollMs + 100);
   });
 });

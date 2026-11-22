@@ -1,6 +1,6 @@
 import { DurableObject } from 'cloudflare:workers';
 import { NO_SOURCE, type ServerEvent } from '../../shared/analytics';
-import { applyMove, createGame, rollAndSettle, segmentsOf } from '../../shared/game/engine';
+import { applyMove, createGame, rollAndSettle } from '../../shared/game/engine';
 import type { GameEvent, StepResult } from '../../shared/game/types';
 import { isEmoteId } from '../../shared/emotes';
 import {
@@ -389,7 +389,7 @@ export class RoomDO extends DurableObject<Env> {
       case 'settings': {
         needHostBudget();
         if (room.status !== 'waiting') throw new RoomError('bad_state', 'Chỉ đổi cài đặt khi đang chờ.');
-        room.settings = msg.settings;
+        room.settings = { ...msg.settings, pace: msg.settings.pace ?? settingsOf(room).pace };
         await this.commit([]);
         return;
       }
@@ -534,7 +534,7 @@ export class RoomDO extends DurableObject<Env> {
       room.dueAt = null;
       room.actionDueAt = null;
     } else {
-      planTurn(room, this.connectedUsers(), Date.now(), this.roomTimings(room), segmentsOf(result.events));
+      planTurn(room, this.connectedUsers(), Date.now(), this.roomTimings(room), result.events);
     }
     await this.commit(result.events);
   }

@@ -35,10 +35,13 @@ Luật chơi được mô tả tại `shared/game/types.ts`, gồm luật thư�
 Chủ phòng chọn ở phòng chờ (chỉ đổi được khi phòng đang chờ, giữ nguyên qua "chơi lại"); người khác thấy giá trị hiện tại ở dạng chỉ đọc.
 
 - **Thời gian mỗi lượt**: 10, 15, 20, 30 (mặc định) hoặc 60 giây. Hết giờ, máy chủ chơi thay. Người chơi bị hết giờ 2 lượt liên tiếp thì chuyển sang chơi tự động ("Tự động"): máy chủ chơi thay họ cho tới khi họ bấm "Tôi đã quay lại" hoặc tự đổ xúc xắc, đi quân.
-- **Ván nhanh** (luật biến thể N3): mỗi màu có sẵn 1 ngựa ở ô xuất phát; chuồng đích của một màu bị khóa cho tới khi màu đó đá được ít nhất 1 ngựa đối thủ (đá khi ra chuồng cũng tính); ngựa đầu tiên của bất kỳ màu nào lên chuồng thắng ngay. Các luật còn lại giữ nguyên. Ván nhanh cũng tự đi khi chỉ có một nước, và máy chủ cùng hoạt ảnh chạy nhanh hơn. Bật ván nhanh khi thời gian mỗi lượt còn 30 giây thì tự chọn 20 giây. Ván thường không đổi luật.
+- **Ván nhanh** (luật biến thể N3): mỗi màu có sẵn 1 ngựa ở ô xuất phát; chuồng đích của một màu bị khóa cho tới khi màu đó đá được ít nhất 1 ngựa đối thủ (đá khi ra chuồng cũng tính); ngựa đầu tiên của bất kỳ màu nào lên chuồng thắng ngay. Các luật còn lại giữ nguyên. Ván nhanh cũng tự đi khi chỉ có một nước, và ở cùng một nhịp ván thì máy chủ cùng hoạt ảnh chạy nhanh hơn ván thường. Bật ván nhanh khi thời gian mỗi lượt còn 30 giây thì tự chọn 20 giây. Ván thường không đổi luật.
+- **Nhịp ván**: Nhanh, Vừa (mặc định) hoặc Thư thả. Quyết định tung xúc xắc, từng bước nhảy, cú đá và khoảng nghỉ giữa hai lượt máy dài bao lâu; không đổi luật, độc lập với Ván nhanh. Phòng chờ ghi kèm thời lượng ước tính của ván theo số ghế (ví dụ Vừa, 4 người: khoảng 30–40 phút bàn cờ chạy, chưa kể thời gian suy nghĩ). Phòng tạo trước khi có cài đặt này và ván minh hoạ ở trang chủ chạy nhịp Vừa.
 - **Tự đổ xúc xắc**: máy chủ đổ giúp người đến lượt sau 1,5 giây; không tính là bỏ lượt.
 
 Số liệu đo nhịp ván (số thao tác, commit, phút theo nhịp máy chủ) nằm ở `plans/20261121-turn-timer-quick-mode/plan.md`; chạy lại bằng `PACING_REPORT=1 npx vitest run shared/game/pacing.test.ts`.
+
+Ba nhịp nằm trong một bảng duy nhất ở `shared/game/pace.ts` (`nhanh`, `vua`, `thu-thai`; mỗi nhịp có bảng riêng cho ván nhanh). Bàn cờ diễn hoạt theo nhịp của phòng, còn máy chủ chờ đúng thời lượng hoạt ảnh của lượt vừa rồi cộng một nhịp nghỉ trước khi chơi cho máy; đồng hồ lượt của người chơi cũng chỉ bắt đầu khi bàn cờ diễn xong lượt trước. Thời lượng ước tính lấy từ bảng `shared/game/pace-estimate.ts`; sửa số trong một nhịp thì `npm test` báo bảng ước tính cần cập nhật theo.
 
 
 ## Phát triển
@@ -60,6 +63,8 @@ npm run e2e                # Playwright, tự khởi động server ở cổng 5
 ```
 
 `scene-dev.html` (chỉ có khi chạy `npm run dev`) phát một ván toàn CPU để xem và chỉnh bàn cờ 3D; thêm `?level=easy|normal|hard` để xem các CPU chơi ở mức đó.
+
+`scene-dev.html` cũng nhận `?pace=nhanh|vua|thu-thai` (nhịp ván của phòng thử, mặc định Vừa) và `?quick=1`; `?server=1` cho các CPU chơi đúng nhịp máy chủ (đổ và đi trong một lượt), `?paused=1` mở ở trạng thái tạm dừng.
 
 ## Deploy
 
