@@ -4,10 +4,10 @@
  * already on screen. Whatever is created through the kit is disposed with it.
  */
 import { Color, DoubleSide, MeshBasicMaterial, MeshStandardMaterial } from 'three';
-import type { Material } from 'three';
+import type { CanvasTexture, Material } from 'three';
 import { fadeLevel } from './motion';
 import type { Surface } from './set-builder';
-import { coupletScroll, floorFade, floorTile, lacquerTop, platformShadow } from './set-textures';
+import { coupletScroll, floorFade, floorTile, lacquerTop, plaqueFace, platformShadow } from './set-textures';
 
 /** Seconds the set takes to come up. */
 export const FADE_SECONDS = 1.6;
@@ -103,10 +103,20 @@ export class SetKit {
     return this.sheer(new MeshBasicMaterial({ map: this.own(platformShadow()), transparent: true, depthWrite: false, toneMapped: false }));
   }
 
-  /** Lettered face of a couplet scroll; the paper carries a little light of its own so the gold reads in the dark. */
-  scroll(line: number): MeshStandardMaterial {
-    const map = this.own(coupletScroll(line));
+  /** A lettered sheet; it carries a little light of its own so the gold reads in the dark. */
+  private lettered(map: CanvasTexture): MeshStandardMaterial {
+    this.own(map);
     return this.lit(new MeshStandardMaterial({ map, roughness: 0.8, emissive: new Color('#ffffff'), emissiveMap: map, emissiveIntensity: 0.2 }));
+  }
+
+  /** Lettered face of a couplet scroll. */
+  scroll(line: number): MeshStandardMaterial {
+    return this.lettered(coupletScroll(line));
+  }
+
+  /** Lettered face of the nameplate of the golden horse. */
+  plaque(): MeshStandardMaterial {
+    return this.lettered(plaqueFace());
   }
 
   readonly petals = this.lit(

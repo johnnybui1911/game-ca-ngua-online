@@ -13,19 +13,23 @@ import { FLOOR_Y, LANTERN_CENTRES, SIDE_LIGHTS, TABLE_HALF, TABLE_TOP_Y, piecesO
 import type { Point3, SetPiece } from './layout';
 import { lanternLevel } from './motion';
 import {
+  PLAQUE_FACE,
+  PLAQUE_HEIGHT,
+  PLAQUE_TILT,
+  PLAQUE_WIDTH,
   SCROLL_CENTRE_Y,
   SCROLL_HEIGHT,
   SCROLL_WIDTH,
   TEA_TRAY_TOP,
   coupletStand,
   createLanternBody,
+  goldenHorse,
   lanternStand,
   platform,
   riceCakes,
   sprayBranches,
   sweetsBox,
   teaTray,
-  watermelonPlate,
 } from './pieces';
 import { SURFACES, SetBuilder, place } from './set-builder';
 import { SetKit } from './set-kit';
@@ -47,8 +51,9 @@ const FLOWERS: Record<QualityTier, number> = { low: 36, medium: 64, high: 96 };
 const PETALS = ['#f6c61e', '#f39ab5'];
 const BUDS = ['#b9c634', '#d64f78'];
 
-/** Offering in front of each seat's far side: watermelon, rice cakes, tea, sweets. */
-const OFFERINGS = [watermelonPlate, riceCakes, teaTray, sweetsBox];
+/** What stands in front of each seat's far side: the golden horse, rice cakes, tea, sweets. */
+const OFFERINGS = [goldenHorse, riceCakes, teaTray, sweetsBox];
+const HORSE_SIDE = OFFERINGS.indexOf(goldenHorse);
 const TEA_SIDE = OFFERINGS.indexOf(teaTray);
 
 const LAMP_COLOUR = '#ff9d5c';
@@ -155,6 +160,8 @@ export default function TetSet() {
       shadowMaterial: kit.platformShadow(),
       scroll: kit.own(new PlaneGeometry(SCROLL_WIDTH, SCROLL_HEIGHT)),
       scrollMaterials: [kit.scroll(0), kit.scroll(1)],
+      plaque: kit.own(new PlaneGeometry(PLAQUE_WIDTH, PLAQUE_HEIGHT)),
+      plaqueMaterial: kit.plaque(),
       lanterns: kit.own(createLanterns(createLanternBody(), LANTERN_CENTRES, 6.4)),
       vases: piecesOf('blossom').map((piece) => place(standing(piece), [0, 0, 0], [0, 0, 0], VASE_SCALE)),
       teaSets: piecesOf('offering')
@@ -219,6 +226,13 @@ export default function TetSet() {
           <mesh geometry={base.scroll} material={base.scrollMaterials[piece.variant]} position={[0, SCROLL_CENTRE_Y, 0.02]} />
         </group>
       ))}
+      {piecesOf('offering')
+        .filter((piece) => piece.variant === HORSE_SIDE)
+        .map((piece, i) => (
+          <group key={i} position={[piece.x, TABLE_TOP_Y, piece.z]} rotation={[0, piece.yaw, 0]}>
+            <mesh geometry={base.plaque} material={base.plaqueMaterial} position={PLAQUE_FACE} rotation={[PLAQUE_TILT, 0, 0]} />
+          </group>
+        ))}
       <primitive object={flowers} />
       <primitive object={base.lanterns.paper} />
       <primitive object={base.lanterns.halo} />

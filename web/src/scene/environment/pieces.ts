@@ -7,19 +7,15 @@ import {
   BoxGeometry,
   BufferGeometry,
   CatmullRomCurve3,
-  CircleGeometry,
   CylinderGeometry,
-  Float32BufferAttribute,
   LatheGeometry,
   Matrix4,
-  RingGeometry,
   SphereGeometry,
   TorusGeometry,
   TubeGeometry,
   Vector2,
-  Vector3,
 } from 'three';
-import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { createHorseBody, createHorseDetails } from '../horse-geometry';
 import type { Spray } from './blossom';
 import { FLOOR_Y, LANTERN_HEIGHT, LANTERN_REACH, TABLE_HALF, TABLE_TOP_Y } from './layout';
 import { place } from './set-builder';
@@ -120,219 +116,55 @@ export function sprayBranches(b: SetBuilder, m: Matrix4, spray: Spray): void {
   }
 }
 
-/**
- * The skin of a melon as a unit sphere with its poles on the y axis, cut into `stripes` pairs of
- * a narrow light band and a wide dark one that run from pole to pole. The edges between the
- * bands waver, each in its own rhythm, and straighten towards the poles where the bands meet.
- * `span` is how far the skin reaches down from the top pole: half a turn for a whole melon, a
- * quarter for the half that is left after a cut across the middle.
- */
-export function createMelonSkin(stripes: number, rows: number, span = Math.PI): { dark: BufferGeometry; light: BufferGeometry } {
-  const whole = span >= Math.PI;
-  const pitch = (Math.PI * 2) / stripes;
-  const lightWidth = pitch * 0.36;
-  const sway = lightWidth * 0.3;
-  /** Longitude of edge `e` at polar angle `theta`: even edges open a light band, odd ones close it. */
-  const edge = (e: number, theta: number) =>
-    Math.floor(e / 2) * pitch + (e % 2 === 0 ? -0.5 : 0.5) * lightWidth + sway * Math.sin(theta) * Math.sin(5 * theta + e * 2.4);
-  type Column = (theta: number) => number;
-  /** Adds the strip between the first and the last column to a skin, as a grid of shared points. */
-  const band = (out: { positions: number[]; index: number[] }, columns: Column[]) => {
-    const first = out.positions.length / 3;
-    const at = (row: number, column: number) => first + row * columns.length + column;
-    for (let row = 0; row <= rows; row++) {
-      const theta = (row / rows) * span;
-      for (const column of columns) {
-        const phi = column(theta);
-        out.positions.push(Math.sin(theta) * Math.cos(phi), Math.cos(theta), Math.sin(theta) * Math.sin(phi));
-      }
-    }
-    for (let row = 0; row < rows; row++) {
-      for (let column = 0; column + 1 < columns.length; column++) {
-        // At a pole the row is a single point, and the triangle along it is empty.
-        if (row > 0) out.index.push(at(row, column), at(row, column + 1), at(row + 1, column));
-        if (!whole || row < rows - 1) out.index.push(at(row, column + 1), at(row + 1, column + 1), at(row + 1, column));
-      }
-    }
-  };
-  const light = { positions: [] as number[], index: [] as number[] };
-  const dark = { positions: [] as number[], index: [] as number[] };
-  for (let s = 0; s < stripes; s++) {
-    const [open, close, next] = [2 * s, 2 * s + 1, 2 * s + 2].map((e): Column => (theta) => edge(e, theta)) as [Column, Column, Column];
-    band(light, [open, close]);
-    // The wide band bends once more in the middle, so the melon stays round.
-    band(dark, [close, (theta) => (close(theta) + next(theta)) / 2, next]);
-  }
-  const skin = ({ positions, index }: { positions: number[]; index: number[] }) => {
-    const geometry = new BufferGeometry();
-    geometry.setAttribute('position', new Float32BufferAttribute(positions, 3));
-    // On a unit sphere a point is its own normal.
-    geometry.setAttribute('normal', new Float32BufferAttribute(positions, 3));
-    geometry.setIndex(index);
-    return geometry;
-  };
-  return { dark: skin(dark), light: skin(light) };
-}
+/** Lower and upper tier of the lacquer base under the golden horse: width, height, depth. */
+const BASE_FOOT = [2.9, 0.3, 1.9] as const;
+const BASE_STEP = [2.2, 0.14, 1.5] as const;
+/** Size of the statue horse against a horse on the board, and how far it turns its flank to the player opposite. */
+const STATUE_SCALE = 1.49;
+const STATUE_TURN = 0.7;
+/** Height at which the body of a horse from `horse-geometry` starts: the room its playing base takes. */
+const HORSE_FOOT = 0.14;
 
-export interface SeedSpot {
-  x: number;
-  z: number;
-  /** Yaw of the seed lying there. */
-  turn: number;
-}
+const STATUE_GOLD = '#ffd25a';
+const BRONZE = '#3d2610';
 
-/** Evenly spread places for `count` seeds on a disc: a sunflower spiral, the same every time. */
-export function seedSpots(count: number, radius: number): SeedSpot[] {
-  const golden = Math.PI * (3 - Math.sqrt(5));
-  return Array.from({ length: count }, (_, i) => {
-    const r = radius * Math.sqrt((i + 0.5) / count);
-    return { x: Math.cos(i * golden) * r, z: Math.sin(i * golden) * r, turn: (i * 1.7) % Math.PI };
-  });
-}
-
-/** One geometry from many small ones, which are released. */
-function gathered(parts: BufferGeometry[]): BufferGeometry {
-  const out = mergeGeometries(parts, false);
-  for (const part of parts) part.dispose();
-  return out;
-}
-
-const PORCELAIN = '#ebe8de';
-const COBALT = '#28489a';
-
-/** A white porcelain dish with a cobalt lip; returns the height of its well. */
-function porcelainDish(b: SetBuilder, m: Matrix4, radius: number, height: number, segments: number): number {
-  const lathe = (profile: number[][]) => new LatheGeometry(profile.map(([r, y]) => new Vector2(r! * radius, y! * height)), segments);
-  b.add('gloss', lathe([[0.55, 0], [0.6, 0.18], [0.9, 0.7], [0.89, 0.85], [0.6, 0.42], [0, 0.36]]), PORCELAIN, m);
-  b.add('gloss', lathe([[0.9, 0.7], [1, 0.88], [0.98, 1], [0.89, 0.85]]), COBALT, m);
-  return 0.36 * height;
-}
-
-/** Share of a melon's radius taken by its red flesh, and by the flesh and the white pith under the rind. */
-const FLESH_EDGE = 0.86;
-const PITH_EDGE = 0.93;
-
-export interface MelonWedge {
-  rind: BufferGeometry;
-  pith: BufferGeometry;
-  flesh: BufferGeometry;
-}
+/** Lettered face of the nameplate that leans against the front of the base, top edge back. */
+export const PLAQUE_WIDTH = 1.9;
+export const PLAQUE_HEIGHT = 0.32;
+export const PLAQUE_TILT = -0.5;
+const PLAQUE_THICKNESS = 0.04;
+const PLAQUE_CENTRE = [0, 0.2, BASE_FOOT[2] / 2 + 0.08] as const;
+/** Where the lettered sheet lies, a hair above the plate. */
+export const PLAQUE_FACE: readonly [number, number, number] = [
+  PLAQUE_CENTRE[0],
+  PLAQUE_CENTRE[1] - Math.sin(PLAQUE_TILT) * (PLAQUE_THICKNESS / 2 + 0.004),
+  PLAQUE_CENTRE[2] + Math.cos(PLAQUE_TILT) * (PLAQUE_THICKNESS / 2 + 0.004),
+];
 
 /**
- * A wedge cut from a round of melon: its point at the origin, the rind an arc of unit radius
- * `angle` wide below it, `thickness` along z. The flesh, the pith and the rind are separate
- * shapes that touch, each closed on every side that shows.
+ * "Mã đáo thành công": a gilt horse, the horse of the board at a larger size, on a two-tier
+ * red lacquer base with gilt edges. It shows its flank to the player opposite, its head still
+ * towards the board, and a gilt nameplate leans against the front of the base; the lettered
+ * face of the plate is a separate sheet.
  */
-export function createMelonWedge(angle: number, thickness: number, steps: number): MelonWedge {
-  const half = thickness / 2;
-  const at = (radius: number, step: number, z: number) => {
-    const phi = (step / steps - 0.5) * angle;
-    return new Vector3(radius * Math.sin(phi), -radius * Math.cos(phi), z);
-  };
-  const layer = (inner: number, outer: number, skinned: boolean) => {
-    const positions: number[] = [];
-    const normals: number[] = [];
-    const index: number[] = [];
-    /** A flat face of three or four corners, wound to show towards `normal`. */
-    const face = (corners: Vector3[], normal: Vector3) => {
-      const [a, b, c] = corners as [Vector3, Vector3, Vector3];
-      const wound = b.clone().sub(a).cross(c.clone().sub(a)).dot(normal) > 0 ? corners : [...corners].reverse();
-      const first = positions.length / 3;
-      for (const corner of wound) {
-        positions.push(corner.x, corner.y, corner.z);
-        normals.push(normal.x, normal.y, normal.z);
-      }
-      for (let i = 2; i < wound.length; i++) index.push(first, first + i - 1, first + i);
-    };
-    for (let step = 0; step < steps; step++) {
-      for (const z of [half, -half]) {
-        const corners = [at(outer, step, z), at(outer, step + 1, z), at(inner, step + 1, z)];
-        // The flesh ends in the point of the wedge.
-        if (inner > 0) corners.push(at(inner, step, z));
-        face(corners, new Vector3(0, 0, Math.sign(z)));
-      }
-      if (skinned) {
-        const out = at(1, step + 0.5, 0);
-        face([at(outer, step, half), at(outer, step + 1, half), at(outer, step + 1, -half), at(outer, step, -half)], out);
-      }
-    }
-    for (const step of [0, steps]) {
-      const along = at(1, step, 0);
-      const side = new Vector3(-along.y, along.x, 0).multiplyScalar(step === 0 ? -1 : 1);
-      face([at(inner, step, half), at(outer, step, half), at(outer, step, -half), at(inner, step, -half)], side);
-    }
-    const geometry = new BufferGeometry();
-    geometry.setAttribute('position', new Float32BufferAttribute(positions, 3));
-    geometry.setAttribute('normal', new Float32BufferAttribute(normals, 3));
-    geometry.setIndex(index);
-    return geometry;
-  };
-  return { rind: layer(PITH_EDGE, 1, true), pith: layer(FLESH_EDGE, PITH_EDGE, false), flesh: layer(0, FLESH_EDGE, false) };
-}
+export function goldenHorse(b: SetBuilder, m: Matrix4): void {
+  const [footW, footH, footD] = BASE_FOOT;
+  const [stepW, stepH, stepD] = BASE_STEP;
+  const top = footH + stepH;
+  b.add('gloss', new BoxGeometry(footW, footH, footD), RED, place(m, [0, footH / 2, 0]));
+  b.add('metal', new BoxGeometry(footW + 0.05, 0.05, footD + 0.05), GOLD, place(m, [0, 0.045, 0]));
+  b.add('metal', new BoxGeometry(footW + 0.05, 0.04, footD + 0.05), GOLD, place(m, [0, footH - 0.03, 0]));
+  b.add('gloss', new BoxGeometry(stepW, stepH, stepD), RED, place(m, [0, footH + stepH / 2, 0]));
+  b.add('metal', new BoxGeometry(stepW + 0.04, 0.035, stepD + 0.04), GOLD, place(m, [0, top - 0.025, 0]));
 
-/** Half length and half thickness of the watermelon, and the bands of its skin. */
-const MELON_LENGTH = 1.35;
-const MELON_GIRTH = 1.05;
-const MELON_STRIPES = 10;
-/** How far the cut face of the half melon leans back, and how far it turns away from the slices. */
-const MELON_LEAN = 0.08;
-const MELON_TURN = -0.5;
-const MELON_SEEDS = 7;
-/** The slices beside it: how many, their height, the angle at their point and their thickness. */
-const SLICES = 4;
-const SLICE_HEIGHT = 1.15;
-const SLICE_ANGLE = 0.8;
-const SLICE_THICKNESS = 0.2;
+  const horse = place(m, [0, top - HORSE_FOOT * STATUE_SCALE, 0], [0, STATUE_TURN, 0], STATUE_SCALE);
+  b.add('metal', createHorseBody(), STATUE_GOLD, horse);
+  b.add('metal', createHorseDetails(), BRONZE, horse);
+  // A gilt collar where the body meets the base.
+  b.add('metal', new TorusGeometry(0.35 * STATUE_SCALE, 0.04, 6, 28), GOLD, place(m, [0, top + 0.03, 0], [QUARTER, 0, 0]));
 
-const RIND = '#17502a';
-const PITH = '#e9edc8';
-const FLESH = '#d3262a';
-const PIP = '#16100c';
-
-/**
- * Dưa hấu on one porcelain plate: half a striped watermelon lying on its side, its cut face
- * turned towards the player opposite, and to that player's right four wedge slices standing
- * on their rind in a fan.
- */
-export function watermelonPlate(b: SetBuilder, m: Matrix4): void {
-  const radius = 2.3;
-  const height = 0.3;
-  const well = porcelainDish(b, m, radius, height, 24);
-  /** Height of the dish under a point: flat in the well, then rising to the lip. */
-  const dishAt = (x: number, z: number) => well + Math.max(0, ((Math.hypot(x, z) / radius - 0.6) / 0.29) * 0.49 * height);
-
-  // The poles of the skin lie along the plate, the cut across the middle faces the front and a little up.
-  const rest = Math.hypot(MELON_GIRTH * Math.cos(MELON_LEAN), MELON_LENGTH * Math.sin(MELON_LEAN));
-  const lying = place(place(m, [-0.85, well + rest - 0.03, -0.1], [0, MELON_TURN, 0]), [0, 0, 0], [-QUARTER - MELON_LEAN, 0, 0]);
-  const skin = createMelonSkin(MELON_STRIPES, 6, QUARTER);
-  const body = place(lying, [0, 0, 0], [0, 0, 0], [MELON_GIRTH, MELON_LENGTH, MELON_GIRTH]);
-  b.add('gloss', skin.dark, RIND, body);
-  b.add('gloss', skin.light, '#86b84e', body);
-  const cut = place(lying, [0, 0, 0], [QUARTER, 0, 0], MELON_GIRTH);
-  b.add('matte', new RingGeometry(PITH_EDGE, 1, 24), RIND, cut);
-  b.add('matte', new RingGeometry(FLESH_EDGE, PITH_EDGE, 24), PITH, cut);
-  b.add('matte', new CircleGeometry(FLESH_EDGE, 24), FLESH, cut);
-  const pips = seedSpots(MELON_SEEDS, 0.62).map((spot) =>
-    new SphereGeometry(1, 4, 2).applyMatrix4(place(cut, [spot.x, spot.z, 0.008], [0, 0, spot.turn], [0.04, 0.075, 0.014])),
-  );
-
-  const reach = SLICE_THICKNESS / SLICE_HEIGHT / 2;
-  for (let i = 0; i < SLICES; i++) {
-    const x = 0.7 + i * 0.3;
-    const z = 0.5 + i * 0.1;
-    // Standing on the middle of its rind, leaning back a little, each turned further than the last.
-    const slice = place(m, [x, dishAt(x, z) + SLICE_HEIGHT - 0.01, z], [-0.1, 0.3 - i * 0.2, 0], SLICE_HEIGHT);
-    const wedge = createMelonWedge(SLICE_ANGLE, SLICE_THICKNESS / SLICE_HEIGHT, 4);
-    b.add('matte', wedge.rind, RIND, slice);
-    b.add('matte', wedge.pith, PITH, slice);
-    b.add('matte', wedge.flesh, FLESH, slice);
-    for (const [px, py] of i % 2 === 0 ? [[-0.07, -0.58], [0.1, -0.42]] : [[0.03, -0.5]]) {
-      for (const face of [1, -1]) {
-        pips.push(new SphereGeometry(1, 4, 2).applyMatrix4(place(slice, [px! * face, py!, face * (reach + 0.004)], [0, 0, px! * 2], [0.03, 0.055, 0.012])));
-      }
-    }
-  }
-  b.add('matte', gathered(pips), PIP, new Matrix4());
+  const plate = place(m, PLAQUE_CENTRE, [PLAQUE_TILT, 0, 0]);
+  b.add('metal', new BoxGeometry(PLAQUE_WIDTH + 0.12, PLAQUE_HEIGHT + 0.1, PLAQUE_THICKNESS), GOLD, plate);
 }
 
 /** Height of the tray floor the tea service model stands on. */

@@ -1,6 +1,7 @@
 /**
  * Textures of the living-room set, painted with the 2D canvas API: lacquer inlay, cement
- * floor tiles, couplet scrolls and the soft discs behind glows and shadows. No image files.
+ * floor tiles, couplet scrolls, the nameplate of the golden horse and the soft discs behind
+ * glows and shadows. No image files.
  */
 import { CanvasTexture, LinearFilter, RepeatWrapping, SRGBColorSpace } from 'three';
 
@@ -269,31 +270,68 @@ function paintCouplet(ctx: CanvasRenderingContext2D, w: number, h: number, words
 }
 
 /**
- * Face of a couplet scroll: red paper, gold border and gold lettering, one syllable per line.
- * Painted at once with whatever serif is available and again when the title face has loaded.
+ * A texture lettered in the title face: painted at once with whatever serif is available and
+ * again when the face has loaded.
  */
-export function coupletScroll(line: number): CanvasTexture {
-  const w = 256;
-  const h = 832;
-  const [c, ctx] = canvas(w, h);
-  const words = COUPLET_LINES[line] ?? COUPLET_LINES[0]!;
-  paintCouplet(ctx, w, h, words, 20 + line * 40);
+function lettered(c: HTMLCanvasElement, face: string, text: string, paint: () => void): CanvasTexture {
+  paint();
   const texture = colourTexture(c);
   const fonts = typeof document !== 'undefined' ? document.fonts : undefined;
-  const face = 'italic 700 82px "Playfair Display"';
   if (fonts && !fonts.check(face)) {
     let alive = true;
     texture.addEventListener('dispose', () => {
       alive = false;
     });
     void fonts
-      .load(face, words.join(''))
+      .load(face, text)
       .then((loaded) => {
         if (!alive || loaded.length === 0) return;
-        paintCouplet(ctx, w, h, words, 20 + line * 40);
+        paint();
         texture.needsUpdate = true;
       })
       .catch(() => undefined);
   }
   return texture;
+}
+
+/** Face of a couplet scroll: red paper, gold border and gold lettering, one syllable per line. */
+export function coupletScroll(line: number): CanvasTexture {
+  const w = 256;
+  const h = 832;
+  const [c, ctx] = canvas(w, h);
+  const words = COUPLET_LINES[line] ?? COUPLET_LINES[0]!;
+  return lettered(c, 'italic 700 82px "Playfair Display"', words.join(''), () => paintCouplet(ctx, w, h, words, 20 + line * 40));
+}
+
+/** The wish on the nameplate of the golden horse: success arrives as the horse does. */
+export const PLAQUE_WISH = 'Mã đáo thành công';
+
+/** Face of the nameplate: red lacquer, a gold line border and the wish in gold on one line. */
+export function plaqueFace(): CanvasTexture {
+  const w = 768;
+  const h = 128;
+  const [c, ctx] = canvas(w, h);
+  const size = 76;
+  const paint = () => {
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    const lacquer = ctx.createLinearGradient(0, 0, 0, h);
+    lacquer.addColorStop(0, '#b61d15');
+    lacquer.addColorStop(1, '#8e130d');
+    ctx.fillStyle = lacquer;
+    ctx.fillRect(0, 0, w, h);
+    ctx.strokeStyle = GOLD;
+    ctx.lineWidth = 3;
+    ctx.strokeRect(8, 8, w - 16, h - 16);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = `italic 700 ${size}px ${COUPLET_FONT}`;
+    const limit = w - 56;
+    const measured = ctx.measureText(PLAQUE_WISH).width;
+    if (measured > limit) ctx.font = `italic 700 ${Math.floor((size * limit) / measured)}px ${COUPLET_FONT}`;
+    ctx.fillStyle = 'rgb(70 8 4 / 55%)';
+    ctx.fillText(PLAQUE_WISH, w / 2 + 2.5, h / 2 + 5);
+    ctx.fillStyle = '#f2cf7a';
+    ctx.fillText(PLAQUE_WISH, w / 2, h / 2 + 2);
+  };
+  return lettered(c, `italic 700 ${size}px "Playfair Display"`, PLAQUE_WISH, paint);
 }
