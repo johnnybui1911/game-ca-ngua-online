@@ -1,13 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { NORMAL_ACTION_SECONDS, QUICK_SEGMENT_SECONDS } from '../../shared/game/pacing';
+import { DEFAULT_PACE, PACES } from '../../shared/game/pace';
 import type { Env } from '../env';
 import { timingsFor } from './constants';
 
 describe('timings', () => {
-  it('the pacing model uses the pauses the server applies', () => {
+  it('a real room paces by the default pace, a fast one by fixed pauses', () => {
     const t = timingsFor({} as Env);
-    expect(NORMAL_ACTION_SECONDS * 1000).toBe(t.cpuDelayMs);
-    expect(QUICK_SEGMENT_SECONDS * 1000).toBe(t.quickSegmentMs);
+    expect(t.pace).toBe(PACES[DEFAULT_PACE]);
+    expect(t.cpuDelayMs).toBe(PACES[DEFAULT_PACE].normal.minSegmentPause * 1000);
+    expect(t.quickSegmentMs).toBe(PACES[DEFAULT_PACE].quick.minSegmentPause * 1000);
+    expect(timingsFor({ ROOM_FAST_TIMERS: '1' } as Env).pace).toBeNull();
   });
 
   it('a default room keeps 30 s per action in normal mode', () => {

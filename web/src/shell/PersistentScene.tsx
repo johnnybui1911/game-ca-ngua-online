@@ -75,6 +75,7 @@ export default function PersistentScene() {
         eventSource={playing.eventSource}
         sourceKey={`room:${playing.room.code}`}
         view="seat"
+        serverPaced
         onReady={() => host?.setLoad('ready')}
         onFail={() => host?.setLoad('unavailable')}
         testid="scene-canvas"

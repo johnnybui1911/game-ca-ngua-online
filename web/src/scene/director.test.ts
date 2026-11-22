@@ -1,10 +1,11 @@
 import { Euler, Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
-import { applyMove, applyRoll, createGame, segmentsOf } from '../../../shared/game/engine';
+import { applyMove, applyRoll, createGame } from '../../../shared/game/engine';
 import { chooseCpuMove } from '../../../shared/game/cpu';
-import { NORMAL_ACTION_SECONDS, QUICK_SEGMENT_SECONDS as SERVER_QUICK_SEGMENT_SECONDS } from '../../../shared/game/pacing';
+import { DEFAULT_PACE, PACES, PACE_NAMES, animationSeconds, pauseSeconds } from '../../../shared/game/pace';
+import type { PaceTimings } from '../../../shared/game/pace';
 import type { Color, DiceValue, GameEvent, GameState, HorsePos } from '../../../shared/game/types';
-import { BATCH_BUDGET, CELEBRATION_SECONDS, DIE_HALF, Director, HORSE_Y, MAX_WAITING, QUICK_SEGMENT_SECONDS } from './director';
+import { CELEBRATION_SECONDS, DIE_HALF, Director, HORSE_Y, MAX_WAITING } from './director';
 import type { DirectorOptions, SceneView } from './director';
 import { TRACK, horseGround } from './layout';
 
@@ -93,6 +94,12 @@ function kickSetup(hops: DiceValue, variant: 'classic' | 'quick' = 'classic') {
   return { before, after: moved.state, events: moved.events };
 }
 
+/** The pace a director plays at unless told otherwise, and the quick one of the same profile. */
+const NORMAL = PACES[DEFAULT_PACE].normal;
+const QUICK = PACES[DEFAULT_PACE].quick;
+/** One 60 Hz frame: how far `drain` can overshoot the true length of an animation. */
+const FRAME = 1 / 60;
+
 /** Advance the clock in 16 ms frames until idle; returns elapsed seconds. */
 function drain(d: Director, limit = 30): number {
   let t = 0;
@@ -151,14 +158,16 @@ describe('Director', () => {
     expect(d.isBusy).toBe(false);
   });
 
-  it('plays every action batch within the time budget and ends on the exact state', () => {
+  it('plays every action batch for the time the shared pace model says and ends on the exact state', () => {
     for (const { game, events } of playActions(300)) {
       const view = new FakeView();
       const d = new Director(view);
       d.reset(createGame(game.colors)); // irrelevant start; the batch then reconciles
       d.push(game, events);
       const took = drain(d);
-      expect(took).toBeLessThanOrEqual(BATCH_BUDGET + 0.05);
+      const planned = animationSeconds(events, NORMAL);
+      expect(took).toBeGreaterThanOrEqual(planned - 1e-6);
+      expect(took).toBeLessThanOrEqual(planned + 2 * FRAME);
       view.expectShows(game);
       expect(d.isBusy).toBe(false);
     }
@@ -252,33 +261,36 @@ describe('Director', () => {
     const moved = applyMove(rolled.state, rolled.state.legalHorses[0]!);
     d.push(moved.state, [...rolled.events, ...moved.events]);
 
-    // The roll (0.55 s) lands, the die is on show while the hold (0.2 s) runs, then the horse leaves its stable.
+    // The roll lands, the die is on show while the hold runs, then the horse leaves its stable.
+    const rollEnd = NORMAL.roll;
+    const holdEnd = rollEnd + NORMAL.rollHold;
     let t = 0;
     const step = () => {
-      d.update(1 / 60);
-      t += 1 / 60;
+      d.update(1 / 240);
+      t += 1 / 240;
     };
-    while (t < 0.6) step();
+    while (t < rollEnd + 0.02) step();
     expect(view.die.visible).toBe(true);
+    expect(view.die.y).toBe(DIE_HALF);
     expect(view.maxY).toBeCloseTo(HORSE_Y, 6);
-    while (t < 0.73) step();
+    while (t < holdEnd - 0.02) step();
     expect(view.die.visible).toBe(true);
     expect(view.maxY).toBeCloseTo(HORSE_Y, 6);
     expect(view.moves).toHaveLength(0);
-    while (t < 0.95) step();
+    while (t < holdEnd + NORMAL.crouch + NORMAL.stableExit / 2) step();
     expect(view.maxY).toBeGreaterThan(HORSE_Y + 0.3);
     expect(view.die.visible).toBe(true);
 
     const total = t + drain(d);
     // The hooves are reported when the horse first lands.
     expect(view.moves).toHaveLength(1);
-    expect(total).toBeGreaterThan(1);
-    expect(total).toBeLessThan(2 * BATCH_BUDGET + 0.05);
+    expect(total).toBeGreaterThan(holdEnd + NORMAL.stableExit);
+    expect(total).toBeLessThanOrEqual(animationSeconds([...rolled.events, ...moved.events], NORMAL) + 2 * FRAME);
     expect(view.die.visible).toBe(false);
     view.expectShows(moved.state);
   });
 
-  it('keeps the die visible after a roll that passes the turn', () => {
+  it('keeps the die visible after a roll that passes the turn, and stays busy while it is read', () => {
     const view = new FakeView();
     const d = new Director(view);
     const start = createGame([0, 2]);
@@ -286,8 +298,21 @@ describe('Director', () => {
     const rolled = applyRoll(start, 3); // nobody is out of the stable: no legal move
     expect(rolled.state.dice).toBeNull();
     d.push(rolled.state, rolled.events);
-    drain(d);
+    const took = drain(d);
+    expect(took).toBeGreaterThanOrEqual(NORMAL.roll + NORMAL.rollRest - 1e-6);
     expect(view.die.visible).toBe(true);
+  });
+
+  it('does not hold up a roll that leaves the player a horse to pick', () => {
+    let game = createGame([0, 2]);
+    game = applyRoll(game, 6).state;
+    game = applyMove(game, 0).state;
+    const rolled = applyRoll(game, 6); // one horse out, three in the stable: a choice
+    expect(rolled.state.phase).toBe('move');
+    const d = new Director(new FakeView());
+    d.reset(game);
+    d.push(rolled.state, rolled.events);
+    expect(drain(d)).toBeLessThanOrEqual(NORMAL.roll + 2 * FRAME);
   });
 
   it('celebrates a win when it arrives through events and ends the effect on its own', () => {
@@ -317,46 +342,25 @@ describe('Director', () => {
     expect(view.celebration).toBeNull();
   });
   describe('quick pace', () => {
-    const quick = () => ({ budgetPerSegment: QUICK_SEGMENT_SECONDS });
+    const quick = (): DirectorOptions => ({ pace: QUICK });
 
-    it('plays a combined roll and move within two segments', () => {
+    it('plays a combined roll and move faster than the normal pace does', () => {
       const start = createGame([0, 2], 'quick');
       const rolled = applyRoll(start, 6);
       const moved = applyMove(rolled.state, rolled.state.legalHorses[0]!);
+      const events = [...rolled.events, ...moved.events];
       const view = new FakeView();
       const d = new Director(view, undefined, quick());
       d.reset(start);
-      d.push(moved.state, [...rolled.events, ...moved.events]);
+      d.push(moved.state, events);
       const took = drain(d);
-      expect(took).toBeLessThanOrEqual(2 * QUICK_SEGMENT_SECONDS + 0.05);
-      expect(took).toBeGreaterThan(QUICK_SEGMENT_SECONDS);
+      expect(took).toBeLessThanOrEqual(animationSeconds(events, QUICK) + 2 * FRAME);
+      expect(took).toBeGreaterThan(QUICK.roll + QUICK.rollHold);
+      expect(took).toBeLessThan(animationSeconds(events, NORMAL));
       view.expectShows(moved.state);
     });
 
-    it('plays a roll alone within one segment', () => {
-      const start = createGame([0, 2], 'quick');
-      const rolled = applyRoll(start, 3);
-      const view = new FakeView();
-      const d = new Director(view, undefined, quick());
-      d.reset(start);
-      d.push(rolled.state, rolled.events);
-      expect(drain(d)).toBeLessThanOrEqual(QUICK_SEGMENT_SECONDS + 0.05);
-      view.expectShows(rolled.state);
-    });
-
-    it('leaves the normal director on its per-action budget for a combined batch', () => {
-      const start = createGame([0, 2]);
-      const rolled = applyRoll(start, 6);
-      const moved = applyMove(rolled.state, rolled.state.legalHorses[0]!);
-      const d = new Director(new FakeView());
-      d.reset(start);
-      d.push(moved.state, [...rolled.events, ...moved.events]);
-      const took = drain(d);
-      expect(took).toBeLessThanOrEqual(2 * BATCH_BUDGET + 0.05);
-      expect(took).toBeGreaterThan(BATCH_BUDGET);
-    });
-
-    it('never snaps when combined batches arrive every 0.8 s', () => {
+    it('never snaps when combined batches arrive at the pace of the server', () => {
       let seed = 11;
       const rnd = () => {
         seed = (seed * 1103515245 + 12345) & 0x7fffffff;
@@ -368,6 +372,12 @@ describe('Director', () => {
       d.reset(game);
       let batches = 0;
       let movesPlayed = 0;
+      /** The server commits the next batch this long after `events`; by then the board has played them all. */
+      const wait = (events: GameEvent[]) => {
+        for (let t = 0; t < pauseSeconds(events, QUICK); t += 1 / 60) d.update(1 / 60);
+        expect(d.isBusy).toBe(false);
+        expect(view.moves).toHaveLength(movesPlayed);
+      };
       while (batches < 100) {
         if (game.phase === 'finished') {
           game = createGame([0, 1, 2, 3], 'quick');
@@ -387,64 +397,95 @@ describe('Director', () => {
         movesPlayed += events.filter((e) => e.type === 'moved').length;
         game = next;
         batches++;
-        for (let t = 0; t < 0.8; t += 1 / 60) d.update(1 / 60);
-        expect(view.moves).toHaveLength(movesPlayed);
+        wait(events);
         if (game.phase === 'move') {
           const moved = applyMove(game, chooseCpuMove(game));
           d.push(moved.state, moved.events);
           movesPlayed += 1;
           game = moved.state;
           batches++;
-          for (let t = 0; t < 0.8; t += 1 / 60) d.update(1 / 60);
-          expect(view.moves).toHaveLength(movesPlayed);
+          wait(moved.events);
         }
       }
-      drain(d);
       view.expectShows(game);
     });
   });
 
   describe('timing contract', () => {
-    it('keeps its budgets below the pauses the server leaves between commits', () => {
-      expect(BATCH_BUDGET).toBeLessThan(NORMAL_ACTION_SECONDS);
-      expect(QUICK_SEGMENT_SECONDS).toBeLessThan(SERVER_QUICK_SEGMENT_SECONDS);
-    });
+    /** Every pace, in both modes, in full and in reduced motion. */
+    const cases: [string, PaceTimings, boolean][] = PACE_NAMES.flatMap((name) =>
+      (['normal', 'quick'] as const).flatMap((mode) =>
+        [false, true].map((reduced): [string, PaceTimings, boolean] => [`${name} ${mode}${reduced ? ' reduced' : ''}`, PACES[name][mode], reduced]),
+      ),
+    );
 
-    const paces: [string, DirectorOptions, number][] = [
-      ['normal', {}, BATCH_BUDGET],
-      ['quick', { budgetPerSegment: QUICK_SEGMENT_SECONDS }, QUICK_SEGMENT_SECONDS],
-      ['reduced', { reducedMotion: () => true }, BATCH_BUDGET],
-      ['reduced quick', { budgetPerSegment: QUICK_SEGMENT_SECONDS, reducedMotion: () => true }, QUICK_SEGMENT_SECONDS],
-    ];
+    /** A CPU's roll and move reach the board as one batch; a person's as two. */
+    function batchesOfGame(n: number) {
+      const out: { game: GameState; events: GameEvent[] }[] = [];
+      const steps = playActions(n);
+      for (let i = 0; i < steps.length; i++) {
+        const step = steps[i]!;
+        const next = steps[i + 1];
+        out.push(step);
+        if (step.game.phase === 'move' && next) out.push({ game: next.game, events: [...step.events, ...next.events] });
+      }
+      return out;
+    }
 
-    it.each(paces)('%s: every batch of a real game fits its budget and ends on the exact state', (_name, options, perSegment) => {
+    it.each(cases)('%s: every batch of a real game ends before the server commits the next, on the exact state', (_name, pace, reduced) => {
       let kicks = 0;
-      for (const { game, events } of playActions(600)) {
+      let combined = 0;
+      for (const { game, events } of batchesOfGame(600)) {
         const view = new FakeView();
-        const d = new Director(view, undefined, options);
+        const d = new Director(view, undefined, { pace, reducedMotion: () => reduced });
         d.reset(createGame(game.colors));
         d.push(game, events);
-        expect(drain(d)).toBeLessThanOrEqual(perSegment * segmentsOf(events) + 0.02);
+        const took = drain(d);
+        expect(took).toBeLessThanOrEqual(pauseSeconds(events, pace) - pace.beat + 2 * FRAME);
+        expect(took).toBeLessThan(pauseSeconds(events, pace));
+        // Full motion lasts exactly what the server counts on when it starts a person's clock.
+        if (!reduced) expect(Math.abs(took - animationSeconds(events, pace))).toBeLessThanOrEqual(2 * FRAME);
         view.expectShows(game);
         if (events.some((e) => e.type === 'moved' && e.kicked)) kicks++;
+        if (events.filter((e) => e.type === 'rolled' || e.type === 'moved').length === 2) combined++;
       }
       expect(kicks).toBeGreaterThan(0);
+      expect(combined).toBeGreaterThan(0);
     });
 
-    it.each(paces.slice(0, 2))('%s: the longest move with a kick compresses its hops instead of overrunning', (_name, options, budget) => {
-      for (const hops of [1, 3, 6] as DiceValue[]) {
+    it('the pace before the table keeps its flat budgets: 0.6 s per roll and move, 0.35 s in a quick match', () => {
+      for (const [pace, perSegment, pause] of [
+        [PACES.current.normal, 0.6, 0.7],
+        [PACES.current.quick, 0.35, 0.4],
+      ] as const) {
+        for (const { game, events } of batchesOfGame(300)) {
+          const segments = events.filter((e) => e.type === 'rolled' || e.type === 'moved').length;
+          const d = new Director(new FakeView(), undefined, { pace });
+          d.reset(createGame(game.colors));
+          d.push(game, events);
+          expect(drain(d)).toBeLessThanOrEqual(perSegment * segments + 2 * FRAME);
+          expect(pauseSeconds(events, pace)).toBeCloseTo(pause * Math.max(1, segments), 9);
+        }
+      }
+    });
+
+    it('a slower pace than the one batches arrive at is compressed into the pause before the next batch', () => {
+      const slow = PACES['thu-thai'].normal;
+      for (const hops of [3, 6] as DiceValue[]) {
         const { before, after, events } = kickSetup(hops);
         const view = new FakeView();
-        const d = new Director(view, undefined, options);
+        const d = new Director(view, undefined, { pace: slow, arrival: NORMAL });
         d.reset(before);
         d.push(after, events);
-        expect(drain(d)).toBeLessThanOrEqual(budget + 0.02);
+        const took = drain(d);
+        expect(took).toBeLessThan(pauseSeconds(events, NORMAL));
+        expect(took).toBeLessThan(animationSeconds(events, slow));
         expect(view.moves[0]).toMatchObject({ hops });
         view.expectShows(after);
       }
     });
 
-    it('a long move takes no longer than a short one needs per hop', () => {
+    it('a long move takes longer than a short one, and hops a little faster', () => {
       const durations = ([2, 6] as DiceValue[]).map((hops) => {
         const base = createGame([0, 2]);
         const horses = base.horses.map((row) => row.slice());
@@ -458,8 +499,10 @@ describe('Director', () => {
         const took = drain(d);
         return { took, hopSeconds: view.moves[0]!.hopSeconds };
       });
-      expect(durations[1]!.took).toBeLessThanOrEqual(BATCH_BUDGET + 0.02);
+      expect(durations[1]!.took).toBeGreaterThan(durations[0]!.took);
       expect(durations[1]!.hopSeconds).toBeLessThan(durations[0]!.hopSeconds);
+      // Six cells still read as six separate hops: at least 0.1 s each.
+      expect(durations[1]!.hopSeconds).toBeGreaterThanOrEqual(0.1);
     });
   });
 
@@ -520,17 +563,18 @@ describe('Director', () => {
       // Contact comes when it was announced, for the camera and for the sound.
       expect(contactAt).toBeCloseTo(view.kicks[0]!.contactIn, 1);
       expect(contactAt - soundAt).toBeCloseTo(view.moves[0]!.kickAt!, 1);
-      // Hit-stop of 40-60 ms.
-      expect(liftOffAt - contactAt).toBeGreaterThanOrEqual(0.04);
-      expect(liftOffAt - contactAt).toBeLessThanOrEqual(0.065);
+      // The freeze at contact lasts the pace's hit-stop.
+      expect(liftOffAt - contactAt).toBeGreaterThanOrEqual(NORMAL.hitStop - 0.01);
+      expect(liftOffAt - contactAt).toBeLessThanOrEqual(NORMAL.hitStop + 0.015);
       expect(victimTop).toBeGreaterThan(1);
       view.expectShows(after);
     });
 
-    it('keeps the hit-stop at full length at quick pace', () => {
+    it('keeps the hit-stop at full length when the batch is compressed', () => {
       const { before, after, events } = kickSetup(6, 'quick');
       const view = new FakeView();
-      const d = new Director(view, undefined, { budgetPerSegment: QUICK_SEGMENT_SECONDS });
+      const pace = PACES.current.quick;
+      const d = new Director(view, undefined, { pace });
       d.reset(before);
       d.push(after, events);
       const dt = 1 / 240;
@@ -543,7 +587,8 @@ describe('Director', () => {
         if (contactAt < 0 && view.contacts === 1) contactAt = t;
         if (liftOffAt < 0 && view.horses.get('2:0')!.y > HORSE_Y + 1e-6) liftOffAt = t;
       }
-      expect(liftOffAt - contactAt).toBeGreaterThanOrEqual(0.04);
+      expect(t).toBeLessThan(0.5);
+      expect(liftOffAt - contactAt).toBeGreaterThanOrEqual(pace.hitStop - 0.01);
       view.expectShows(after);
     });
 
@@ -633,7 +678,7 @@ describe('Director', () => {
       const rolled = applyRoll(start, 4);
       d.push(rolled.state, rolled.events);
       const took = drain(d);
-      expect(took).toBeLessThan(0.3);
+      expect(took).toBeLessThan(NORMAL.roll);
       expect(view.maxDieY).toBe(DIE_HALF);
       expect(view.die.visible).toBe(true);
     });

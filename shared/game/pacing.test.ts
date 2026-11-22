@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { chooseCpuMove } from './cpu';
 import { applyMove, applyRoll, createGame } from './engine';
+import { PACES, PACE_NAMES } from './pace';
 import { playGame, summarize, type GameCounters, type PacingPolicy } from './pacing';
 import { mulberry32 } from './seeded-random';
 import { SEAT_COLORS } from '../protocol';
@@ -102,19 +103,21 @@ describe.skipIf(env.PACING_REPORT !== '1')('pacing report', () => {
   it('prints actions, commits and projected minutes per match', () => {
     const lines = [
       `Seeds 1000..${999 + GAMES}, ${GAMES} games per row, every seat Thường CPU.`,
-      '| Ghế | Chế độ | Hoàn tất | Thao tác (TB / trung vị / p90) | Commit khi người chơi (TB / trung vị / p90) | Commit khi máy chơi (TB / trung vị / p90) | Phút theo nhịp server (TB / trung vị / p90) | Lượt chọn ngựa (TB) | Nước bắt buộc (TB) | Đá ngựa (TB) |',
-      '|---|---|---|---|---|---|---|---|---|---|',
+      '| Nhịp | Ghế | Chế độ | Hoàn tất | Thao tác (TB / trung vị / p90) | Commit khi người chơi (TB / trung vị / p90) | Commit khi máy chơi (TB / trung vị / p90) | Phút khi toàn máy chơi (TB / trung vị / p90) | Phút hoạt ảnh khi người chơi (TB) | Lượt chọn ngựa (TB) | Nước bắt buộc (TB) | Đá ngựa (TB) |',
+      '|---|---|---|---|---|---|---|---|---|---|---|---|',
     ];
-    for (const seats of [2, 3, 4]) {
-      const colors = SEAT_COLORS[seats] ?? [];
-      for (const m of modes) {
-        const runs: GameCounters[] = SEEDS.map((seed) => playGame(colors, dice(seed), choose, m.policy, m.variant));
-        const done = runs.filter((r) => r.finished);
-        const col = (f: (r: GameCounters) => number) => summarize(done.map(f));
-        const three = (s: ReturnType<typeof summarize>, d = 0) => `${fmt(s.mean, d)} / ${fmt(s.median, d)} / ${fmt(s.p90, d)}`;
-        lines.push(
-          `| ${seats} | ${m.name} | ${done.length}/${runs.length} | ${three(col((r) => r.actions))} | ${three(col((r) => r.commits))} | ${three(col((r) => r.automatedCommits))} | ${three(col((r) => r.pacingSeconds / 60), 1)} | ${fmt(col((r) => r.humanPrompts).mean)} | ${fmt(col((r) => r.singleMoves).mean)} | ${fmt(col((r) => r.kicks).mean, 1)} |`,
-        );
+    for (const pace of PACE_NAMES) {
+      for (const seats of [2, 3, 4]) {
+        const colors = SEAT_COLORS[seats] ?? [];
+        for (const m of modes) {
+          const runs: GameCounters[] = SEEDS.map((seed) => playGame(colors, dice(seed), choose, m.policy, m.variant, undefined, PACES[pace]));
+          const done = runs.filter((r) => r.finished);
+          const col = (f: (r: GameCounters) => number) => summarize(done.map(f));
+          const three = (s: ReturnType<typeof summarize>, d = 0) => `${fmt(s.mean, d)} / ${fmt(s.median, d)} / ${fmt(s.p90, d)}`;
+          lines.push(
+            `| ${pace} | ${seats} | ${m.name} | ${done.length}/${runs.length} | ${three(col((r) => r.actions))} | ${three(col((r) => r.commits))} | ${three(col((r) => r.automatedCommits))} | ${three(col((r) => r.pacingSeconds / 60), 1)} | ${fmt(col((r) => r.animationSeconds / 60).mean, 1)} | ${fmt(col((r) => r.humanPrompts).mean)} | ${fmt(col((r) => r.singleMoves).mean)} | ${fmt(col((r) => r.kicks).mean, 1)} |`,
+          );
+        }
       }
     }
     console.log(`\n${lines.join('\n')}\n`);

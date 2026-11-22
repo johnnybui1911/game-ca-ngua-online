@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { DEFAULT_PACE, PACES, animationSeconds } from '../../../shared/game/pace';
 import { mulberry32 } from '../../../shared/game/seeded-random';
 import { COLORS, POS_STABLE } from '../../../shared/game/types';
 import type { GameState } from '../../../shared/game/types';
@@ -6,7 +7,7 @@ import { Director } from '../scene/director';
 import type { SceneView } from '../scene/director';
 import type { ShowcaseStep } from '../scene/props';
 import { showcaseBatches } from '../shell/showcase';
-import { DEMO_SEGMENT_SECONDS, DemoDriver, stepSeconds } from './demo-driver';
+import { DemoDriver, stepSeconds } from './demo-driver';
 
 /** Plays whole CPU turns until the game ends; returns every step, the opening one included. */
 function playOut(driver: DemoDriver, limit = 5000): ShowcaseStep[] {
@@ -161,10 +162,14 @@ describe('DemoDriver', () => {
     expect(network).not.toHaveBeenCalled();
   });
 
-  it('gives the board time for every animated segment of a step', () => {
+  it('gives the board time for the whole animation of a step, at the quick pace', () => {
+    const quick = PACES[DEFAULT_PACE].quick;
     const driver = new DemoDriver({ seed: 1, variant: 'quick', parked: true });
-    expect(stepSeconds(driver.getStep())).toBe(DEMO_SEGMENT_SECONDS);
-    expect(stepSeconds(driver.deal())).toBeCloseTo(4 * DEMO_SEGMENT_SECONDS, 9);
+    expect(stepSeconds(driver.getStep())).toBe(quick.minSegmentPause);
+    // The deal brings four horses out of their stables, one after the other.
+    const deal = driver.deal();
+    expect(stepSeconds(deal)).toBeGreaterThanOrEqual(animationSeconds(deal.events, quick) + quick.beat);
+    expect(stepSeconds(deal)).toBeGreaterThan(stepSeconds(driver.playTurn()));
   });
 
   it('paces its steps so the board animates each one without falling behind', () => {
@@ -177,7 +182,7 @@ describe('DemoDriver', () => {
       kickStarted() {},
       kickLanded() {},
     };
-    const director = new Director(view, undefined, { budgetPerSegment: 0.35 });
+    const director = new Director(view, undefined, { pace: PACES[DEFAULT_PACE].quick });
     const driver = new DemoDriver({ seed: 11, variant: 'quick', parked: true });
     director.reset(driver.game);
     let step = driver.deal();

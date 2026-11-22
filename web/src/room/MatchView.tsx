@@ -28,19 +28,18 @@ import { describeMove } from './move-text';
 import { reportAfterExpiry, rollHeld, type BoardReport } from './board-wait';
 import { useShakeToRoll } from './shake';
 import { reserveInsets, type ReservedInsets } from '../scene/camera';
+import { boardWaitMs } from '../scene/pace';
 import { Icon } from '../ui/Icon';
 
 /** Seconds left on the local player's action at which the reminder sounds. */
 const REMINDER_SECONDS = 10;
 
-/** Longest the roll waits for the board to finish animating; a slow device must not hold the player up. */
-const MAX_BOARD_WAIT_MS = 1500;
-
 /**
  * True while the roll waits for the board: from the first frame of the match until the board reports, then
- * while it animates what the server reported, for at most MAX_BOARD_WAIT_MS per state.
+ * while it animates what the server reported, for at most `maxWaitMs` per state: a slow device must not hold
+ * the player up.
  */
-function useBoardWait(seq: number): [boolean, (busy: boolean) => void] {
+function useBoardWait(seq: number, maxWaitMs: number): [boolean, (busy: boolean) => void] {
   const [report, setReport] = useState<BoardReport>(null);
   const [expiredAt, setExpiredAt] = useState<number | null>(null);
   const waiting = report ?? true;
@@ -49,9 +48,9 @@ function useBoardWait(seq: number): [boolean, (busy: boolean) => void] {
     const timer = setTimeout(() => {
       setExpiredAt(seq);
       setReport(reportAfterExpiry);
-    }, MAX_BOARD_WAIT_MS);
+    }, maxWaitMs);
     return () => clearTimeout(timer);
-  }, [waiting, seq]);
+  }, [waiting, seq, maxWaitMs]);
   return [rollHeld(report, seq, expiredAt), setReport];
 }
 
@@ -187,7 +186,9 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
   const [saveDismissed, setSaveDismissed] = useState(false);
   const game = room.game;
   const lastRoll = useLastRoll(batches);
-  const seconds = useCountdown(room.turnDeadline, clockOffset);
+  // The clock of an action starts once the board has shown what led to it; until then it reads the full time.
+  const left = useCountdown(room.turnDeadline, clockOffset);
+  const seconds = left === null ? null : Math.min(left, room.settings.turnSeconds);
   const hud = useHudInsets(room.game !== null);
 
   const mySeat = room.seats.find((s) => s.occupant?.kind === 'human' && s.occupant.user.id === myId);
@@ -198,7 +199,7 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
   const myTurn = game !== null && myColor !== null && game.turn === myColor && !finished;
   // The server reports a CPU's roll and move together with the turn passing to us; the roll button
   // and the chime wait until the board has shown that turn.
-  const [boardBusy, setBoardBusy] = useBoardWait(room.seq);
+  const [boardBusy, setBoardBusy] = useBoardWait(room.seq, boardWaitMs(room.settings.quick));
   const canRoll = myTurn && !paused && game?.phase === 'roll' && !boardBusy;
   useMusic('game');
   useGameSounds(batches, myTurn && !paused && !boardBusy, seconds, room.turnDeadline);

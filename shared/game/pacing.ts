@@ -1,19 +1,17 @@
-import { applyMove, applyRoll, createGame, rollAndSettle, segmentsOf } from './engine';
+import { applyMove, applyRoll, createGame, rollAndSettle } from './engine';
+import { DEFAULT_PACE, PACES, animationSeconds, pauseSeconds } from './pace';
+import type { PaceProfile } from './pace';
 import type { Color, DiceValue, GameEvent, GameState, RuleVariant } from './types';
 
 /**
- * Pacing model of a match, no I/O. The server pauses 700 ms per action (`normal`) or 400 ms per animated segment
- * (`quick`) before it plays for a CPU, so that pause is the pacing floor of an all-CPU match.
+ * Pacing model of a match, no I/O. After every commit the server pauses for as long as the board animates
+ * it, plus a beat (`pauseSeconds`), before it plays for a CPU; that pause is the pacing floor of an all-CPU match.
  * Commits are counted for two kinds of seat:
  * - a person's actions: `normal` is one commit per action (a roll, or a move); `quick` merges a roll with exactly
  *   one legal horse with its move (`commits`);
  * - a CPU: the server rolls and moves in one step in both modes (`automatedCommits`, one per roll).
  */
 export type PacingPolicy = 'normal' | 'quick';
-
-/** Server pause after a commit: normal rooms wait `NORMAL_ACTION_SECONDS`, quick rooms `QUICK_SEGMENT_SECONDS` per animated segment of it. */
-export const NORMAL_ACTION_SECONDS = 0.7;
-export const QUICK_SEGMENT_SECONDS = 0.4;
 
 export interface GameCounters {
   /** False when the game hit `maxActions` without a winner. */
@@ -33,8 +31,10 @@ export interface GameCounters {
   singleMoves: number;
   /** Rolls that grant another roll (1 or 6). */
   extraRolls: number;
-  /** Sum over commits of the pause the policy applies after it. */
+  /** Length of an all-CPU match: the sum, over every CPU action (a roll with its move), of the server pause after it. */
   pacingSeconds: number;
+  /** Seconds the board spends animating when people take every action; their thinking time comes on top. */
+  animationSeconds: number;
   kicks: number;
 }
 
@@ -46,7 +46,9 @@ export function playGame(
   policy: PacingPolicy,
   variant: RuleVariant = 'classic',
   maxActions = 20_000,
+  pace: PaceProfile = PACES[DEFAULT_PACE],
 ): GameCounters {
+  const timings = pace[policy];
   const c: GameCounters = {
     finished: false,
     winner: null,
@@ -59,12 +61,13 @@ export function playGame(
     singleMoves: 0,
     extraRolls: 0,
     pacingSeconds: 0,
+    animationSeconds: 0,
     kicks: 0,
   };
   let state = createGame(colors, variant);
   const commit = (events: GameEvent[]) => {
     c.commits++;
-    c.pacingSeconds += policy === 'quick' ? QUICK_SEGMENT_SECONDS * segmentsOf(events) : NORMAL_ACTION_SECONDS;
+    c.animationSeconds += animationSeconds(events, timings);
     for (const e of events) {
       if (e.type === 'rolled') {
         c.rolls++;
@@ -89,13 +92,13 @@ export function playGame(
       commit(rolled.events);
       const moved = applyMove(rolled.state, choose(rolled.state));
       commit(moved.events);
+      // A CPU's roll and move reach the board as one batch.
+      c.pacingSeconds += pauseSeconds([...rolled.events, ...moved.events], timings);
       state = moved.state;
-    } else if (policy === 'quick' && rolled.events.some((e) => e.type === 'moved')) {
-      c.singleMoves++;
-      commit(rolled.events);
-      state = rolled.state;
     } else {
+      if (policy === 'quick' && rolled.events.some((e) => e.type === 'moved')) c.singleMoves++;
       commit(rolled.events);
+      c.pacingSeconds += pauseSeconds(rolled.events, timings);
       state = rolled.state;
     }
   }

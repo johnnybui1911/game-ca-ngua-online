@@ -5,6 +5,8 @@
  * unit-testable.
  */
 import { COLORS, HORSES_PER_COLOR, POS_STABLE } from '../../../shared/game/types';
+import { DEFAULT_PACE, PACES, hitStopSeconds, hopsOf, moveTiming, pauseSeconds, restAfterRoll } from '../../../shared/game/pace';
+import type { PaceTimings } from '../../../shared/game/pace';
 import type { Color, DiceValue, GameEvent, GameState, HorsePos } from '../../../shared/game/types';
 import { DIE_REST, horseGround, restYaw, stableSlot, yawBetween } from './layout';
 import type { Vec2 } from './layout';
@@ -19,42 +21,11 @@ export const HORSE_Y = 0.07;
 /** Half the die edge; a resting die has its centre this high. */
 export const DIE_HALF = 0.32;
 
-/** One server action (a die tumble, or a move with its kick) must finish within this; a batch gets it per action. */
-export const BATCH_BUDGET = 0.6;
 /** Batches allowed to wait behind the one playing; more than this snaps to the latest state. */
 export const MAX_WAITING = 2;
-/**
- * Quick match: seconds one animated segment (a roll or a move) may take. Kept below the server's
- * `quickSegmentMs` of 400 ms, the pace at which it commits one segment, so a batch never outlasts
- * the interval to the next one. Raise both together, never one alone.
- */
-export const QUICK_SEGMENT_SECONDS = 0.35;
 export const CELEBRATION_SECONDS = 3.4;
-
-const ROLL_SECONDS = 0.55;
-/** Pause after a roll that is followed by its move in the same batch, so the die face can be read. */
-const ROLL_HOLD_SECONDS = 0.2;
-/** Crouch before the first hop, and the spring back to rest on the last cell. */
-const CROUCH_SECONDS = 0.07;
-const SETTLE_SECONDS = 0.09;
-/** All the hops of a move share this much time, each at most `MAX_HOP_SECONDS`: a long move hops faster, not longer. */
-const MOVE_HOPS_SECONDS = 0.4;
-const MAX_HOP_SECONDS = 0.16;
-/** The one long jump from the stable to the entry cell. */
-const STABLE_EXIT_SECONDS = 0.22;
-/** A kicking move: a quick run-up, a higher last hop onto the victim, a freeze at contact, then the victim flies home. */
-const KICK_CROUCH_SECONDS = 0.06;
-const KICK_RUN_SECONDS = 0.18;
-const MAX_RUN_HOP_SECONDS = 0.12;
-const POUNCE_SECONDS = 0.13;
-/** Freeze at contact. Never compressed: a shorter one is not seen at all. */
-const HIT_STOP_SECONDS = 0.05;
-const KNOCKBACK_SECONDS = 0.18;
-/** Reduced motion: a horse slides along its path, a kicked one slides home, the die slides into place. */
-const SLIDE_SECONDS_PER_CELL = 0.08;
-const MAX_SLIDE_SECONDS = 0.3;
-const SLIDE_HOME_SECONDS = 0.2;
-const REDUCED_ROLL_SECONDS = 0.2;
+/** A batch ends at least this long before the server commits the next one. */
+const ARRIVAL_MARGIN = 0.05;
 
 const HOP_LIFT = 0.42;
 const STABLE_EXIT_LIFT = 0.9;
@@ -184,8 +155,13 @@ const dieYaw = (value: DiceValue) => 0.3 + value * 0.45;
 const TAU = Math.PI * 2;
 
 export interface DirectorOptions {
-  /** When set, a batch lasts at most this many seconds per roll and move segment instead of `BATCH_BUDGET`. */
-  budgetPerSegment?: number;
+  /** Durations of every animation. Default: a normal match at the default pace. */
+  pace?: PaceTimings;
+  /**
+   * The pace batches arrive at, when someone else sets it (the server, in a match): a batch that would
+   * outlast the pause before the next one is compressed to fit. Default: `pace`.
+   */
+  arrival?: PaceTimings;
   /** Asked when a batch starts: true plays it as short plain slides, without hit-stop or camera cues. */
   reducedMotion?: () => boolean;
 }
@@ -200,12 +176,17 @@ export class Director {
   private latest: GameState | null = null;
   private readonly tumble = createDieTumble();
   private readonly flightPose = [0, 0, 0, 0, 0, 0];
+  private readonly pace: PaceTimings;
+  private readonly arrival: PaceTimings;
 
   constructor(
     private readonly view: SceneView,
     private readonly onBusyChange?: (busy: boolean) => void,
     private readonly options: DirectorOptions = {},
-  ) {}
+  ) {
+    this.pace = options.pace ?? PACES[DEFAULT_PACE].normal;
+    this.arrival = options.arrival ?? this.pace;
+  }
 
   /** Show `game` immediately without celebrating a finished game (mount, reload). */
   reset(game: GameState): void {
@@ -346,32 +327,36 @@ export class Director {
   private begin(batch: Batch): Run {
     const segs: Seg[] = [];
     const reduced = this.options.reducedMotion?.() ?? false;
+    const pace = this.pace;
     let hadRoll = false;
     let actions = 0;
-    for (const e of batch.events) {
+    batch.events.forEach((e, index) => {
       if (e.type === 'rolled') {
         hadRoll = true;
         actions++;
-        segs.push({ k: 'roll', color: e.color, dice: e.dice, reduced, dur: reduced ? REDUCED_ROLL_SECONDS : ROLL_SECONDS });
+        segs.push({ k: 'roll', color: e.color, dice: e.dice, reduced, dur: reduced ? pace.reducedRoll : pace.roll });
+        // The die lies still long enough to be read before its move, or before the turn passes on.
+        const rest = restAfterRoll(batch.events, index, pace);
+        if (rest > 0) segs.push({ k: 'hold', dur: rest });
       } else if (e.type === 'moved') {
         actions++;
         // The die stays at rest through the move; a batch that moves has consumed its roll.
         if (hadRoll) hadRoll = false;
-        if (segs[segs.length - 1]?.k === 'roll') segs.push({ k: 'hold', dur: ROLL_HOLD_SECONDS });
         segs.push(this.planMove(e, reduced));
       } else if (e.type === 'turn') {
         segs.push({ k: 'turn', color: e.color, dur: 0 });
       } else {
         segs.push({ k: 'win', color: e.color, dur: 0 });
       }
-    }
+    });
     let total = 0;
-    let fixed = 0;
-    for (const s of segs) {
-      total += s.dur;
-      if (s.k === 'move' && s.kicked) fixed += s.stopDur;
-    }
-    const budget = (this.options.budgetPerSegment ?? BATCH_BUDGET) * Math.max(1, actions);
+    for (const s of segs) total += s.dur;
+    const fixed = reduced ? 0 : hitStopSeconds(batch.events, pace);
+    // Never past the pause before the next batch, and never past the pace's own cap per roll and move.
+    const budget = Math.min(
+      pauseSeconds(batch.events, this.arrival) - ARRIVAL_MARGIN,
+      pace.segmentCap === undefined ? Infinity : pace.segmentCap * Math.max(1, actions),
+    );
     if (total > budget) {
       // Everything but the hit-stop shrinks by the same factor, so the batch lasts exactly its budget.
       const scale = Math.max(0, budget - fixed) / (total - fixed);
@@ -384,8 +369,8 @@ export class Director {
   }
 
   private planMove(e: Extract<GameEvent, { type: 'moved' }>, reduced: boolean): MoveSeg {
-    const fromStable = e.from < 0;
-    const hops = fromStable ? 1 : Math.max(1, e.to - e.from);
+    const pace = this.pace;
+    const hops = hopsOf(e);
     const seg: MoveSeg = {
       k: 'move',
       color: e.color,
@@ -407,21 +392,17 @@ export class Director {
       dur: 0,
     };
     if (reduced) {
-      seg.hopDur = Math.min(MAX_SLIDE_SECONDS, SLIDE_SECONDS_PER_CELL * hops + 0.1) / hops;
+      seg.hopDur = Math.min(pace.maxSlide, pace.slidePerCell * hops + 0.1) / hops;
       seg.lastHopDur = seg.hopDur;
-      seg.kickDur = e.kicked ? SLIDE_HOME_SECONDS : 0;
-    } else if (e.kicked) {
-      seg.crouchDur = KICK_CROUCH_SECONDS;
-      seg.hopDur = hops > 1 ? Math.min(MAX_RUN_HOP_SECONDS, KICK_RUN_SECONDS / (hops - 1)) : 0;
-      seg.lastHopDur = fromStable ? STABLE_EXIT_SECONDS : POUNCE_SECONDS;
-      seg.settleDur = SETTLE_SECONDS;
-      seg.stopDur = HIT_STOP_SECONDS;
-      seg.kickDur = KNOCKBACK_SECONDS;
+      seg.kickDur = e.kicked ? pace.slideHome : 0;
     } else {
-      seg.crouchDur = CROUCH_SECONDS;
-      seg.hopDur = fromStable ? STABLE_EXIT_SECONDS : Math.min(MAX_HOP_SECONDS, MOVE_HOPS_SECONDS / hops);
-      seg.lastHopDur = seg.hopDur;
-      seg.settleDur = SETTLE_SECONDS;
+      const m = moveTiming(e, pace);
+      seg.crouchDur = m.crouch;
+      seg.hopDur = m.hop;
+      seg.lastHopDur = m.lastHop;
+      seg.settleDur = m.settle;
+      seg.stopDur = m.hitStop;
+      seg.kickDur = m.knockback;
     }
     return timeMove(seg);
   }
