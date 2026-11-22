@@ -81,7 +81,7 @@ function Hero() {
               Chơi ngay
             </button>
             <nav className="home-links" aria-label="Lối tắt">
-              <a className="ui-btn ui-btn--ghost home-link" href="/co-ca-ngua-online" data-testid="home-rules">
+              <a className="ui-btn ui-btn--ghost home-link" href="/gioi-thieu" data-testid="home-rules">
                 <Icon name="rules" size="sm" />
                 Luật chơi
               </a>

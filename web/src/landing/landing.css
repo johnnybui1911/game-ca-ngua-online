@@ -76,17 +76,6 @@ body.landing {
   margin-inline: auto;
 }
 
-/* Fixed board behind everything. A fixed element, not background-attachment, so iOS keeps it still. */
-.lp-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: -1;
-  background:
-    linear-gradient(180deg, rgb(13 8 6 / 62%), rgb(13 8 6 / 40%) 45%, rgb(13 8 6 / 66%)),
-    url('/landing/board-bg.jpg') center / cover no-repeat,
-    var(--color-bg-deep);
-}
-
 /* The creator's mark, as the game shows it top right: decorative-sized, not a link. */
 .lp-creator {
   position: absolute;
@@ -115,31 +104,52 @@ body.landing {
 }
 
 /*
- * Hero: full-bleed render fading into the fixed board below. Narrow screens show the portrait
- * render above the copy; wide screens put the copy over the left of the landscape clip.
+ * Hero: the render is fixed and covers the viewport for the whole page; only the copy and the
+ * sections scroll over it. A scrim darkens it for text, and deepens as the page scrolls.
+ * Narrow screens show the portrait render, wide screens the landscape clip.
  */
 .lp-hero {
   position: relative;
-  padding: 52svh 0 var(--space-6);
-  isolation: isolate;
-  background: linear-gradient(180deg, transparent 40%, rgb(13 8 6 / 88%) 62%, rgb(13 8 6 / 70%) 90%, transparent);
+  display: flex;
+  align-items: flex-end;
+  min-height: 100svh;
+  padding: 0 0 var(--space-6);
 }
 
 .lp-hero-media {
-  position: absolute;
-  inset: 0 0 auto;
+  position: fixed;
+  inset: 0;
   z-index: -1;
-  height: 72svh;
   overflow: hidden;
-  -webkit-mask-image: linear-gradient(180deg, #000 55%, transparent);
-  mask-image: linear-gradient(180deg, #000 55%, transparent);
+  background: var(--color-bg-deep);
 }
 
 .lp-hero-media::after {
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(180deg, rgb(13 8 6 / 35%), transparent 25%, transparent 50%, rgb(13 8 6 / 70%));
+  background: linear-gradient(180deg, rgb(13 8 6 / 30%), rgb(13 8 6 / 20%) 35%, rgb(13 8 6 / 82%));
+}
+
+/* Deeper scrim while sections scroll over the cover, where the browser supports scroll timelines. */
+@supports (animation-timeline: scroll()) {
+  .lp-hero-media::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    background: rgb(13 8 6 / 55%);
+    opacity: 0;
+    animation: lp-scrim linear both;
+    animation-timeline: scroll(root);
+    animation-range: 0 80svh;
+  }
+}
+
+@keyframes lp-scrim {
+  to {
+    opacity: 1;
+  }
 }
 
 .lp-hero-poster,
@@ -550,21 +560,6 @@ body.landing {
   .lp-creator {
     width: 56px;
     height: 56px;
-  }
-
-  .lp-hero {
-    display: flex;
-    align-items: flex-end;
-    min-height: min(92svh, 860px);
-    padding: var(--space-8) 0;
-    background: none;
-  }
-
-  .lp-hero-media {
-    inset: 0;
-    height: auto;
-    -webkit-mask-image: linear-gradient(180deg, #000 72%, transparent);
-    mask-image: linear-gradient(180deg, #000 72%, transparent);
   }
 
   /* The copy sits on the left over bright board cells: the scrim stays dark under all of it (≥ 4.5:1).

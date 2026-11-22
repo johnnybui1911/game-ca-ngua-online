@@ -162,6 +162,9 @@ class SoundEngine {
       });
     };
     for (const e of events) window.addEventListener(e, unlock, true);
+    // Try at once: a browser that already trusts the site (installed app, high media engagement)
+    // lets the context run without a tap. Otherwise it stays suspended and the first tap starts it.
+    unlock();
     document.addEventListener('visibilitychange', () => {
       if (!this.ctx) return;
       if (document.hidden) void this.ctx.suspend();

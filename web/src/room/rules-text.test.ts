@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { QUICK_DIFFERENCES, rulesFor } from '../../../shared/rules-text';
-import landingHtml from '../../../co-ca-ngua-online.html?raw';
+import landingHtml from '../../../gioi-thieu.html?raw';
 
 const text = (html: string) => html.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
 
