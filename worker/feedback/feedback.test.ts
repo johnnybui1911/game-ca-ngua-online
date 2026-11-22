@@ -118,6 +118,21 @@ describe('POST /api/feedback', () => {
     expect(rows()).toHaveLength(0);
   });
 
+  it('accepts 2000 emoji with the usual context, and every field at its limit in 4-byte characters', async () => {
+    const context = { path: '/r/ABC234', viewport: '390x844', userAgent: 'u'.repeat(FEEDBACK_LIMITS.userAgentMax) };
+    const emoji = await post({ ...valid, message: '😀'.repeat(FEEDBACK_LIMITS.messageMax), contact: 'lan@x.vn', roomCode: 'ABC234', context });
+    expect(emoji.status).toBe(200);
+    const widest = await post({
+      ...valid,
+      message: '😀'.repeat(FEEDBACK_LIMITS.messageMax),
+      contact: '😀'.repeat(FEEDBACK_LIMITS.contactMax),
+      roomCode: 'ABC234',
+      context: { path: '😀'.repeat(FEEDBACK_LIMITS.pathMax), viewport: '99999x99999', userAgent: '😀'.repeat(FEEDBACK_LIMITS.userAgentMax) },
+    });
+    expect(widest.status).toBe(200);
+    expect(rows()).toHaveLength(2);
+  });
+
   it('rejects an oversized body and a foreign origin', async () => {
     const big = await post({ ...valid, contact: 'x'.repeat(FEEDBACK_LIMITS.bodyMaxBytes) });
     expect(big.status).toBe(400);

@@ -17,8 +17,11 @@ export const FEEDBACK_LIMITS = {
   contactMax: 120,
   pathMax: 200,
   userAgentMax: 200,
-  /** Largest accepted request body, in bytes. */
-  bodyMaxBytes: 8 * 1024,
+  /**
+   * Largest accepted request body, in bytes: room for every text field at its character limit in
+   * 4-byte characters (emoji), plus the JSON around them.
+   */
+  bodyMaxBytes: 12 * 1024,
   /** Per client: at most `perWindow` posts in `windowMs`, and `perDay` in 24 hours. */
   perWindow: 5,
   windowMs: 10 * 60 * 1000,
