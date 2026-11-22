@@ -15,7 +15,6 @@ import {
   TorusGeometry,
   TubeGeometry,
   Vector2,
-  Vector3,
 } from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import type { Spray } from './blossom';
@@ -119,47 +118,54 @@ export function sprayBranches(b: SetBuilder, m: Matrix4, spray: Spray): void {
 }
 
 /**
- * A flat slab cut from a ring: the part of the ring between `inner` and `outer` that lies
- * within `angle` around the downward axis, `thickness` deep along z, centred on the origin.
- * Closed on its faces, its outer edge and its two cut ends; the side towards the centre is
- * left open for the next slab to fill (with `inner` 0 the slab is a full wedge).
+ * The skin of a melon as a unit sphere with its poles on the y axis, cut into `stripes` pairs of
+ * a narrow light band and a wide dark one that run from pole to pole. The edges between the
+ * bands waver, each in its own rhythm, and straighten towards the poles where the bands meet.
  */
-export function createArcSlab(inner: number, outer: number, angle: number, thickness: number, segments: number): BufferGeometry {
-  const positions: number[] = [];
-  const normals: number[] = [];
-  const half = thickness / 2;
-  const at = (radius: number, step: number, z: number) => {
-    const a = -angle / 2 + (angle * step) / segments;
-    return new Vector3(radius * Math.sin(a), -radius * Math.cos(a), z);
-  };
-  const edge = new Vector3();
-  const normal = new Vector3();
-  const triangle = (a: Vector3, b: Vector3, c: Vector3) => {
-    normal.subVectors(b, a).cross(edge.subVectors(c, a));
-    // A wedge has no inner edge: the triangles that would span it are empty.
-    if (normal.lengthSq() < 1e-12) return;
-    normal.normalize();
-    for (const p of [a, b, c]) {
-      positions.push(p.x, p.y, p.z);
-      normals.push(normal.x, normal.y, normal.z);
+export function createMelonSkin(stripes: number, rows: number): { dark: BufferGeometry; light: BufferGeometry } {
+  const pitch = (Math.PI * 2) / stripes;
+  const lightWidth = pitch * 0.36;
+  const sway = lightWidth * 0.3;
+  /** Longitude of edge `e` at polar angle `theta`: even edges open a light band, odd ones close it. */
+  const edge = (e: number, theta: number) =>
+    Math.floor(e / 2) * pitch + (e % 2 === 0 ? -0.5 : 0.5) * lightWidth + sway * Math.sin(theta) * Math.sin(5 * theta + e * 2.4);
+  type Column = (theta: number) => number;
+  /** Adds the strip between the first and the last column to a skin, as a grid of shared points. */
+  const band = (out: { positions: number[]; index: number[] }, columns: Column[]) => {
+    const first = out.positions.length / 3;
+    const at = (row: number, column: number) => first + row * columns.length + column;
+    for (let row = 0; row <= rows; row++) {
+      const theta = (row / rows) * Math.PI;
+      for (const column of columns) {
+        const phi = column(theta);
+        out.positions.push(Math.sin(theta) * Math.cos(phi), Math.cos(theta), Math.sin(theta) * Math.sin(phi));
+      }
+    }
+    for (let row = 0; row < rows; row++) {
+      for (let column = 0; column + 1 < columns.length; column++) {
+        // At a pole the row is a single point, and the triangle along it is empty.
+        if (row > 0) out.index.push(at(row, column), at(row, column + 1), at(row + 1, column));
+        if (row < rows - 1) out.index.push(at(row, column + 1), at(row + 1, column + 1), at(row + 1, column));
+      }
     }
   };
-  /** Corners counter-clockwise as seen from outside. */
-  const quad = (a: Vector3, b: Vector3, c: Vector3, d: Vector3) => {
-    triangle(a, b, c);
-    triangle(a, c, d);
-  };
-  for (let i = 0; i < segments; i++) {
-    quad(at(inner, i, half), at(outer, i, half), at(outer, i + 1, half), at(inner, i + 1, half));
-    quad(at(inner, i + 1, -half), at(outer, i + 1, -half), at(outer, i, -half), at(inner, i, -half));
-    quad(at(outer, i, half), at(outer, i, -half), at(outer, i + 1, -half), at(outer, i + 1, half));
+  const light = { positions: [] as number[], index: [] as number[] };
+  const dark = { positions: [] as number[], index: [] as number[] };
+  for (let s = 0; s < stripes; s++) {
+    const [open, close, next] = [2 * s, 2 * s + 1, 2 * s + 2].map((e): Column => (theta) => edge(e, theta)) as [Column, Column, Column];
+    band(light, [open, close]);
+    // The wide band bends once more in the middle, so the melon stays round.
+    band(dark, [close, (theta) => (close(theta) + next(theta)) / 2, next]);
   }
-  quad(at(inner, 0, half), at(inner, 0, -half), at(outer, 0, -half), at(outer, 0, half));
-  quad(at(inner, segments, half), at(outer, segments, half), at(outer, segments, -half), at(inner, segments, -half));
-  const geometry = new BufferGeometry();
-  geometry.setAttribute('position', new Float32BufferAttribute(positions, 3));
-  geometry.setAttribute('normal', new Float32BufferAttribute(normals, 3));
-  return geometry;
+  const skin = ({ positions, index }: { positions: number[]; index: number[] }) => {
+    const geometry = new BufferGeometry();
+    geometry.setAttribute('position', new Float32BufferAttribute(positions, 3));
+    // On a unit sphere a point is its own normal.
+    geometry.setAttribute('normal', new Float32BufferAttribute(positions, 3));
+    geometry.setIndex(index);
+    return geometry;
+  };
+  return { dark: skin(dark), light: skin(light) };
 }
 
 export interface SeedSpot {
@@ -189,61 +195,36 @@ const PORCELAIN = '#ebe8de';
 const COBALT = '#28489a';
 
 /** A white porcelain dish with a cobalt lip; returns the height of its well. */
-function porcelainDish(b: SetBuilder, m: Matrix4, radius: number, height: number): number {
-  const lathe = (profile: number[][]) => new LatheGeometry(profile.map(([r, y]) => new Vector2(r! * radius, y! * height)), 24);
+function porcelainDish(b: SetBuilder, m: Matrix4, radius: number, height: number, segments: number): number {
+  const lathe = (profile: number[][]) => new LatheGeometry(profile.map(([r, y]) => new Vector2(r! * radius, y! * height)), segments);
   b.add('gloss', lathe([[0.55, 0], [0.6, 0.18], [0.9, 0.7], [0.89, 0.85], [0.6, 0.42], [0, 0.36]]), PORCELAIN, m);
   b.add('gloss', lathe([[0.9, 0.7], [1, 0.88], [0.98, 1], [0.89, 0.85]]), COBALT, m);
   return 0.36 * height;
 }
 
-const SLICES = 5;
-const SLICE_RADIUS = 1.5;
-const SLICE_ANGLE = Math.PI / 3;
-const SLICE_THICKNESS = 0.26;
-const SLICE_LEAN = 0.55;
-/** Black seeds on the face of a slice: angle from its axis, and distance from its tip as a share of the radius. */
-const SLICE_SEEDS = [
-  [-0.3, 0.62],
-  [0, 0.7],
-  [0.3, 0.62],
-  [-0.13, 0.42],
-  [0.13, 0.42],
-];
+/** Half length and half thickness of the watermelon, and the bands of its skin. */
+const MELON_LENGTH = 1.5;
+const MELON_GIRTH = 1.12;
+const MELON_STRIPES = 10;
 const MELON_SEEDS = 34;
 
 /**
- * Dưa hấu and hạt dưa: a porcelain plate of watermelon slices standing on their rind, leaning
- * back in a staggered row so their red faces show to the player opposite, and beside it a
- * small dish heaped with red melon seeds.
+ * Dưa hấu and hạt dưa: a whole striped watermelon lying on a porcelain plate, its stem end
+ * turned towards the player opposite, and beside it a small dish heaped with red melon seeds.
  */
 export function watermelonPlates(b: SetBuilder, m: Matrix4): void {
-  const plate = place(m, [-0.72, 0, 0.1]);
-  const well = porcelainDish(b, plate, 1.7, 0.28);
-  const rind: BufferGeometry[] = [];
-  const pith: BufferGeometry[] = [];
-  const flesh: BufferGeometry[] = [];
-  const pips: BufferGeometry[] = [];
-  const R = SLICE_RADIUS;
-  for (let i = 0; i < SLICES; i++) {
-    const u = i - (SLICES - 1) / 2;
-    // Standing on the lowest point of the rind, each slice a step behind and beside the last.
-    const slice = place(place(plate, [u * 0.4, well + 0.04, -u * 0.36], [-SLICE_LEAN, u * 0.06, 0]), [0, R, 0]);
-    rind.push(createArcSlab(R * 0.93, R, SLICE_ANGLE, SLICE_THICKNESS, 4).applyMatrix4(slice));
-    pith.push(createArcSlab(R * 0.87, R * 0.93, SLICE_ANGLE, SLICE_THICKNESS, 4).applyMatrix4(slice));
-    flesh.push(createArcSlab(0, R * 0.87, SLICE_ANGLE, SLICE_THICKNESS, 4).applyMatrix4(slice));
-    for (const [a, r] of SLICE_SEEDS) {
-      const at = [Math.sin(a!) * r! * R, -Math.cos(a!) * r! * R, SLICE_THICKNESS / 2] as const;
-      // A seed is a coarse ball, flattened and stretched.
-      pips.push(new SphereGeometry(1, 4, 2).applyMatrix4(place(slice, at, [0, 0, a!], [0.055, 0.1, 0.03])));
-    }
-  }
-  b.add('matte', gathered(rind), '#1f5c2a', new Matrix4());
-  b.add('matte', gathered(pith), '#e6edcf', new Matrix4());
-  b.add('matte', gathered(flesh), '#d62f3a', new Matrix4());
-  b.add('matte', gathered(pips), '#140c0a', new Matrix4());
+  const plate = place(m, [-0.6, 0, 0]);
+  const well = porcelainDish(b, plate, 1.55, 0.26, 24);
+  // Lying on its side: the poles of the skin along the plate, sunk a little into the well.
+  const lying = place(plate, [0, well + MELON_GIRTH - 0.03, 0], [0, -0.5, QUARTER]);
+  const skin = createMelonSkin(MELON_STRIPES, 12);
+  const body = place(lying, [0, 0, 0], [0, 0, 0], [MELON_GIRTH, MELON_LENGTH, MELON_GIRTH]);
+  b.add('gloss', skin.dark, '#17502a', body);
+  b.add('gloss', skin.light, '#86b84e', body);
+  b.add('matte', new CylinderGeometry(0.035, 0.06, 0.26, 5), '#6b6a35', place(lying, [0.04, -MELON_LENGTH - 0.09, 0], [0, 0, -0.35]));
 
   const dish = place(m, [1.7, 0, 0.35]);
-  const floor = porcelainDish(b, dish, 0.68, 0.3);
+  const floor = porcelainDish(b, dish, 0.68, 0.3, 16);
   const heap = 0.2;
   b.add('matte', new SphereGeometry(1, 10, 3, 0, Math.PI * 2, 0, QUARTER), '#8c1512', place(dish, [0, floor, 0], [0, 0, 0], [0.54, heap, 0.54]));
   const shades: BufferGeometry[][] = [[], []];
