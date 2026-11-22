@@ -181,6 +181,32 @@
   }
 }
 
+/* The copy of a panel that gave the board to a match: it leaves the way it came. */
+.shell-panel--leaving {
+  pointer-events: none;
+  animation: shell-sheet-out var(--dur-slow) var(--ease-in-out) forwards;
+}
+
+@media (min-width: 900px) {
+  .shell-panel--leaving {
+    animation-name: shell-side-out;
+  }
+}
+
+@keyframes shell-sheet-out {
+  to {
+    opacity: 0;
+    transform: translateY(40px);
+  }
+}
+
+@keyframes shell-side-out {
+  to {
+    opacity: 0;
+    transform: translateX(40px);
+  }
+}
+
 @keyframes shell-sheet-in {
   from {
     opacity: 0;

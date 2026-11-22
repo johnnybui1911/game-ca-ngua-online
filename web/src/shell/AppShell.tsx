@@ -2,6 +2,7 @@ import { Component, Suspense, lazy, useEffect, useState } from 'react';
 import type { CSSProperties, ReactNode } from 'react';
 import { Outlet, useLocation } from 'react-router';
 import { SoundPlacement } from '../audio/SoundControls';
+import { DemoMatch } from '../demo/DemoMatch';
 import { entered } from './entered';
 import { LoadingOverlay } from './LoadingOverlay';
 import { useQuality } from '../scene/render/QualityProvider';
@@ -94,6 +95,7 @@ export function AppShell() {
     <SceneHostProvider>
       <div className="shell">
         <SceneLayer />
+        <DemoMatch />
         <Chrome />
         <SoundPlacement value="docked">
           <Outlet />

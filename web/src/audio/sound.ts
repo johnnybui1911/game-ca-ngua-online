@@ -117,6 +117,7 @@ class SoundEngine {
   private fadeIn = DEFAULT_FADE_IN_S;
   private playing: Playing | null = null;
   private settings: SoundSettings = loadSettings();
+  private boardMuted = false;
   private readonly listeners = new Set<() => void>();
 
   getSettings = (): SoundSettings => this.settings;
@@ -209,11 +210,20 @@ class SoundEngine {
   }
 
   /**
+   * Holds back the effects the board plays by itself (hooves, kicks) while `muted`: the home page's
+   * demo game must not be heard under a panel the player is reading. Music and every other effect
+   * are not affected.
+   */
+  setBoardEffectsMuted(muted: boolean): void {
+    this.boardMuted = muted;
+  }
+
+  /**
    * Hoof beats for a horse moving `hops` cells, one "clip-clop" per hop, spaced like the board
    * animation; with `kickAt` (seconds from now) a heavy knock where it kicks an opponent home.
    */
   playHooves(hops: number, hopSeconds: number, kickAt: number | null): void {
-    const ctx = this.effectsContext();
+    const ctx = this.boardMuted ? null : this.effectsContext();
     if (!ctx) return;
     const t0 = ctx.currentTime;
     const gap = Math.max(0.05, hopSeconds);
