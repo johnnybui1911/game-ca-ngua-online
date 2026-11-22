@@ -1,8 +1,9 @@
 import { Matrix4, Vector3 } from 'three';
 import type { BufferGeometry } from 'three';
 import { describe, expect, it } from 'vitest';
+import { createHorseBody } from '../horse-geometry';
 import { piecesOf } from './layout';
-import { createMelonSkin, createMelonWedge, seedSpots, watermelonPlate } from './pieces';
+import { PLAQUE_FACE, PLAQUE_HEIGHT, PLAQUE_TILT, PLAQUE_WIDTH, createStatueBody, goldenHorse } from './pieces';
 import { SURFACES, SetBuilder } from './set-builder';
 
 function vertices(geometry: BufferGeometry): Vector3[] {
@@ -10,134 +11,42 @@ function vertices(geometry: BufferGeometry): Vector3[] {
   return Array.from({ length: position.count }, (_, i) => new Vector3().fromBufferAttribute(position, i));
 }
 
-describe('melon skin', () => {
-  const stripes = 10;
-  const { dark, light } = createMelonSkin(stripes, 14);
+describe('golden horse', () => {
+  const slot = piecesOf('offering')[0]!;
+  const b = new SetBuilder();
+  goldenHorse(b, new Matrix4());
+  const built = b.build();
+  const body = createStatueBody();
+  const points = [...SURFACES.flatMap((surface) => (built[surface] ? vertices(built[surface]) : [])), ...vertices(body)];
 
-  /** Total area of the triangles of a skin; each must face away from the centre. */
-  function outwardArea(geometry: BufferGeometry): number {
-    const points = vertices(geometry);
-    const index = geometry.index!;
-    let area = 0;
-    for (let i = 0; i < index.count; i += 3) {
-      const [a, b, c] = [points[index.getX(i)]!, points[index.getX(i + 1)]!, points[index.getX(i + 2)]!];
-      const cross = b.clone().sub(a).cross(c.clone().sub(a));
-      expect(cross.dot(a.clone().add(b).add(c))).toBeGreaterThan(0);
-      area += cross.length() / 2;
-    }
-    return area;
-  }
-
-  it('lies on the unit sphere with every normal pointing straight out', () => {
-    for (const geometry of [dark, light]) {
-      const normal = geometry.getAttribute('normal');
-      for (const [i, p] of vertices(geometry).entries()) {
-        expect(p.length()).toBeCloseTo(1, 5);
-        expect(new Vector3().fromBufferAttribute(normal, i).distanceTo(p)).toBeLessThan(1e-6);
-      }
-    }
-  });
-
-  it('covers the whole sphere, the light stripes taking the smaller share', () => {
-    const lightArea = outwardArea(light);
-    const total = lightArea + outwardArea(dark);
-    expect(total).toBeGreaterThan(4 * Math.PI * 0.95);
-    expect(total).toBeLessThanOrEqual(4 * Math.PI);
-    expect(lightArea / total).toBeGreaterThan(0.25);
-    expect(lightArea / total).toBeLessThan(0.45);
-  });
-
-  it('wavers along the stripes instead of following a meridian', () => {
-    const longitudes = vertices(light)
-      .filter((p) => Math.abs(p.y) < 0.9)
-      .map((p) => Math.atan2(p.z, p.x));
-    const pitch = (Math.PI * 2) / stripes;
-    // Folded onto one stripe, a straight band would give two longitudes only.
-    const folded = new Set(longitudes.map((l) => (((l + pitch / 2) % pitch) + pitch) % pitch).map((l) => l.toFixed(3)));
-    expect(folded.size).toBeGreaterThan(6);
-  });
-
-  it('stops at the cut when it spans half a melon, leaving no gap along the rim', () => {
-    const half = createMelonSkin(stripes, 7, Math.PI / 2);
-    let area = 0;
-    for (const geometry of [half.dark, half.light]) {
-      for (const p of vertices(geometry)) expect(p.y).toBeGreaterThanOrEqual(-1e-6);
-      area += outwardArea(geometry);
-    }
-    expect(area).toBeGreaterThan(2 * Math.PI * 0.95);
-    expect(area).toBeLessThanOrEqual(2 * Math.PI);
-  });
-});
-
-describe('melon wedge', () => {
-  const angle = 0.8;
-  const thickness = 0.2;
-  const wedge = createMelonWedge(angle, thickness, 4);
-  const layers = [wedge.flesh, wedge.pith, wedge.rind];
-
-  it('keeps every layer inside the slice, the rind outermost and the flesh at the point', () => {
-    const reach = layers.map((geometry) => vertices(geometry).map((p) => Math.hypot(p.x, p.y)));
-    for (const [i, geometry] of layers.entries()) {
-      for (const p of vertices(geometry)) {
-        expect(Math.abs(p.z)).toBeCloseTo(thickness / 2, 6);
-        expect(Math.abs(Math.atan2(p.x, -p.y))).toBeLessThanOrEqual(angle / 2 + 1e-6);
-      }
-      if (i > 0) expect(Math.min(...reach[i]!)).toBeCloseTo(Math.max(...reach[i - 1]!), 6);
-    }
-    expect(Math.min(...reach[0]!)).toBe(0);
-    expect(Math.max(...reach[2]!)).toBeCloseTo(1, 6);
-    // Mostly flesh, with a thin band of pith and of rind.
-    expect(Math.max(...reach[0]!)).toBeGreaterThan(0.8);
-  });
-
-  it('shows every face away from the middle of the slice, lit by its own normal', () => {
-    const middle = new Vector3(0, -0.6, 0);
-    for (const geometry of layers) {
-      const points = vertices(geometry);
-      const normal = geometry.getAttribute('normal');
-      const index = geometry.index!;
-      for (let i = 0; i < index.count; i += 3) {
-        const [a, b, c] = [points[index.getX(i)]!, points[index.getX(i + 1)]!, points[index.getX(i + 2)]!];
-        const cross = b.clone().sub(a).cross(c.clone().sub(a));
-        expect(cross.length()).toBeGreaterThan(1e-6);
-        const lit = new Vector3().fromBufferAttribute(normal, index.getX(i));
-        expect(cross.normalize().distanceTo(lit)).toBeLessThan(1e-5);
-        expect(lit.dot(a.clone().add(b).add(c).divideScalar(3).sub(middle))).toBeGreaterThan(0);
-      }
-    }
-  });
-});
-
-describe('seed spots', () => {
-  it('spreads the seeds over the disc without stacking them', () => {
-    const count = 34;
-    const radius = 0.5;
-    const spots = seedSpots(count, radius);
-    expect(spots).toHaveLength(count);
-    for (const [i, a] of spots.entries()) {
-      expect(Math.hypot(a.x, a.z)).toBeLessThanOrEqual(radius);
-      for (const b of spots.slice(i + 1)) expect(Math.hypot(a.x - b.x, a.z - b.z)).toBeGreaterThan((0.5 * radius) / Math.sqrt(count));
-    }
-  });
-
-  it('lays the same seeds every time', () => {
-    expect(seedSpots(12, 1)).toEqual(seedSpots(12, 1));
-  });
-});
-
-describe('watermelon plate', () => {
   it('stands on the platform inside the space reserved for an offering', () => {
-    const slot = piecesOf('offering')[0]!;
-    const b = new SetBuilder();
-    watermelonPlate(b, new Matrix4());
-    const built = b.build();
-    for (const surface of SURFACES) {
-      const geometry = built[surface];
-      if (!geometry) continue;
-      for (const p of vertices(geometry)) {
-        expect(Math.hypot(p.x, p.z)).toBeLessThanOrEqual(slot.radius);
-        expect(p.y).toBeGreaterThanOrEqual(-1e-6);
-        expect(p.y).toBeLessThanOrEqual(slot.height);
+    for (const p of points) {
+      expect(Math.hypot(p.x, p.z)).toBeLessThanOrEqual(slot.radius);
+      expect(p.y).toBeGreaterThanOrEqual(-1e-6);
+      expect(p.y).toBeLessThanOrEqual(slot.height);
+    }
+  });
+
+  it('is too big to be taken for a horse in play', () => {
+    const playing = Math.max(...vertices(createHorseBody()).map((p) => p.y));
+    const top = Math.max(...points.map((p) => p.y));
+    expect(top / playing).toBeGreaterThan(1.5);
+  });
+
+  it('keeps the lettered sheet in front of its plate and inside the slot', () => {
+    const face = new Matrix4().makeRotationX(PLAQUE_TILT).setPosition(...PLAQUE_FACE);
+    const outward = new Vector3(0, 0, 1).transformDirection(face);
+    const metal = vertices(built.metal!);
+    for (const sx of [-1, 1]) {
+      for (const sy of [-1, 1]) {
+        const corner = new Vector3((sx * PLAQUE_WIDTH) / 2, (sy * PLAQUE_HEIGHT) / 2, 0).applyMatrix4(face);
+        expect(corner.y).toBeGreaterThan(0);
+        expect(Math.hypot(corner.x, corner.z)).toBeLessThan(slot.radius);
+        // Nothing gilt lies over the sheet: the plate is behind it.
+        for (const p of metal) {
+          const off = p.clone().sub(corner);
+          if (Math.abs(off.x) < 0.2 && off.length() < 0.2) expect(off.dot(outward)).toBeLessThan(0);
+        }
       }
     }
   });

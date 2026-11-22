@@ -6,7 +6,7 @@ Code: `web/src/scene/environment/`. Assets and licences: `public/models/` ([LICE
 
 The board lies on a low lacquer platform (sập) with gold line inlay. Each of the four sides carries the same tableau, laid out for the player sitting opposite it:
 
-- an offering at the centre: half a striped watermelon lying on a porcelain plate with its cut face towards the player and four wedge slices standing beside it (dưa hấu), bánh chưng with lì xì, tea service, sweets box (khay mứt);
+- a display piece or offering at the centre: a gilt horse on a two-tier red lacquer base with a "Mã đáo thành công" nameplate (the horse of the board at a larger size, the wish lettered on canvas), bánh chưng with lì xì, tea service, sweets box (khay mứt);
 - two red lanterns on wooden stands behind it;
 - a pair of couplets on stands, the folk verse "Thịt mỡ dưa hành câu đối đỏ / Cây nêu tràng pháo bánh chưng xanh" lettered on canvas;
 - a blue-and-white vase with a mai (yellow) or đào (pink) branch on each corner.
