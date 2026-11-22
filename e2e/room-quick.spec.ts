@@ -33,20 +33,20 @@ test('the host sets the turn time and Ván nhanh; others see them read-only', as
 
   // Defaults: 30 s, classic.
   await expect(host.page.getByTestId('turn-seconds')).toHaveValue('30');
-  await expect(host.page.getByTestId('quick-toggle')).not.toBeChecked();
+  await expect(host.page.getByTestId('mode-basic')).toHaveAttribute('aria-checked', 'true');
   await expect(host.page.getByTestId('auto-roll-toggle')).not.toBeChecked();
   await expect(host.page.getByTestId('mode-summary')).toContainText(CLASSIC_MODE_SUMMARY);
   await expect(guest.page.getByTestId('turn-seconds')).toHaveText('30 giây');
   await expect(host.page.getByTestId('game-settings')).toContainText('Máy đổ giúp sau 1,5 giây.');
 
   // Turning quick on from 30 s preselects 20 s; the guest sees it live, read-only.
-  await host.page.getByTestId('quick-toggle').click();
-  await expect(host.page.getByTestId('quick-toggle')).toBeChecked();
+  await host.page.getByTestId('mode-quick').click();
+  await expect(host.page.getByTestId('mode-quick')).toHaveAttribute('aria-checked', 'true');
   await expect(host.page.getByTestId('turn-seconds')).toHaveValue('20');
   await expect(host.page.getByTestId('mode-summary')).toContainText(QUICK_MODE_SUMMARY);
   await expect(guest.page.getByTestId('turn-seconds')).toHaveText('20 giây');
-  await expect(guest.page.getByTestId('quick-toggle')).toBeChecked();
-  await expect(guest.page.getByTestId('quick-toggle')).toBeDisabled();
+  await expect(guest.page.getByTestId('mode-label')).toHaveText('Ván Nhanh');
+  await expect(guest.page.getByTestId('mode-quick')).toHaveCount(0);
   await expect(guest.page.getByTestId('auto-roll-toggle')).toBeDisabled();
   await expect(guest.page.getByTestId('mode-summary')).toContainText(QUICK_MODE_SUMMARY);
   await expect(guest.page.locator('select')).toHaveCount(0);
@@ -54,10 +54,10 @@ test('the host sets the turn time and Ván nhanh; others see them read-only', as
   // Another time is kept when quick goes off and on again; auto-roll is a separate switch.
   await host.page.getByTestId('turn-seconds').selectOption('60');
   await expect(guest.page.getByTestId('turn-seconds')).toHaveText('60 giây');
-  await host.page.getByTestId('quick-toggle').click();
-  await expect(guest.page.getByTestId('quick-toggle')).not.toBeChecked();
-  await host.page.getByTestId('quick-toggle').click();
-  await expect(guest.page.getByTestId('quick-toggle')).toBeChecked();
+  await host.page.getByTestId('mode-basic').click();
+  await expect(guest.page.getByTestId('mode-label')).toHaveText('Cơ Bản');
+  await host.page.getByTestId('mode-quick').click();
+  await expect(guest.page.getByTestId('mode-label')).toHaveText('Ván Nhanh');
   await expect(host.page.getByTestId('turn-seconds')).toHaveValue('60');
   // The host's settings changes share a budget of four in a burst, refilled at two a second.
   await host.page.waitForTimeout(1_500);
@@ -67,7 +67,7 @@ test('the host sets the turn time and Ván nhanh; others see them read-only', as
   // A reload shows the same values.
   await guest.page.reload();
   await expect(guest.page.getByTestId('turn-seconds')).toHaveText('60 giây');
-  await expect(guest.page.getByTestId('quick-toggle')).toBeChecked();
+  await expect(guest.page.getByTestId('mode-label')).toHaveText('Ván Nhanh');
   await host.context.close();
   await guest.context.close();
 });
@@ -84,8 +84,8 @@ test('the rules sheet lists the quick differences first in a quick room, from th
   await expect(sheet.locator('li')).toHaveCount(CLASSIC_RULES.length);
   await host.page.keyboard.press('Escape');
 
-  await host.page.getByTestId('quick-toggle').click();
-  await expect(host.page.getByTestId('quick-toggle')).toBeChecked();
+  await host.page.getByTestId('mode-quick').click();
+  await expect(host.page.getByTestId('mode-quick')).toHaveAttribute('aria-checked', 'true');
   await host.page.getByTestId('mode-rules').click();
   await expect(sheet.locator('h3').first()).toHaveText('Ván nhanh khác ván thường');
   await expect(sheet.locator('li')).toHaveCount(QUICK_DIFFERENCES.length + CLASSIC_RULES.length);
@@ -117,8 +117,8 @@ test('the first-match card appears once per device and the lock cues show in a q
   const host = await newPlayer(browser, 'Người Xem Thẻ', VIEWPORT);
   const code = await createRoom(host, { seats: 2 });
   await host.page.goto(`/r/${code}`);
-  await host.page.getByTestId('quick-toggle').click();
-  await expect(host.page.getByTestId('quick-toggle')).toBeChecked();
+  await host.page.getByTestId('mode-quick').click();
+  await expect(host.page.getByTestId('mode-quick')).toHaveAttribute('aria-checked', 'true');
   await host.page.getByTestId('add-cpu-1').click();
   await host.page.getByTestId('start-button').click();
 
@@ -142,13 +142,13 @@ test('the first-match card appears once per device and the lock cues show in a q
 });
 
 test('a quick match with one human and three CPUs plays to the win dialog; settings survive the rematch', async ({ browser }) => {
-  const host = await newPlayer(browser, 'Người Chơi Nhanh', VIEWPORT);
+  const host = await newPlayer(browser, 'Người Ván Nhanh', VIEWPORT);
   const code = await createRoom(host, { name: 'Ván nhanh một người', seats: 4 });
   await host.page.goto(`/r/${code}`);
   for (const seat of [1, 2, 3]) await host.page.getByTestId(`add-cpu-${seat}`).click();
   await expect(host.page.getByTestId('seat-3-name')).toHaveText('Máy 3');
-  await host.page.getByTestId('quick-toggle').click();
-  await expect(host.page.getByTestId('quick-toggle')).toBeChecked();
+  await host.page.getByTestId('mode-quick').click();
+  await expect(host.page.getByTestId('mode-quick')).toHaveAttribute('aria-checked', 'true');
   await expect(host.page.getByTestId('turn-seconds')).toHaveValue('20');
   const observer = await openRawSocket(host, code);
   await host.page.getByTestId('start-button').click();
@@ -166,7 +166,7 @@ test('a quick match with one human and three CPUs plays to the win dialog; setti
 
   await host.page.getByTestId('rematch-button').click();
   await expect(host.page.getByTestId('start-button')).toBeEnabled();
-  await expect(host.page.getByTestId('quick-toggle')).toBeChecked();
+  await expect(host.page.getByTestId('mode-quick')).toHaveAttribute('aria-checked', 'true');
   await expect(host.page.getByTestId('turn-seconds')).toHaveValue('20');
   await host.page.getByTestId('start-button').click();
   await expect(host.page.getByTestId('hud')).toBeVisible();

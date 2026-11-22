@@ -1,4 +1,5 @@
 import { useEffect, useRef, type FormEvent, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 
 const FOCUSABLE = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
 
@@ -80,7 +81,9 @@ export function Modal({ labelledBy, testId, onClose, onSubmit, className, childr
     tabIndex: -1,
   } as const;
 
-  return (
+  // Rendered on `body`: a `.glass` ancestor (backdrop-filter) would otherwise become the containing
+  // block of the fixed backdrop and clip the dialog inside it.
+  return createPortal(
     <div className="dialog-backdrop">
       {onSubmit ? (
         <form {...shared} onSubmit={onSubmit}>
@@ -89,6 +92,7 @@ export function Modal({ labelledBy, testId, onClose, onSubmit, className, childr
       ) : (
         <div {...shared}>{children}</div>
       )}
-    </div>
+    </div>,
+    document.body,
   );
 }

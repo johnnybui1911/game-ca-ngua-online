@@ -6,7 +6,6 @@ import { inviteLink, reportInviteShared } from '../analytics';
 import { useLobby } from '../lobby/LobbyProvider';
 import { Icon } from '../ui/Icon';
 import { COLOR_NAMES, COLOR_VARS } from './colors';
-import { CpuLevelControl } from './CpuLevelControl';
 import { CPU_LEVEL_LABELS, cpuLevelOf } from './cpu-levels';
 import { EmoteBubble, EmoteLive } from './EmoteBubble';
 import { EmotePicker } from './EmotePicker';
@@ -217,7 +216,6 @@ export function WaitingView({ room, myId, send, actionError, emotes, offline }: 
 
           <div className="room-col">
             <div className="room-box">
-              <CpuLevelControl room={room} isHost={isHost} offline={offline} send={send} />
               <GameSettings room={room} isHost={isHost} offline={offline} actionError={actionError} send={send} />
             </div>
 

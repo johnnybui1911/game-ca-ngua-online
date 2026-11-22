@@ -1086,9 +1086,10 @@ html[data-quality='low'] .hud-player {
   border-top: 1px solid var(--color-border);
 }
 
-.rules-sheet {
+.glass.dialog.rules-sheet {
   width: min(100%, 480px);
   max-height: calc(100dvh - 2 * var(--space-4));
+  overflow: hidden;
   grid-template-rows: auto minmax(0, 1fr) auto;
   text-align: left;
 }

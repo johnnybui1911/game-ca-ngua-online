@@ -13,6 +13,12 @@ import { RulesSheet } from './RulesSheet';
 import { PACE_LABELS, paceEstimateText } from './paces';
 import { nextSettings } from './settings';
 import { MotionLevelControl } from './MotionLevelControl';
+import { CpuLevelControl } from './CpuLevelControl';
+
+const MODES = [
+  { quick: false, label: 'Cơ Bản', testId: 'mode-basic' },
+  { quick: true, label: 'Ván Nhanh', testId: 'mode-quick' },
+] as const;
 
 interface Props {
   room: RoomSnapshot;
@@ -50,53 +56,7 @@ export function GameSettings({ room, isHost, offline, actionError, send }: Props
         Cài đặt ván
       </h2>
 
-      <div className="setting-row">
-        <label htmlFor="turn-seconds" className="setting-label">
-          <Icon name="timer" size="sm" />
-          Thời gian mỗi lượt
-        </label>
-        {isHost ? (
-          <select
-            id="turn-seconds"
-            className="glass-input glass-select"
-            data-testid="turn-seconds"
-            value={settings.turnSeconds}
-            disabled={locked}
-            onChange={(e) => change({ turnSeconds: Number(e.target.value) as TurnSeconds })}
-          >
-            {TURN_SECONDS_OPTIONS.map((s) => (
-              <option key={s} value={s}>
-                {s} giây
-              </option>
-            ))}
-          </select>
-        ) : (
-          <strong className="setting-value" data-testid="turn-seconds">
-            {settings.turnSeconds} giây
-          </strong>
-        )}
-      </div>
-
-      <div className="setting-block">
-        <label className="room-switch">
-          <span>Ván nhanh</span>
-          <input
-            type="checkbox"
-            role="switch"
-            className="switch-input"
-            data-testid="quick-toggle"
-            checked={settings.quick}
-            disabled={!isHost || locked}
-            onChange={(e) => change({ quick: e.target.checked })}
-          />
-        </label>
-        <p className="ui-muted setting-help" data-testid="mode-summary">
-          {summary}{' '}
-          <button type="button" className="link-button" data-testid="mode-rules" onClick={() => setRulesOpen(true)}>
-            Xem luật
-          </button>
-        </p>
-      </div>
+      <CpuLevelControl room={room} isHost={isHost} offline={offline} send={send} />
 
       <div className="setting-block" data-testid="pace">
         {isHost ? (
@@ -129,6 +89,72 @@ export function GameSettings({ room, isHost, offline, actionError, send }: Props
         )}
         <p className="ui-muted setting-help" data-testid="pace-estimate">
           {paceEstimateText(settings.pace, room.seats.length, settings.quick)}
+        </p>
+      </div>
+
+      <div className="setting-row">
+        <label htmlFor="turn-seconds" className="setting-label">
+          <Icon name="timer" size="sm" />
+          Thời gian mỗi lượt
+        </label>
+        {isHost ? (
+          <select
+            id="turn-seconds"
+            className="glass-input glass-select"
+            data-testid="turn-seconds"
+            value={settings.turnSeconds}
+            disabled={locked}
+            onChange={(e) => change({ turnSeconds: Number(e.target.value) as TurnSeconds })}
+          >
+            {TURN_SECONDS_OPTIONS.map((s) => (
+              <option key={s} value={s}>
+                {s} giây
+              </option>
+            ))}
+          </select>
+        ) : (
+          <strong className="setting-value" data-testid="turn-seconds">
+            {settings.turnSeconds} giây
+          </strong>
+        )}
+      </div>
+
+      <div className="setting-block" data-testid="mode">
+        {isHost ? (
+          <>
+            <span id="mode-title" className="setting-label pace-title">
+              Mode
+            </span>
+            <div className="setting-pills" role="radiogroup" aria-labelledby="mode-title">
+              {MODES.map(({ quick, label, testId }) => (
+                <button
+                  key={testId}
+                  type="button"
+                  role="radio"
+                  aria-checked={settings.quick === quick}
+                  className="ui-pill setting-pill"
+                  data-testid={testId}
+                  disabled={locked}
+                  onClick={() => settings.quick !== quick && change({ quick })}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </>
+        ) : (
+          <p className="setting-row">
+            <span className="setting-label pace-title">Mode</span>
+            <strong className="setting-value" data-testid="mode-label">
+              {settings.quick ? 'Ván Nhanh' : 'Cơ Bản'}
+            </strong>
+          </p>
+        )}
+        <p className="ui-muted setting-help" data-testid="mode-summary">
+          {summary}{' '}
+          <button type="button" className="link-button" data-testid="mode-rules" onClick={() => setRulesOpen(true)}>
+            Xem luật
+          </button>
         </p>
       </div>
 
