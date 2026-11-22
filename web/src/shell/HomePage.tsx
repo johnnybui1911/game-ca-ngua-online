@@ -6,6 +6,7 @@ import { useDemoCalmZone } from '../demo/calm-zone';
 import { JoinByCodeForm, LobbyPage } from '../lobby/LobbyPage';
 import { Icon } from '../ui/Icon';
 import { entered, useEntered } from './entered';
+import { focusScreen, panelWasShown } from './PanelHost';
 import { useSceneStage } from './scene-host';
 
 /** Seconds the lobby music takes to fade in after "Chơi ngay". */
@@ -47,6 +48,11 @@ function Hero() {
   const { titleRef, bandRef, insets } = useHeroInsets();
   useSceneStage({ activity: 'full', orbit: true, insets });
   useDemoCalmZone(bandRef);
+  const homeRef = useRef<HTMLElement>(null);
+  // Back from a panel (the lobby's home button): the focused control left with it, the title takes over.
+  useLayoutEffect(() => {
+    if (homeRef.current && panelWasShown()) focusScreen(homeRef.current);
+  }, []);
 
   const play = () => {
     sound.setTrack('lobby', ENTRY_FADE_SECONDS);
@@ -56,7 +62,7 @@ function Hero() {
   };
 
   return (
-    <main className="home" data-testid="home">
+    <main className="home" data-testid="home" ref={homeRef}>
       <header className="home-title" ref={titleRef}>
         <p className="ui-eyebrow">3D Online · Chơi cùng bạn bè</p>
         <h1 className="ui-title">Cờ Cá Ngựa</h1>
