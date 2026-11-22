@@ -4,11 +4,12 @@ import { resolve } from 'node:path';
 import { defineConfig, type Plugin } from 'vite';
 
 /** Public landing page, a separate static entry served at this path. */
-const LANDING_PATH = '/co-ca-ngua-online';
+const LANDING_PATH = '/gioi-thieu';
 
 /**
  * Dev only: serve the landing entry at its clean path. In production, Workers static
- * assets map `/co-ca-ngua-online` to `co-ca-ngua-online.html` by themselves.
+ * assets map `/gioi-thieu` to `gioi-thieu.html` by themselves; the old `/co-ca-ngua-online`
+ * address is redirected by the worker (`worker/index.ts`).
  */
 function landingDevPath(): Plugin {
   return {
@@ -31,7 +32,7 @@ export default defineConfig({
         rollupOptions: {
           input: {
             app: resolve(import.meta.dirname, 'index.html'),
-            landing: resolve(import.meta.dirname, 'co-ca-ngua-online.html'),
+            landing: resolve(import.meta.dirname, 'gioi-thieu.html'),
           },
         },
       },

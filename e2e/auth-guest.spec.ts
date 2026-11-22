@@ -98,7 +98,7 @@ test('a visitor at / sees the home page, enters a name after "Chơi ngay", reach
   // The home page is public: the board with one button, no name asked yet and no lobby connection.
   await expect(page).toHaveURL('/');
   await expect(page.getByTestId('play-now')).toHaveText('Chơi ngay');
-  await expect(page.getByTestId('home-rules')).toHaveAttribute('href', '/co-ca-ngua-online');
+  await expect(page.getByTestId('home-rules')).toHaveAttribute('href', '/gioi-thieu');
   await expect(page.getByTestId('guest-name')).toHaveCount(0);
   await expect(page.getByTestId('greeting')).toHaveCount(0);
   expect(await whoAmI(page)).toBeNull();
@@ -306,13 +306,15 @@ test('the home page opens a room from its code: an unknown code says so, a known
 test('the landing page explains the game and its play button leads to the home page', async ({ browser }) => {
   const context = await browser.newContext({ baseURL: ORIGIN, locale: 'vi-VN' });
   const page = await context.newPage();
+  // The old address redirects to /gioi-thieu and keeps its query.
   await page.goto('/co-ca-ngua-online?utm_source=facebook');
+  await expect(page).toHaveURL('/gioi-thieu?utm_source=facebook');
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Cờ cá ngựa online, đúng luật Việt Nam');
   await expect(page.locator('#luat-choi')).toBeVisible();
   expect((await context.cookies()).find((c) => c.name === 'ca_src')?.value).toBe('facebook');
   await page.getByTestId('landing-play').click();
   await expect(page).toHaveURL('/');
   await expect(page.getByTestId('play-now')).toBeVisible();
-  await expect(page.getByTestId('home-rules')).toHaveAttribute('href', '/co-ca-ngua-online');
+  await expect(page.getByTestId('home-rules')).toHaveAttribute('href', '/gioi-thieu');
   await context.close();
 });

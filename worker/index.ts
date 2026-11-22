@@ -11,6 +11,12 @@ const app = new Hono<{ Bindings: Env }>();
 
 app.get('/api/health', (c) => c.json({ ok: true }));
 
+// The landing page moved to /gioi-thieu; old links, shares and search results keep working.
+app.get('/co-ca-ngua-online', (c) => {
+  const { search } = new URL(c.req.url);
+  return c.redirect(`/gioi-thieu${search}`, 301);
+});
+
 app.route('/api/auth', authRoutes);
 app.route('/api', roomRoutes);
 app.route('/api', eventRoutes);
