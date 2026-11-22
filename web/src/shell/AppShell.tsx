@@ -10,7 +10,7 @@ import { CreatorLogoSlot, FeedbackSlot, SoundSlot } from './slots';
 import './shell.css';
 
 const PersistentScene = lazy(() => import('./PersistentScene'));
-// The demo game pulls in the director, the motion curves, the engine and the CPU: not the entry chunk.
+// The demo game pulls in the director, the motion curves, its driver and the CPU players: not the entry chunk.
 const DemoMatch = lazy(() => import('../demo/DemoMatch').then((m) => ({ default: m.DemoMatch })));
 
 /** The 3D chunk failed to load or the canvas failed: the poster stays and says so. */

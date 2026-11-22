@@ -57,13 +57,19 @@
   visibility: hidden;
 }
 
+/* The picture wrapper must not take a grid row, or the loading card drops below centre. */
+.shell-poster > picture {
+  position: absolute;
+  inset: 0;
+}
+
 .shell-poster-image {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
-  /* The poster is a small picture stretched over the screen: soften it into a backdrop. */
+  /* While the board loads the poster is only a backdrop behind the loading card: soften it. */
   filter: blur(8px) brightness(0.55) saturate(1.15);
   transform: scale(1.08);
 }

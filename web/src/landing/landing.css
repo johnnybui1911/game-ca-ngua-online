@@ -567,10 +567,11 @@ body.landing {
     mask-image: linear-gradient(180deg, #000 72%, transparent);
   }
 
-  /* The copy sits on the left over bright board cells: the scrim stays dark under all of it (≥ 4.5:1). */
+  /* The copy sits on the left over bright board cells: the scrim stays dark under all of it (≥ 4.5:1).
+     Its stops follow the copy (lead is at most 36rem wide), not the hero width, so narrow desktops stay covered. */
   .lp-hero-media::after {
     background:
-      linear-gradient(90deg, rgb(13 8 6 / 88%) 0%, rgb(13 8 6 / 80%) 40%, rgb(13 8 6 / 55%) 58%, transparent 78%),
+      linear-gradient(90deg, rgb(13 8 6 / 88%) 0, rgb(13 8 6 / 84%) clamp(40rem, 50%, 56rem), transparent clamp(56rem, 85%, 80rem)),
       linear-gradient(180deg, rgb(13 8 6 / 30%), transparent 20%);
   }
 
