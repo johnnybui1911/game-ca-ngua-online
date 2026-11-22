@@ -53,6 +53,10 @@ function Hero() {
   useLayoutEffect(() => {
     if (homeRef.current && panelWasShown()) focusScreen(homeRef.current);
   }, []);
+  // The home page is silent until "Chơi ngay": coming back from the lobby must not keep its track playing.
+  useLayoutEffect(() => {
+    sound.setTrack(null);
+  }, []);
 
   const play = () => {
     sound.setTrack('lobby', ENTRY_FADE_SECONDS);
