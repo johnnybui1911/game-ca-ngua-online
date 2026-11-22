@@ -10,7 +10,10 @@ const PROGRESS: Record<Exclude<SceneLoad, 'ready' | 'poster'>, string> = {
 export function LoadingOverlay({ load }: { load: SceneLoad }) {
   return (
     <div className="shell-poster" data-testid="scene-loading" data-load={load} aria-hidden={load === 'ready'}>
-      <img className="shell-poster-image" src="/board.jpg" alt="" width={800} height={420} />
+      <picture>
+        <source media="(max-aspect-ratio: 3/4)" srcSet="/landing/hero-mobile.jpg" width={780} height={1560} />
+        <img className="shell-poster-image" src="/landing/hero-poster.jpg" alt="" width={1280} height={720} />
+      </picture>
       {load !== 'ready' && load !== 'poster' && (
         <div className="shell-poster-card" role="status">
           <span className="brand" aria-hidden="true">
