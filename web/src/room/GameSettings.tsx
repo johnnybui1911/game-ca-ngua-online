@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { PACE_NAMES } from '../../../shared/game/pace';
 import { CLASSIC_MODE_SUMMARY, QUICK_MODE_SUMMARY } from '../../../shared/rules-text';
 import {
   TURN_SECONDS_OPTIONS,
@@ -9,6 +10,7 @@ import {
 } from '../../../shared/protocol';
 import { Icon } from '../ui/Icon';
 import { RulesSheet } from './RulesSheet';
+import { PACE_LABELS, paceEstimateText } from './paces';
 import { nextSettings } from './settings';
 import { MotionLevelControl } from './MotionLevelControl';
 
@@ -23,7 +25,7 @@ interface Props {
 }
 
 /**
- * Waiting room: the host picks turn time, Ván nhanh and auto-roll; everyone else reads the choice.
+ * Waiting room: the host picks turn time, Ván nhanh, Nhịp ván and auto-roll; everyone else reads the choice.
  * Each setting is one `.setting-row` or `.setting-block` in the list, so a new one is a new block.
  */
 export function GameSettings({ room, isHost, offline, actionError, send }: Props) {
@@ -93,6 +95,40 @@ export function GameSettings({ room, isHost, offline, actionError, send }: Props
           <button type="button" className="link-button" data-testid="mode-rules" onClick={() => setRulesOpen(true)}>
             Xem luật
           </button>
+        </p>
+      </div>
+
+      <div className="setting-block" data-testid="pace">
+        {isHost ? (
+          <>
+            <span className="setting-label pace-title">Nhịp ván</span>
+            <div className="setting-pills" role="radiogroup" aria-label="Nhịp ván">
+              {PACE_NAMES.map((pace) => (
+                <button
+                  key={pace}
+                  type="button"
+                  role="radio"
+                  aria-checked={settings.pace === pace}
+                  className="ui-pill setting-pill"
+                  data-testid={`pace-${pace}`}
+                  disabled={locked}
+                  onClick={() => settings.pace !== pace && change({ pace })}
+                >
+                  {PACE_LABELS[pace]}
+                </button>
+              ))}
+            </div>
+          </>
+        ) : (
+          <p className="setting-row">
+            <span className="setting-label pace-title">Nhịp ván</span>
+            <strong className="setting-value" data-testid="pace-label">
+              {PACE_LABELS[settings.pace]}
+            </strong>
+          </p>
+        )}
+        <p className="ui-muted setting-help" data-testid="pace-estimate">
+          {paceEstimateText(settings.pace, room.seats.length, settings.quick)}
         </p>
       </div>
 

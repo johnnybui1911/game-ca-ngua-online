@@ -453,10 +453,10 @@ describe('Director', () => {
       expect(combined).toBeGreaterThan(0);
     });
 
-    it('the pace before the table keeps its flat budgets: 0.6 s per roll and move, 0.35 s in a quick match', () => {
+    it('Nhanh keeps the flat budgets from before the table: 0.6 s per roll and move, 0.35 s in a quick match', () => {
       for (const [pace, perSegment, pause] of [
-        [PACES.current.normal, 0.6, 0.7],
-        [PACES.current.quick, 0.35, 0.4],
+        [PACES.nhanh.normal, 0.6, 0.7],
+        [PACES.nhanh.quick, 0.35, 0.4],
       ] as const) {
         for (const { game, events } of batchesOfGame(300)) {
           const segments = events.filter((e) => e.type === 'rolled' || e.type === 'moved').length;
@@ -466,22 +466,6 @@ describe('Director', () => {
           expect(drain(d)).toBeLessThanOrEqual(perSegment * segments + 2 * FRAME);
           expect(pauseSeconds(events, pace)).toBeCloseTo(pause * Math.max(1, segments), 9);
         }
-      }
-    });
-
-    it('a slower pace than the one batches arrive at is compressed into the pause before the next batch', () => {
-      const slow = PACES['thu-thai'].normal;
-      for (const hops of [3, 6] as DiceValue[]) {
-        const { before, after, events } = kickSetup(hops);
-        const view = new FakeView();
-        const d = new Director(view, undefined, { pace: slow, arrival: NORMAL });
-        d.reset(before);
-        d.push(after, events);
-        const took = drain(d);
-        expect(took).toBeLessThan(pauseSeconds(events, NORMAL));
-        expect(took).toBeLessThan(animationSeconds(events, slow));
-        expect(view.moves[0]).toMatchObject({ hops });
-        view.expectShows(after);
       }
     });
 
@@ -573,7 +557,7 @@ describe('Director', () => {
     it('keeps the hit-stop at full length when the batch is compressed', () => {
       const { before, after, events } = kickSetup(6, 'quick');
       const view = new FakeView();
-      const pace = PACES.current.quick;
+      const pace = PACES.nhanh.quick;
       const d = new Director(view, undefined, { pace });
       d.reset(before);
       d.push(after, events);

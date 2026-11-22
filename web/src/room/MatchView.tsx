@@ -1,6 +1,7 @@
-import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
+import { lazy, Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { useNavigate } from 'react-router';
 import { isLocked } from '../../../shared/game/engine';
+import { longestBatchSeconds, paceTimings } from '../../../shared/game/pace';
 import { HORSES_PER_COLOR, POS_GATE, type Color } from '../../../shared/game/types';
 import { LOCKED_LABEL, NEED_KICK_HINT, QUICK_WIN_TEXT, UNLOCKED_LABEL } from '../../../shared/rules-text';
 import { SaveAccountBlock } from '../auth/SaveAccountBlock';
@@ -28,11 +29,12 @@ import { describeMove } from './move-text';
 import { reportAfterExpiry, rollHeld, type BoardReport } from './board-wait';
 import { useShakeToRoll } from './shake';
 import { reserveInsets, type ReservedInsets } from '../scene/camera';
-import { boardWaitMs } from '../scene/pace';
 import { Icon } from '../ui/Icon';
 
 /** Seconds left on the local player's action at which the reminder sounds. */
 const REMINDER_SECONDS = 10;
+/** Added to the longest batch of the room's pace for how long a roll waits for the board, for a slow device. */
+const BOARD_WAIT_MARGIN_SECONDS = 0.5;
 
 /**
  * True while the roll waits for the board: from the first frame of the match until the board reports, then
@@ -199,7 +201,9 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
   const myTurn = game !== null && myColor !== null && game.turn === myColor && !finished;
   // The server reports a CPU's roll and move together with the turn passing to us; the roll button
   // and the chime wait until the board has shown that turn.
-  const [boardBusy, setBoardBusy] = useBoardWait(room.seq, boardWaitMs(room.settings.quick));
+  const { pace, quick } = room.settings;
+  const maxBoardWaitMs = useMemo(() => Math.ceil((longestBatchSeconds(paceTimings(pace, quick)) + BOARD_WAIT_MARGIN_SECONDS) * 1000), [pace, quick]);
+  const [boardBusy, setBoardBusy] = useBoardWait(room.seq, maxBoardWaitMs);
   const canRoll = myTurn && !paused && game?.phase === 'roll' && !boardBusy;
   useMusic('game');
   useGameSounds(batches, myTurn && !paused && !boardBusy, seconds, room.turnDeadline);

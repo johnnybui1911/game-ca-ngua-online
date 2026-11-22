@@ -6,25 +6,24 @@ import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore
 import type { CSSProperties } from 'react';
 import { PerspectiveCamera, Vector3 } from 'three';
 import { DEFAULT_CPU_LEVEL, isCpuLevel, type CpuLevel } from '../../../../shared/game/cpu-level';
-import { pauseSeconds } from '../../../../shared/game/pace';
+import { DEFAULT_PACE, isPaceName, paceTimings, pauseSeconds, type PaceName } from '../../../../shared/game/pace';
 import { DEFAULT_ROOM_SETTINGS, SEAT_COLORS } from '../../../../shared/protocol';
 import type { RoomSnapshot } from '../../../../shared/protocol';
 import { DemoDriver } from '../../demo/demo-driver';
 import { defaultPolar, fitCameraDistance, seatCameraPosition } from '../camera';
 import GameScene from '../GameScene';
 import { STABLE, horseGround } from '../layout';
-import { boardPaceName, boardTimings } from '../pace';
 import type { ShowcaseStep } from '../props';
 
 /** `?level=easy|normal|hard` makes the harness CPUs play at that level (default Thường). */
-/** `?quick=1` plays the quick match variant at quick pace. */
+/** `?quick=1` plays the quick match variant with the quick table of the pace. */
 function devQuick(): boolean {
   return devFlag('quick');
 }
 
 /**
  * `?server=1` starts with "Nhịp máy chủ" on: every colour plays as a CPU does in a room, a roll and its move in
- * one batch, the next one after the pause the server would leave. `?paused=1` starts paused. `?pace=` picks the pace.
+ * one batch, the next one after the pause the server would leave. `?paused=1` starts paused.
  */
 function devFlag(name: string): boolean {
   return new URLSearchParams(window.location.search).get(name) === '1';
@@ -33,6 +32,12 @@ function devFlag(name: string): boolean {
 function devLevel(): CpuLevel {
   const level = new URLSearchParams(window.location.search).get('level');
   return isCpuLevel(level) ? level : DEFAULT_CPU_LEVEL;
+}
+
+/** `?pace=nhanh|vua|thu-thai` is the harness room's "Nhịp ván" (default Vừa). */
+function devPace(): PaceName {
+  const pace = new URLSearchParams(window.location.search).get('pace');
+  return isPaceName(pace) ? pace : DEFAULT_PACE;
 }
 
 const DEFAULT_SEED = 7;
@@ -50,7 +55,7 @@ function snapshot(step: ShowcaseStep, players: number): RoomSnapshot {
     turnDeadline: null,
     paused: false,
     cpuLevel: devLevel(),
-    settings: { ...DEFAULT_ROOM_SETTINGS, quick: devQuick() },
+    settings: { ...DEFAULT_ROOM_SETTINGS, quick: devQuick(), pace: devPace() },
     seq: step.seq,
   };
 }
@@ -87,7 +92,7 @@ export default function DevApp() {
 
   useEffect(() => {
     if (game.phase === 'finished' || paused || humanTurn) return;
-    const wait = likeServer ? pauseSeconds(step.events, boardTimings(devQuick())) * 1000 : delay;
+    const wait = likeServer ? pauseSeconds(step.events, paceTimings(devPace(), devQuick())) * 1000 : delay;
     const id = window.setTimeout(() => {
       if (driver.game.phase !== 'roll') driver.cpuMove();
       else if (likeServer) driver.playTurn();
@@ -165,7 +170,7 @@ export default function DevApp() {
         </label>
         <label>
           <input id="like-server" type="checkbox" checked={likeServer} onChange={(e) => setLikeServer(e.target.checked)} /> Nhịp máy chủ (
-          {boardPaceName})
+          {devPace()})
         </label>
         <label>
           <input type="checkbox" checked={playMe} onChange={(e) => setPlayMe(e.target.checked)} /> Tự chơi màu đỏ

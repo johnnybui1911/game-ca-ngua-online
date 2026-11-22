@@ -27,10 +27,10 @@ import {
   shakeOffset,
 } from './camera';
 import type { CameraPose, HudInsets } from './camera';
+import { paceTimings } from '../../../shared/game/pace';
 import { Director } from './director';
 import type { SceneView } from './director';
 import LockMarkers from './LockMarkers';
-import { boardTimings, serverTimings } from './pace';
 import { Celebration, Die, Horse } from './Pieces';
 import { createSceneState } from './scene-state';
 import type { SceneState } from './scene-state';
@@ -285,23 +285,21 @@ export default function SceneContent({
   sourceKey = 'match',
   view = 'seat',
   orbit = false,
-  serverPaced = false,
 }: GameSceneProps & SceneStaging & { insets?: HudInsets; labels?: HorseLabelElements }) {
   const game = room.game;
   const assets = useMemo(() => new Assets(), []);
   const state = useMemo(createSceneState, []);
   const [busy, setBusy] = useState(false);
-  // The setting cannot change while a match is on screen.
-  const quick = room.settings.quick;
+  // The settings cannot change while a match is on screen.
+  const { quick, pace } = room.settings;
   const kickCamera = useMemo(() => new KickCamera(), []);
   const director = useMemo(
     () =>
       new Director(createView(state, kickCamera), setBusy, {
-        pace: boardTimings(quick),
-        ...(serverPaced ? { arrival: serverTimings(quick) } : {}),
+        pace: paceTimings(pace, quick),
         reducedMotion: motionSetting.isReduced,
       }),
-    [state, kickCamera, quick, serverPaced],
+    [state, kickCamera, quick, pace],
   );
   useEffect(() => {
     onBusyChange?.(busy);

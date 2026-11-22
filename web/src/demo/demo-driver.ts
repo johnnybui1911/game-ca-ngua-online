@@ -9,11 +9,10 @@ import { chooseCpuMove } from '../../../shared/game/cpu';
 import { DEFAULT_CPU_LEVEL } from '../../../shared/game/cpu-level';
 import type { CpuLevel } from '../../../shared/game/cpu-level';
 import { applyMove, applyRoll, createGame } from '../../../shared/game/engine';
-import { pauseSeconds } from '../../../shared/game/pace';
+import { DEFAULT_PACE, PACES, pauseSeconds } from '../../../shared/game/pace';
 import { mulberry32 } from '../../../shared/game/seeded-random';
 import { COLORS, POS_STABLE } from '../../../shared/game/types';
 import type { Color, DiceValue, GameEvent, GameState, RuleVariant } from '../../../shared/game/types';
-import { boardTimings } from '../scene/pace';
 import type { ShowcaseStep } from '../scene/props';
 
 export interface DemoDeal {
@@ -38,9 +37,9 @@ export interface DemoDriverOptions {
 /** Steps a consumer can still be behind by; the scene snaps to the newest beyond a few anyway. */
 const DEFAULT_HISTORY = 8;
 
-/** Seconds the board needs for a step before the next one may follow: the pause a quick match leaves after it. */
+/** Seconds the board needs for a step before the next one may follow: the pause a quick match at the default pace leaves after it. */
 export function stepSeconds(step: ShowcaseStep): number {
-  return pauseSeconds(step.events, boardTimings(true));
+  return pauseSeconds(step.events, PACES[DEFAULT_PACE].quick);
 }
 
 /** The board at rest for these colours: nothing rolled, nobody to move. */

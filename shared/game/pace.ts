@@ -2,8 +2,8 @@
  * The one table of timings that sets how fast a match feels, shared by the board animation and the
  * server. The board plays a batch (the events of one commit) for `animationSeconds`; the server waits
  * `pauseSeconds` after the commit before it plays the next automated action. Both come from the same
- * numbers, so an animation never outlasts the wait for it. To tune the feel, edit a profile below or
- * change `DEFAULT_PACE`; nothing else holds a duration of its own.
+ * numbers, so an animation never outlasts the wait for it. The host picks a room's pace ("Nhịp ván"); to
+ * tune the feel, edit a profile below. Nothing else holds a duration of its own.
  */
 import type { GameEvent } from './types';
 
@@ -52,11 +52,12 @@ export interface PaceProfile {
   quick: PaceTimings;
 }
 
-export const PACE_NAMES = ['current', 'vua', 'thu-thai'] as const;
+/** "Nhanh", "Vừa", "Thư thả": the choices of a room's "Nhịp ván" setting, fastest first. */
+export const PACE_NAMES = ['nhanh', 'vua', 'thu-thai'] as const;
 export type PaceName = (typeof PACE_NAMES)[number];
 
-/** The pace before this table existed: a flat pause per segment and every move squeezed into 0.6 s (0.35 s quick). */
-const CURRENT_NORMAL: PaceTimings = {
+/** "Nhanh", the pace before this table existed: a flat pause per segment and every move squeezed into 0.6 s (0.35 s quick). */
+const NHANH_NORMAL: PaceTimings = {
   roll: 0.55,
   rollHold: 0.2,
   rollRest: 0,
@@ -81,9 +82,9 @@ const CURRENT_NORMAL: PaceTimings = {
 };
 
 export const PACES: Record<PaceName, PaceProfile> = {
-  current: {
-    normal: CURRENT_NORMAL,
-    quick: { ...CURRENT_NORMAL, minSegmentPause: 0.4, segmentCap: 0.35 },
+  nhanh: {
+    normal: NHANH_NORMAL,
+    quick: { ...NHANH_NORMAL, minSegmentPause: 0.4, segmentCap: 0.35 },
   },
   /** "Vừa": every beat about one and a half times as long as before, and a move takes as long as its cells need. */
   vua: {
@@ -181,11 +182,16 @@ export const PACES: Record<PaceName, PaceProfile> = {
   },
 };
 
-/** The pace the server keeps, and the board unless told otherwise. */
+/** The pace of a room whose host chose none (and of rooms stored before the setting existed), and of the home page's demo. */
 export const DEFAULT_PACE: PaceName = 'vua';
 
 export function isPaceName(value: unknown): value is PaceName {
   return PACE_NAMES.some((name) => name === value);
+}
+
+/** Timings of a normal or a quick match at pace `name`. */
+export function paceTimings(name: PaceName, quick: boolean): PaceTimings {
+  return quick ? PACES[name].quick : PACES[name].normal;
 }
 
 type Moved = Extract<GameEvent, { type: 'moved' }>;

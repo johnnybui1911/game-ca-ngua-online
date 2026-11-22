@@ -8,8 +8,8 @@ import type { StateBatch } from '../room/batches';
  */
 export interface GameSceneProps {
   /**
-   * Latest snapshot. `room.game` is non-null whenever the scene is mounted. `room.settings.quick` picks the
-   * quick animation pace; a quick game (`room.game.variant`) also shows a lock on each closed home column.
+   * Latest snapshot. `room.game` is non-null whenever the scene is mounted. `room.settings.pace` and
+   * `room.settings.quick` pick the animation timings; a quick game (`room.game.variant`) also shows a lock on each closed home column.
    */
   room: RoomSnapshot;
   /**
@@ -69,9 +69,4 @@ export interface SceneStaging {
   view?: 'seat' | 'free';
   /** Slow turn around the board in the `free` view; stops while the player drags it. */
   orbit?: boolean;
-  /**
-   * True when a server decides when each batch comes (a match): the board keeps every animation inside
-   * the server's pause for it. Otherwise the page clocks the game itself and the board's own pace rules.
-   */
-  serverPaced?: boolean;
 }

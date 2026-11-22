@@ -14,7 +14,7 @@ import {
 } from '../../shared/protocol';
 import type { GameEvent, GameState } from '../../shared/game/types';
 import { applyMove, rollAndSettle, segmentsOf } from '../../shared/game/engine';
-import { animationSeconds, pauseSeconds } from '../../shared/game/pace';
+import { DEFAULT_PACE, animationSeconds, isPaceName, paceTimings, pauseSeconds, type PaceName } from '../../shared/game/pace';
 import { chooseCpuMove } from '../../shared/game/cpu';
 import { DEFAULT_CPU_LEVEL, isCpuLevel, type CpuLevel } from '../../shared/game/cpu-level';
 import { IDLE_AUTOPLAY_AFTER, type RoomTimings, type Timings } from './constants';
@@ -56,8 +56,11 @@ export interface RoomState {
   pausedAt?: number | null;
   /** Absent in rooms stored before the setting existed: Thường. */
   cpuLevel?: CpuLevel;
-  /** Absent in rooms stored before the settings existed, and in rooms whose host never changed them: the defaults. */
-  settings?: RoomSettings;
+  /**
+   * Absent in rooms stored before the settings existed, and in rooms whose host never changed them: the defaults.
+   * `pace` is absent in settings stored before it existed: Vừa.
+   */
+  settings?: Omit<RoomSettings, 'pace'> & { pace?: PaceName };
 }
 
 /** Seats a new occupant (or empties the seat); horse names belong to the previous occupant and are dropped. */
@@ -67,20 +70,22 @@ export function setOccupant(seat: StoredSeat, occupant: StoredOccupant | null): 
   delete seat.misses;
 }
 
-/** The room's settings; an absent stored value reads as the defaults. */
+/** The room's settings; an absent stored value reads as the defaults, an absent pace as the default pace. */
 export function settingsOf(state: RoomState): RoomSettings {
-  return state.settings ?? DEFAULT_ROOM_SETTINGS;
+  const stored = state.settings;
+  if (!stored) return DEFAULT_ROOM_SETTINGS;
+  return { ...stored, pace: isPaceName(stored.pace) ? stored.pace : DEFAULT_PACE };
 }
 
-/** Settings from a client message, or null unless it is exactly `{turnSeconds, quick, autoRoll}` with allowed values. */
+/** Settings from a client message, or null unless it is exactly `{turnSeconds, quick, autoRoll, pace}` with allowed values. */
 export function parseRoomSettings(raw: unknown): RoomSettings | null {
   if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return null;
   const o = raw as Record<string, unknown>;
-  if (Object.keys(o).length !== 3) return null;
-  const { turnSeconds, quick, autoRoll } = o;
+  if (Object.keys(o).length !== 4) return null;
+  const { turnSeconds, quick, autoRoll, pace } = o;
   const turn = TURN_SECONDS_OPTIONS.find((n) => n === turnSeconds);
-  if (turn === undefined || typeof quick !== 'boolean' || typeof autoRoll !== 'boolean') return null;
-  return { turnSeconds: turn, quick, autoRoll };
+  if (turn === undefined || typeof quick !== 'boolean' || typeof autoRoll !== 'boolean' || !isPaceName(pace)) return null;
+  return { turnSeconds: turn, quick, autoRoll, pace };
 }
 
 /** The base timings with this room's turn time: `turnSeconds` of `turnUnitMs` each. */
@@ -90,18 +95,19 @@ export function timingsOf(state: RoomState, base: Timings): RoomTimings {
 
 /**
  * Pause before the server plays for a CPU, autopilot or takeover, after a commit that carried `events`:
- * as long as the clients animate them, plus a beat. Fast mode pauses a fixed time per animated segment.
+ * as long as the clients animate them at the room's pace, plus a beat. Fast mode pauses a fixed time per animated segment.
  */
 export function paceMs(state: RoomState, timings: Timings, events: readonly GameEvent[] = []): number {
-  const quick = settingsOf(state).quick;
-  if (timings.pace) return Math.round(pauseSeconds(events, quick ? timings.pace.quick : timings.pace.normal) * 1_000);
+  const { quick, pace } = settingsOf(state);
+  if (timings.paced) return Math.round(pauseSeconds(events, paceTimings(pace, quick)) * 1_000);
   return (quick ? timings.quickSegmentMs : timings.cpuDelayMs) * Math.max(1, segmentsOf(events));
 }
 
-/** How long the clients animate `events`, in ms: a person's clock starts after it. 0 in fast mode. */
+/** How long the clients animate `events` at the room's pace, in ms: a person's clock starts after it. 0 in fast mode. */
 export function animationMs(state: RoomState, timings: Timings, events: readonly GameEvent[] = []): number {
-  if (!timings.pace) return 0;
-  return Math.round(animationSeconds(events, settingsOf(state).quick ? timings.pace.quick : timings.pace.normal) * 1_000);
+  if (!timings.paced) return 0;
+  const { quick, pace } = settingsOf(state);
+  return Math.round(animationSeconds(events, paceTimings(pace, quick)) * 1_000);
 }
 
 /** A seated human who has let `IDLE_AUTOPLAY_AFTER` turns in a row run out; the server plays for them. */

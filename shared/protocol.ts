@@ -4,6 +4,7 @@
  */
 import type { EmoteId } from './emotes';
 import type { CpuLevel } from './game/cpu-level';
+import { DEFAULT_PACE, type PaceName } from './game/pace';
 import type { Color, GameEvent, GameState } from './game/types';
 
 // ---------------------------------------------------------------- accounts
@@ -99,14 +100,16 @@ export interface RoomSettings {
   turnSeconds: TurnSeconds;
   /**
    * Ván nhanh: quick rule variant (each colour starts with a horse out, a home column opens only after a kick,
-   * the first horse home wins) plus a faster pace (forced single moves play themselves, quicker CPU and animation).
+   * the first horse home wins); forced single moves play themselves, and every pace has a shorter table for it.
    */
   quick: boolean;
   /** The server rolls for a human on turn after a short pause. */
   autoRoll: boolean;
+  /** Nhịp ván: how long the board animates a roll and a move, and how long the server waits for it. */
+  pace: PaceName;
 }
 
-export const DEFAULT_ROOM_SETTINGS: RoomSettings = { turnSeconds: 30, quick: false, autoRoll: false };
+export const DEFAULT_ROOM_SETTINGS: RoomSettings = { turnSeconds: 30, quick: false, autoRoll: false, pace: DEFAULT_PACE };
 /** Time preselected when the host turns Ván nhanh on while the turn time is still the default. */
 export const QUICK_TURN_SECONDS: TurnSeconds = 20;
 

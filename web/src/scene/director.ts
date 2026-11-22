@@ -155,13 +155,11 @@ const dieYaw = (value: DiceValue) => 0.3 + value * 0.45;
 const TAU = Math.PI * 2;
 
 export interface DirectorOptions {
-  /** Durations of every animation. Default: a normal match at the default pace. */
-  pace?: PaceTimings;
   /**
-   * The pace batches arrive at, when someone else sets it (the server, in a match): a batch that would
-   * outlast the pause before the next one is compressed to fit. Default: `pace`.
+   * Durations of every animation; in a match, the room's pace, which the server spaces its commits by.
+   * Default: a normal match at the default pace.
    */
-  arrival?: PaceTimings;
+  pace?: PaceTimings;
   /** Asked when a batch starts: true plays it as short plain slides, without hit-stop or camera cues. */
   reducedMotion?: () => boolean;
 }
@@ -177,7 +175,6 @@ export class Director {
   private readonly tumble = createDieTumble();
   private readonly flightPose = [0, 0, 0, 0, 0, 0];
   private readonly pace: PaceTimings;
-  private readonly arrival: PaceTimings;
 
   constructor(
     private readonly view: SceneView,
@@ -185,7 +182,6 @@ export class Director {
     private readonly options: DirectorOptions = {},
   ) {
     this.pace = options.pace ?? PACES[DEFAULT_PACE].normal;
-    this.arrival = options.arrival ?? this.pace;
   }
 
   /** Show `game` immediately without celebrating a finished game (mount, reload). */
@@ -354,7 +350,7 @@ export class Director {
     const fixed = reduced ? 0 : hitStopSeconds(batch.events, pace);
     // Never past the pause before the next batch, and never past the pace's own cap per roll and move.
     const budget = Math.min(
-      pauseSeconds(batch.events, this.arrival) - ARRIVAL_MARGIN,
+      pauseSeconds(batch.events, pace) - ARRIVAL_MARGIN,
       pace.segmentCap === undefined ? Infinity : pace.segmentCap * Math.max(1, actions),
     );
     if (total > budget) {

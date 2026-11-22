@@ -1,20 +1,19 @@
-import { DEFAULT_PACE, PACES } from '../../shared/game/pace';
-import type { PaceProfile } from '../../shared/game/pace';
 import type { Env } from '../env';
 
 export interface Timings {
   /**
-   * Animation timings the clients play each commit with: the server waits for them before the next automated
-   * action and before a person's clock starts. Null in fast mode, where nothing waits for an animation.
+   * True when the room's pace (its "Nhịp ván" setting) times the game: the server waits for the clients' animation
+   * of each commit before the next automated action and before a person's clock starts. False in fast mode,
+   * where nothing waits for an animation.
    */
-  pace: PaceProfile | null;
-  /** Shortest pause before a CPU (or a CPU standing in for a human) plays its next action; the whole pause without a `pace`. */
+  paced: boolean;
+  /** Pause before a CPU (or a CPU standing in for a human) plays its next action in fast mode; a paced room only uses it as the shortest takeover delay. */
   cpuDelayMs: number;
   /** Milliseconds per second of the host's turn-time choice; shortened in fast mode so timeouts are testable. */
   turnUnitMs: number;
   /** After this long into an action the server rolls for a human whose room has auto-roll on. */
   autoRollMs: number;
-  /** The same in a quick match, per animated segment (a roll or a move) of the last commit. */
+  /** The fast-mode pause in a quick match, per animated segment (a roll or a move) of the last commit. */
   quickSegmentMs: number;
   /** How long a disconnected human may hold up a game before a CPU plays for them. */
   playingDisconnectMs: number;
@@ -29,14 +28,12 @@ export interface Timings {
 /** A connected human who lets this many actions in a row run out of time is played for until they come back. */
 export const IDLE_AUTOPLAY_AFTER = 2;
 
-const PACE = PACES[DEFAULT_PACE];
-
 const NORMAL: Timings = {
-  pace: PACE,
-  cpuDelayMs: PACE.normal.minSegmentPause * 1_000,
+  paced: true,
+  cpuDelayMs: 700,
   turnUnitMs: 1_000,
   autoRollMs: 1_500,
-  quickSegmentMs: PACE.quick.minSegmentPause * 1_000,
+  quickSegmentMs: 400,
   playingDisconnectMs: 3_000,
   waitingDisconnectMs: 30_000,
   idleCloseMs: 10 * 60_000,
@@ -44,7 +41,7 @@ const NORMAL: Timings = {
 };
 
 const FAST: Timings = {
-  pace: null,
+  paced: false,
   cpuDelayMs: 25,
   turnUnitMs: 400,
   autoRollMs: 20,

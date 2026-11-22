@@ -1,7 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import { chooseCpuMove } from './cpu';
 import { applyMove, applyRoll, createGame } from './engine';
-import { DEFAULT_PACE, PACES, PACE_NAMES, animationSeconds, isPaceName, longestBatchSeconds, moveTiming, pauseSeconds, restAfterRoll } from './pace';
+import {
+  DEFAULT_PACE,
+  PACES,
+  PACE_NAMES,
+  animationSeconds,
+  isPaceName,
+  longestBatchSeconds,
+  moveTiming,
+  paceTimings,
+  pauseSeconds,
+  restAfterRoll,
+} from './pace';
 import { mulberry32 } from './seeded-random';
 import type { DiceValue, GameEvent } from './types';
 
@@ -46,7 +57,7 @@ describe('pace', () => {
 
   it('each named pace is slower than the one before it, and a quick match is faster than a normal one', () => {
     const total = (t: (typeof modes)[number]) => cpuBatches(9).reduce((sum, events) => sum + pauseSeconds(events, t), 0);
-    expect(total(PACES.vua.normal)).toBeGreaterThan(total(PACES.current.normal));
+    expect(total(PACES.vua.normal)).toBeGreaterThan(total(PACES.nhanh.normal));
     expect(total(PACES['thu-thai'].normal)).toBeGreaterThan(total(PACES.vua.normal));
     for (const name of PACE_NAMES) expect(total(PACES[name].quick)).toBeLessThan(total(PACES[name].normal));
   });
@@ -70,8 +81,16 @@ describe('pace', () => {
   });
 
   it('knows its names', () => {
-    expect(isPaceName(DEFAULT_PACE)).toBe(true);
-    expect(isPaceName('nhanh')).toBe(false);
-    expect(isPaceName(null)).toBe(false);
+    expect(PACE_NAMES).toEqual(['nhanh', 'vua', 'thu-thai']);
+    expect(DEFAULT_PACE).toBe('vua');
+    expect(PACE_NAMES.every(isPaceName)).toBe(true);
+    for (const other of ['current', 'Vừa', 'toString', '', null, undefined, 1]) expect(isPaceName(other)).toBe(false);
+  });
+
+  it('picks the quick table of a pace for a quick match', () => {
+    for (const name of PACE_NAMES) {
+      expect(paceTimings(name, false)).toBe(PACES[name].normal);
+      expect(paceTimings(name, true)).toBe(PACES[name].quick);
+    }
   });
 });
