@@ -18,14 +18,8 @@ function validate(displayName: string, email: string, password: string): Errors 
   return errors;
 }
 
-/** Waits for the session so a guest's current name can prefill the form. */
+/** Rendered once the session is known (the shell waits for it), so a guest's current name can prefill the form. */
 export function SignUpPage() {
-  const { ready } = useSession();
-  if (!ready) return <p className="page-status" role="status">Đang tải…</p>;
-  return <SignUpForm />;
-}
-
-function SignUpForm() {
   const { user, guest, refresh } = useSession();
   const [params] = useSearchParams();
   const returnTo = sanitizeReturnTo(params.get('returnTo'));
