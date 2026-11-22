@@ -2,7 +2,7 @@ import { Matrix4, Vector3 } from 'three';
 import type { BufferGeometry } from 'three';
 import { describe, expect, it } from 'vitest';
 import { piecesOf } from './layout';
-import { createArcSlab, seedSpots, watermelonPlates } from './pieces';
+import { createMelonSkin, seedSpots, watermelonPlates } from './pieces';
 import { SURFACES, SetBuilder } from './set-builder';
 
 function vertices(geometry: BufferGeometry): Vector3[] {
@@ -10,47 +10,51 @@ function vertices(geometry: BufferGeometry): Vector3[] {
   return Array.from({ length: position.count }, (_, i) => new Vector3().fromBufferAttribute(position, i));
 }
 
-describe('arc slab', () => {
-  const inner = 0.8;
-  const outer = 1.5;
-  const angle = Math.PI / 3;
-  const thickness = 0.3;
+describe('melon skin', () => {
+  const stripes = 10;
+  const { dark, light } = createMelonSkin(stripes, 14);
 
-  it.each([
-    ['ring', inner],
-    ['wedge', 0],
-  ])('keeps a %s slab between its radii, inside its angle and its thickness', (_, from) => {
-    for (const p of vertices(createArcSlab(from, outer, angle, thickness, 4))) {
-      const radius = Math.hypot(p.x, p.y);
-      expect(radius).toBeGreaterThanOrEqual(from - 1e-6);
-      expect(radius).toBeLessThanOrEqual(outer + 1e-6);
-      if (radius > 1e-6) expect(Math.abs(Math.atan2(p.x, -p.y))).toBeLessThanOrEqual(angle / 2 + 1e-6);
-      expect(Math.abs(p.z)).toBeLessThanOrEqual(thickness / 2 + 1e-6);
-    }
-  });
-
-  it.each([
-    ['ring', inner],
-    ['wedge', 0],
-  ])('turns every face of a %s slab outwards', (_, from) => {
-    const geometry = createArcSlab(from, outer, angle, thickness, 4);
+  /** Total area of the triangles of a skin; each must face away from the centre. */
+  function outwardArea(geometry: BufferGeometry): number {
     const points = vertices(geometry);
-    const normal = geometry.getAttribute('normal');
-    const inside = new Vector3(0, -(from + outer) / 2, 0);
-    expect(points.length % 3).toBe(0);
-    for (let i = 0; i < points.length; i += 3) {
-      const [a, b, c] = [points[i]!, points[i + 1]!, points[i + 2]!];
-      const winding = b.clone().sub(a).cross(c.clone().sub(a)).normalize();
-      const centre = a.clone().add(b).add(c).divideScalar(3);
-      expect(winding.dot(centre.sub(inside))).toBeGreaterThan(0);
-      for (let k = i; k < i + 3; k++) expect(new Vector3().fromBufferAttribute(normal, k).dot(winding)).toBeCloseTo(1, 5);
+    const index = geometry.index!;
+    let area = 0;
+    for (let i = 0; i < index.count; i += 3) {
+      const [a, b, c] = [points[index.getX(i)]!, points[index.getX(i + 1)]!, points[index.getX(i + 2)]!];
+      const cross = b.clone().sub(a).cross(c.clone().sub(a));
+      expect(cross.dot(a.clone().add(b).add(c))).toBeGreaterThan(0);
+      area += cross.length() / 2;
+    }
+    return area;
+  }
+
+  it('lies on the unit sphere with every normal pointing straight out', () => {
+    for (const geometry of [dark, light]) {
+      const normal = geometry.getAttribute('normal');
+      for (const [i, p] of vertices(geometry).entries()) {
+        expect(p.length()).toBeCloseTo(1, 5);
+        expect(new Vector3().fromBufferAttribute(normal, i).distanceTo(p)).toBeLessThan(1e-6);
+      }
     }
   });
 
-  it('closes a wedge with two faces, an outer edge and two cut ends', () => {
-    const segments = 4;
-    // Two triangles per segment on the faces, two on the edge, and two on each end.
-    expect(createArcSlab(0, outer, angle, thickness, segments).getAttribute('position').count / 3).toBe(segments * 4 + 4);
+  it('covers the whole sphere, the light stripes taking the smaller share', () => {
+    const lightArea = outwardArea(light);
+    const total = lightArea + outwardArea(dark);
+    expect(total).toBeGreaterThan(4 * Math.PI * 0.95);
+    expect(total).toBeLessThanOrEqual(4 * Math.PI);
+    expect(lightArea / total).toBeGreaterThan(0.25);
+    expect(lightArea / total).toBeLessThan(0.45);
+  });
+
+  it('wavers along the stripes instead of following a meridian', () => {
+    const longitudes = vertices(light)
+      .filter((p) => Math.abs(p.y) < 0.9)
+      .map((p) => Math.atan2(p.z, p.x));
+    const pitch = (Math.PI * 2) / stripes;
+    // Folded onto one stripe, a straight band would give two longitudes only.
+    const folded = new Set(longitudes.map((l) => (((l + pitch / 2) % pitch) + pitch) % pitch).map((l) => l.toFixed(3)));
+    expect(folded.size).toBeGreaterThan(6);
   });
 });
 
