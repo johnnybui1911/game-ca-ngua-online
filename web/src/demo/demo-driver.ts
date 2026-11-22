@@ -8,10 +8,12 @@
 import { chooseCpuMove } from '../../../shared/game/cpu';
 import { DEFAULT_CPU_LEVEL } from '../../../shared/game/cpu-level';
 import type { CpuLevel } from '../../../shared/game/cpu-level';
-import { applyMove, applyRoll, createGame, segmentsOf } from '../../../shared/game/engine';
+import { applyMove, applyRoll, createGame } from '../../../shared/game/engine';
+import { pauseSeconds } from '../../../shared/game/pace';
 import { mulberry32 } from '../../../shared/game/seeded-random';
 import { COLORS, POS_STABLE } from '../../../shared/game/types';
 import type { Color, DiceValue, GameEvent, GameState, RuleVariant } from '../../../shared/game/types';
+import { boardTimings } from '../scene/pace';
 import type { ShowcaseStep } from '../scene/props';
 
 export interface DemoDeal {
@@ -36,12 +38,9 @@ export interface DemoDriverOptions {
 /** Steps a consumer can still be behind by; the scene snaps to the newest beyond a few anyway. */
 const DEFAULT_HISTORY = 8;
 
-/** Seconds of board animation one animated segment (a roll or a move) is given at the demo's pace. */
-export const DEMO_SEGMENT_SECONDS = 0.4;
-
-/** Seconds the board needs for a step before the next one may follow. */
+/** Seconds the board needs for a step before the next one may follow: the pause a quick match leaves after it. */
 export function stepSeconds(step: ShowcaseStep): number {
-  return DEMO_SEGMENT_SECONDS * Math.max(1, segmentsOf(step.events));
+  return pauseSeconds(step.events, boardTimings(true));
 }
 
 /** The board at rest for these colours: nothing rolled, nobody to move. */

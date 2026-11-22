@@ -40,6 +40,8 @@ Chủ phòng chọn ở phòng chờ (chỉ đổi được khi phòng đang ch�
 
 Số liệu đo nhịp ván (số thao tác, commit, phút theo nhịp máy chủ) nằm ở `plans/20261121-turn-timer-quick-mode/plan.md`; chạy lại bằng `PACING_REPORT=1 npx vitest run shared/game/pacing.test.ts`.
 
+Nhịp của một ván (thời lượng tung xúc xắc, từng bước nhảy, cú đá, khoảng nghỉ giữa hai lượt máy) nằm trong một bảng duy nhất ở `shared/game/pace.ts`. Bàn cờ diễn hoạt theo bảng đó, còn máy chủ chờ đúng thời lượng hoạt ảnh của lượt vừa rồi cộng một nhịp nghỉ trước khi chơi cho máy; đồng hồ lượt của người chơi cũng chỉ bắt đầu khi bàn cờ diễn xong lượt trước. Muốn chỉnh cảm giác nhanh/chậm thì sửa số trong bảng hoặc đổi `DEFAULT_PACE`.
+
 
 ## Phát triển
 
@@ -60,6 +62,8 @@ npm run e2e                # Playwright, tự khởi động server ở cổng 5
 ```
 
 `scene-dev.html` (chỉ có khi chạy `npm run dev`) phát một ván toàn CPU để xem và chỉnh bàn cờ 3D; thêm `?level=easy|normal|hard` để xem các CPU chơi ở mức đó.
+
+Khi chạy `npm run dev`, thêm `?pace=current|vua|thu-thai` vào địa chỉ lúc mở trang để so các nhịp (chỉ đổi phía trình duyệt, đọc một lần khi tải trang). Ván minh hoạ ở trang chủ và `scene-dev.html` chạy trọn theo nhịp đó; `scene-dev.html?server=1` cho các CPU chơi đúng nhịp máy chủ (đổ và đi trong một lượt), `?paused=1` mở ở trạng thái tạm dừng. Trong một trận thật máy chủ vẫn giữ `DEFAULT_PACE`, nên nhịp chậm hơn sẽ bị nén cho vừa, nhịp nhanh hơn thì bàn cờ đứng yên lâu hơn giữa các lượt.
 
 ## Deploy
 

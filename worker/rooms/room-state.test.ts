@@ -1,12 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { applyMove, applyRoll, createGame } from '../../shared/game/engine';
-import type { DiceValue } from '../../shared/game/types';
+import { DEFAULT_PACE, PACES, animationSeconds, pauseSeconds } from '../../shared/game/pace';
+import type { DiceValue, GameEvent } from '../../shared/game/types';
 import { DEFAULT_ROOM_SETTINGS, ROOM_CODE_ALPHABET, ROOM_CODE_LENGTH, TURN_SECONDS_OPTIONS, type RoomSettings } from '../../shared/protocol';
-import { IDLE_AUTOPLAY_AFTER, type Timings } from './constants';
+import type { Env } from '../env';
+import { IDLE_AUTOPLAY_AFTER, timingsFor, type Timings } from './constants';
 import { generateRoomCode, isRoomCode } from './room-code';
 import {
   cleanHorseNames,
   AlarmTracker,
+  animationMs,
   drawDie,
   dueDelay,
   levelForOccupant,
@@ -31,7 +34,9 @@ import {
   type RoomState,
 } from './room-state';
 
+/** Fixed pauses, as in fast mode: nothing waits for an animation. */
 const BASE: Timings = {
+  pace: null,
   cpuDelayMs: 700,
   turnUnitMs: 1_000,
   autoRollMs: 1_500,
@@ -42,6 +47,15 @@ const BASE: Timings = {
   lobbySweepMs: 180_000,
 };
 const T = timingsOf({} as RoomState, BASE);
+/** Events of a commit with this many animated segments: a roll, then moves. */
+const commitOf = (segments: number): GameEvent[] =>
+  (
+    [
+      { type: 'rolled', color: 0, dice: 3, legalHorses: [0] },
+      { type: 'moved', color: 0, horse: 0, from: 0, to: 3, kicked: null },
+      { type: 'moved', color: 0, horse: 0, from: 3, to: 6, kicked: null },
+    ] satisfies GameEvent[]
+  ).slice(0, segments);
 const ann = { id: 'u1', displayName: 'An' };
 const binh = { id: 'u2', displayName: 'Bình' };
 
@@ -393,11 +407,11 @@ describe('automated turn in one step', () => {
     expect(r.actionDueAt).toBe(1_000 + T.turnMs);
   });
 
-  it('adds the pause to the takeover delay of a disconnected human who plays next, not to their own clock', () => {
+  it('takes over for a disconnected human who plays next after the longer of the pause and the grace, leaving their own clock alone', () => {
     const r = dueRoom([cpuSeats[0]!, { color: 2, occupant: { kind: 'human', user: ann } }]);
     r.game = { ...r.game!, horses: [[5, -1, -1, -1], ...r.game!.horses.slice(1)] };
     playDueAction(r, new Set(), 1_000, T, () => 2);
-    expect(r.dueAt).toBe(1_000 + Math.max(T.cpuDelayMs, T.playingDisconnectMs) + T.cpuDelayMs);
+    expect(r.dueAt).toBe(1_000 + Math.max(2 * T.cpuDelayMs, T.playingDisconnectMs));
     expect(r.actionDueAt).toBe(1_000 + T.turnMs);
   });
 
@@ -696,25 +710,25 @@ describe('quick match pace and auto-roll', () => {
     expect(createGame([0, 2]).horses.flat().every((p) => p < 0)).toBe(true);
   });
 
-  it('paces CPU, autopilot and takeover by segments of the last commit in a quick match only', () => {
+  it('paces CPU, autopilot and takeover by segments of the last commit', () => {
     const r = quick();
     r.seats[0]!.occupant = { kind: 'cpu', name: 'Máy 1' };
     const t = timingsOf(r, BASE);
     expect(dueDelay(r, both, t)).toBe(400);
-    expect(dueDelay(r, both, t, 2)).toBe(800);
-    expect(dueDelay(r, both, t, 0)).toBe(400);
-    planTurn(r, both, 1_000, t, 2);
+    expect(dueDelay(r, both, t, commitOf(2))).toBe(800);
+    expect(dueDelay(r, both, t, commitOf(0))).toBe(400);
+    planTurn(r, both, 1_000, t, commitOf(2));
     expect(r.dueAt).toBe(1_800);
 
     const normal = room({ status: 'playing', game: createGame([0, 2]) });
     normal.seats[0]!.occupant = { kind: 'cpu', name: 'Máy 1' };
-    expect(dueDelay(normal, both, T, 2)).toBe(700);
-    expect(dueDelay(normal, both, T, 1)).toBe(700);
+    expect(dueDelay(normal, both, T, commitOf(2))).toBe(1_400);
+    expect(dueDelay(normal, both, T, commitOf(1))).toBe(700);
 
     const auto = quick();
     auto.seats[0]!.misses = IDLE_AUTOPLAY_AFTER;
-    expect(dueDelay(auto, both, timingsOf(auto, BASE), 2)).toBe(800);
-    expect(dueDelay(auto, new Set(['u2']), timingsOf(auto, BASE), 2)).toBe(3_000);
+    expect(dueDelay(auto, both, timingsOf(auto, BASE), commitOf(2))).toBe(800);
+    expect(dueDelay(auto, new Set(['u2']), timingsOf(auto, BASE), commitOf(2))).toBe(3_000);
   });
 
   it('plays a forced single move in the same step in a quick match and passes segments to the clock', () => {
@@ -795,7 +809,7 @@ describe('quick match pace and auto-roll', () => {
   it('a quick match room with a human keeps pace segments out of the human turn clock', () => {
     const r = quick();
     const t = timingsOf(r, BASE);
-    planTurn(r, both, 0, t, 3);
+    planTurn(r, both, 0, t, commitOf(3));
     expect(r.dueAt).toBe(20_000);
     expect(r.actionDueAt).toBe(20_000);
   });
@@ -822,5 +836,72 @@ describe('rematch', () => {
     clearMisses(r);
     expect(r.seats.map((s) => s.misses)).toEqual([undefined, undefined]);
     expect(settingsOf(r)).toEqual({ turnSeconds: 15, quick: true, autoRoll: true });
+  });
+});
+
+describe('a room at the real pace', () => {
+  const LIVE = timingsFor({} as Env);
+  const pace = PACES[DEFAULT_PACE];
+  const both = new Set(['u1', 'u2']);
+  const cpuFirst = (quick: boolean, autoRoll = false): RoomState =>
+    room({
+      status: 'playing',
+      game: createGame([0, 2], quick ? 'quick' : 'classic'),
+      settings: { turnSeconds: 30, quick, autoRoll },
+      seats: [
+        { color: 0, occupant: { kind: 'cpu', name: 'Máy 1' } },
+        { color: 2, occupant: { kind: 'human', user: ann } },
+      ],
+      dueAt: 1_000,
+    });
+  const ms = (seconds: number) => Math.round(seconds * 1_000);
+
+  it('waits before the next CPU action exactly as long as the board animates the commit, plus the beat', () => {
+    for (const quick of [false, true]) {
+      const timings = quick ? pace.quick : pace.normal;
+      const r = cpuFirst(quick);
+      r.seats[1]!.occupant = { kind: 'cpu', name: 'Máy 2' };
+      const t = timingsOf(r, LIVE);
+      // A six brings a horse out and earns another roll: the same CPU plays next.
+      const played = playDueAction(r, both, 1_000, t, () => 6)!;
+      expect(played.events.map((e) => e.type).slice(0, 2)).toEqual(['rolled', 'moved']);
+      expect(r.dueAt).toBe(1_000 + ms(pauseSeconds(played.events, timings)));
+      expect(r.dueAt! - 1_000).toBeGreaterThanOrEqual(ms(animationSeconds(played.events, timings) + timings.beat));
+    }
+  });
+
+  it('pauses longer for a long move than for a short one', () => {
+    const r = cpuFirst(false);
+    const short: GameEvent[] = [{ type: 'moved', color: 0, horse: 0, from: 0, to: 1, kicked: null }];
+    const long: GameEvent[] = [{ type: 'moved', color: 0, horse: 0, from: 0, to: 6, kicked: null }];
+    expect(paceMs(r, LIVE, long)).toBeGreaterThan(paceMs(r, LIVE, short));
+    expect(paceMs(r, LIVE)).toBe(LIVE.cpuDelayMs);
+  });
+
+  it('starts a person\'s clock when the board has shown the action before theirs', () => {
+    const r = cpuFirst(false);
+    r.game = { ...r.game!, horses: [[5, -1, -1, -1], ...r.game!.horses.slice(1)] };
+    const t = timingsOf(r, LIVE);
+    const played = playDueAction(r, both, 1_000, t, () => 2)!;
+    expect(r.game!.turn).toBe(2);
+    const shown = animationMs(r, t, played.events);
+    expect(shown).toBe(ms(animationSeconds(played.events, pace.normal)));
+    expect(shown).toBeGreaterThan(1_000);
+    expect(r.actionDueAt).toBe(1_000 + shown + t.turnMs);
+    expect(r.dueAt).toBe(r.actionDueAt);
+    expect(toSnapshot(r, both).turnDeadline).toBe(r.actionDueAt);
+  });
+
+  it('auto-rolls for a person only after the board has shown the action before theirs', () => {
+    const r = cpuFirst(false, true);
+    r.game = { ...r.game!, horses: [[5, -1, -1, -1], ...r.game!.horses.slice(1)] };
+    const t = timingsOf(r, LIVE);
+    const played = playDueAction(r, both, 1_000, t, () => 2)!;
+    const shown = animationMs(r, t, played.events);
+    expect(r.dueAt).toBe(1_000 + shown + t.autoRollMs);
+    // Dropping and coming back re-derives the same moment, moved on by the 100 ms the game stood still with nobody connected.
+    reconcileConnections(r, new Set(['u2']), 1_100, t);
+    reconcileConnections(r, both, 1_200, t);
+    expect(r.dueAt).toBe(1_000 + shown + t.autoRollMs + 100);
   });
 });

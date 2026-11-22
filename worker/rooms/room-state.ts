@@ -14,6 +14,7 @@ import {
 } from '../../shared/protocol';
 import type { GameEvent, GameState } from '../../shared/game/types';
 import { applyMove, rollAndSettle, segmentsOf } from '../../shared/game/engine';
+import { animationSeconds, pauseSeconds } from '../../shared/game/pace';
 import { chooseCpuMove } from '../../shared/game/cpu';
 import { DEFAULT_CPU_LEVEL, isCpuLevel, type CpuLevel } from '../../shared/game/cpu-level';
 import { IDLE_AUTOPLAY_AFTER, type RoomTimings, type Timings } from './constants';
@@ -87,9 +88,20 @@ export function timingsOf(state: RoomState, base: Timings): RoomTimings {
   return { ...base, turnMs: settingsOf(state).turnSeconds * base.turnUnitMs };
 }
 
-/** Pause before the server plays for a CPU, autopilot or takeover: `segments` animated segments of the last commit in a quick match. */
-export function paceMs(state: RoomState, timings: Timings, segments = 1): number {
-  return settingsOf(state).quick ? timings.quickSegmentMs * Math.max(1, segments) : timings.cpuDelayMs;
+/**
+ * Pause before the server plays for a CPU, autopilot or takeover, after a commit that carried `events`:
+ * as long as the clients animate them, plus a beat. Fast mode pauses a fixed time per animated segment.
+ */
+export function paceMs(state: RoomState, timings: Timings, events: readonly GameEvent[] = []): number {
+  const quick = settingsOf(state).quick;
+  if (timings.pace) return Math.round(pauseSeconds(events, quick ? timings.pace.quick : timings.pace.normal) * 1_000);
+  return (quick ? timings.quickSegmentMs : timings.cpuDelayMs) * Math.max(1, segmentsOf(events));
+}
+
+/** How long the clients animate `events`, in ms: a person's clock starts after it. 0 in fast mode. */
+export function animationMs(state: RoomState, timings: Timings, events: readonly GameEvent[] = []): number {
+  if (!timings.pace) return 0;
+  return Math.round(animationSeconds(events, settingsOf(state).quick ? timings.pace.quick : timings.pace.normal) * 1_000);
 }
 
 /** A seated human who has let `IDLE_AUTOPLAY_AFTER` turns in a row run out; the server plays for them. */
@@ -177,33 +189,43 @@ export function isConnected(connected: ReadonlySet<string>, occupant: StoredOccu
   return occupant?.kind === 'human' && connected.has(occupant.user.id);
 }
 
-/** When the server should next play for the colour on turn, given who is connected. */
-export function dueDelay(state: RoomState, connected: ReadonlySet<string>, timings: RoomTimings, segments = 1): number | null {
+/**
+ * When the server should next play for the colour on turn, given who is connected, counted from the commit
+ * that carried `events`. A connected person's time starts once the board has shown those events.
+ */
+export function dueDelay(
+  state: RoomState,
+  connected: ReadonlySet<string>,
+  timings: RoomTimings,
+  events: readonly GameEvent[] = [],
+): number | null {
   const seat = state.seats[currentSeatIndex(state)];
   const occupant = seat?.occupant ?? null;
   if (occupant === null) return null;
-  const pace = paceMs(state, timings, segments);
+  const pace = paceMs(state, timings, events);
   if (occupant.kind === 'cpu') return pace;
   if (!connected.has(occupant.user.id)) return Math.max(pace, timings.playingDisconnectMs);
   if (isAutopilot(seat)) return pace;
-  return settingsOf(state).autoRoll && state.game?.phase === 'roll' ? Math.min(timings.turnMs, timings.autoRollMs) : timings.turnMs;
+  const own = settingsOf(state).autoRoll && state.game?.phase === 'roll' ? Math.min(timings.turnMs, timings.autoRollMs) : timings.turnMs;
+  return animationMs(state, timings, events) + own;
 }
 
 /**
  * Starts the clock for the action now beginning: sets `dueAt` and the fixed `actionDueAt`.
- * `segments` is how many animated segments the commit that led here carried (see `segmentsOf`).
+ * `events` are those of the commit that led here; the clients animate them first, so a person's
+ * `turnMs` runs from the end of that animation.
  */
 export function planTurn(
   state: RoomState,
   connected: ReadonlySet<string>,
   now: number,
   timings: RoomTimings,
-  segments = 1,
+  events: readonly GameEvent[] = [],
 ): void {
-  const delay = dueDelay(state, connected, timings, segments);
+  const delay = dueDelay(state, connected, timings, events);
   const seat = state.seats[currentSeatIndex(state)];
   state.dueAt = delay === null ? null : now + delay;
-  state.actionDueAt = seat?.occupant?.kind === 'human' && !isAutopilot(seat) ? now + timings.turnMs : null;
+  state.actionDueAt = seat?.occupant?.kind === 'human' && !isAutopilot(seat) ? now + animationMs(state, timings, events) + timings.turnMs : null;
 }
 
 /**
@@ -227,8 +249,7 @@ export function isAutomatedActor(state: RoomState, connected: ReadonlySet<string
 /**
  * Plays the action that is due and re-plans the clock. An automated actor in the roll phase
  * rolls and moves in one step (one commit, one alarm); the clients animate both from one batch,
- * so the next action waits one extra `cpuDelayMs` (a quick match paces by `quickSegmentMs` per animated
- * segment instead). A connected human whose clock ran out is only rolled for and keeps their own turn
+ * and the next automated action waits for that whole animation (`paceMs`). A connected human whose clock ran out is only rolled for and keeps their own turn
  * clock for the move; in a quick match a roll with a single legal horse plays that move too.
  * A connected human whose own deadline had passed misses the turn; an auto-roll, an autopilot
  * action, a takeover for a disconnected human and a CPU action never count as one.
@@ -251,14 +272,12 @@ export function playDueAction(
   const missed =
     occupant?.kind === 'human' && isConnected(connected, occupant) && !isAutopilot(seat) && state.actionDueAt != null && now >= state.actionDueAt;
   let result;
-  let combined = false;
   if (game.phase === 'roll') {
     const automated = isAutomatedActor(state, connected);
     result = rollAndSettle(game, draw(), quick);
     if (automated && result.state.phase === 'move' && result.state.turn === game.turn) {
       const moved = applyMove(result.state, chooseCpuMove(result.state, level));
       result = { state: moved.state, events: [...result.events, ...moved.events] };
-      combined = true;
     }
   } else if (game.phase === 'move') {
     result = applyMove(game, chooseCpuMove(game, level));
@@ -273,10 +292,7 @@ export function playDueAction(
     state.actionDueAt = null;
     return { events: result.events, finished: true };
   }
-  planTurn(state, connected, now, timings, segmentsOf(result.events));
-  // The clients animate both actions from one batch; the next automated action waits for that.
-  // A connected human's clock is unaffected. A quick match already paces by the segments of the batch.
-  if (combined && !quick && state.dueAt !== null && isAutomatedActor(state, connected)) state.dueAt += timings.cpuDelayMs;
+  planTurn(state, connected, now, timings, result.events);
   return { events: result.events, finished: false };
 }
 

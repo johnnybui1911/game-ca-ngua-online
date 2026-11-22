@@ -27,9 +27,10 @@ import {
   shakeOffset,
 } from './camera';
 import type { CameraPose, HudInsets } from './camera';
-import { Director, QUICK_SEGMENT_SECONDS } from './director';
+import { Director } from './director';
 import type { SceneView } from './director';
 import LockMarkers from './LockMarkers';
+import { boardTimings, serverTimings } from './pace';
 import { Celebration, Die, Horse } from './Pieces';
 import { createSceneState } from './scene-state';
 import type { SceneState } from './scene-state';
@@ -284,6 +285,7 @@ export default function SceneContent({
   sourceKey = 'match',
   view = 'seat',
   orbit = false,
+  serverPaced = false,
 }: GameSceneProps & SceneStaging & { insets?: HudInsets; labels?: HorseLabelElements }) {
   const game = room.game;
   const assets = useMemo(() => new Assets(), []);
@@ -295,10 +297,11 @@ export default function SceneContent({
   const director = useMemo(
     () =>
       new Director(createView(state, kickCamera), setBusy, {
-        ...(quick ? { budgetPerSegment: QUICK_SEGMENT_SECONDS } : {}),
+        pace: boardTimings(quick),
+        ...(serverPaced ? { arrival: serverTimings(quick) } : {}),
         reducedMotion: motionSetting.isReduced,
       }),
-    [state, kickCamera, quick],
+    [state, kickCamera, quick, serverPaced],
   );
   useEffect(() => {
     onBusyChange?.(busy);
