@@ -151,18 +151,17 @@
   pointer-events: none;
 }
 
-.toast {
+.glass.toast {
   pointer-events: auto;
-  background: var(--paper);
-  border: 2px solid var(--wood-500);
+  border-color: var(--color-border-strong);
   border-radius: var(--radius-md);
-  box-shadow: var(--shadow-card);
   padding: var(--space-3) var(--space-4);
+  animation: panel-in var(--dur-slower) var(--ease-out);
 }
 
 .toast p {
   margin: 0 0 var(--space-2);
-  font-weight: 700;
+  font-weight: var(--weight-semibold);
 }
 
 .toast p:last-child {

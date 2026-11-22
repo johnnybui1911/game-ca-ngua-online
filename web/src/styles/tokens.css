@@ -1,7 +1,7 @@
 /*
  * Design tokens: "Tết night" palette (gỗ lim near-black, đỏ son lacquer, antique gold),
- * self-hosted type, motion and glass. New UI reads the semantic `--color-*` tokens;
- * the raw scales below exist so semantic tokens and the legacy block share one source.
+ * self-hosted type, motion and glass. UI reads the semantic `--color-*` tokens; the raw
+ * scales below are their single source and serve the few accents with no semantic name.
  */
 @import '../ui/fonts.css';
 
@@ -126,29 +126,6 @@
   --shadow-md: 0 10px 28px rgb(0 0 0 / 45%);
   --shadow-glow-gold: 0 0 0 1px rgb(236 210 154 / 35%), 0 8px 28px rgb(230 194 122 / 22%);
   --focus-ring: 0 0 0 2px var(--color-bg), 0 0 0 5px var(--color-focus);
-
-  /*
-   * Legacy tokens — remove after screen migration.
-   * Screens not yet restyled still read these names. They keep their original
-   * light-card / dark-chrome meaning but take values from the new palette, so the
-   * parchment cards sit on the dark lacquer page and accents turn red and gold.
-   */
-  --wood-900: var(--lim-900);
-  --wood-800: var(--lim-800);
-  --wood-700: var(--lim-700);
-  --wood-500: var(--bronze-600);
-  --wood-300: var(--gold-500);
-  --wood-100: var(--cream-100);
-  --felt-800: var(--lacquer-700);
-  --felt-600: var(--lacquer-600);
-  --paper: #f6ecd8;
-  --ink: #2a1a10;
-  --ink-soft: #6a5440;
-  --danger: #a3241b;
-  --danger-bg: #fbe4de;
-  --focus: var(--lacquer-700);
-  --font-body: var(--font-ui);
-  --shadow-card: 0 14px 36px rgb(0 0 0 / 55%), inset 0 1px 0 rgb(255 255 255 / 60%);
 }
 
 @media (prefers-reduced-motion: reduce) {

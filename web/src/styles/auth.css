@@ -252,6 +252,7 @@
 }
 
 .glass .save-account.save-account-done {
+  margin: 0;
   color: var(--color-success);
   font-weight: var(--weight-semibold);
   text-align: center;
@@ -265,74 +266,6 @@
 
 @media (max-width: 400px) {
   .glass.auth-card {
-    padding: var(--space-4);
-  }
-}
-
-/*
- * ---- legacy parchment forms ----
- * The lobby and guest entry screens still put these classes on parchment `.card`s.
- * Remove this block when those screens move to glass; glass panels never read it.
- */
-
-.form {
-  display: grid;
-  gap: var(--space-4);
-}
-
-.field {
-  display: grid;
-  gap: var(--space-1);
-}
-
-.field label {
-  font-weight: 700;
-}
-
-.field input {
-  min-height: var(--touch);
-  padding: 0 var(--space-3);
-  font: inherit;
-  color: var(--ink);
-  background: #fff;
-  border: 2px solid var(--wood-300);
-  border-radius: var(--radius-sm);
-}
-
-.field input:focus {
-  border-color: var(--focus);
-}
-
-.field input[aria-invalid='true'] {
-  border-color: var(--danger);
-}
-
-.field-error {
-  margin: 0;
-  color: var(--danger);
-  font-size: var(--text-sm);
-}
-
-.form-error {
-  margin: 0;
-  padding: var(--space-3);
-  color: var(--danger);
-  background: var(--danger-bg);
-  border-radius: var(--radius-sm);
-}
-
-.switch-link {
-  text-align: center;
-  margin: var(--space-5) 0 0;
-}
-
-.switch-link a {
-  color: var(--felt-600);
-  font-weight: 700;
-}
-
-@media (max-width: 400px) {
-  .card {
     padding: var(--space-4);
   }
 }
