@@ -119,6 +119,7 @@
 
 .shell-slot {
   position: fixed;
+  z-index: 3; /* above the pages (drawn after the slots); dialogs (70) still cover it */
   display: flex;
   transition:
     right var(--dur-slow) var(--ease-out),
@@ -133,11 +134,6 @@
 .shell-slot--bottom-left {
   left: calc(var(--space-3) + env(safe-area-inset-left));
   bottom: calc(var(--space-3) + env(safe-area-inset-bottom) + var(--shell-panel-bottom, 0px));
-}
-
-/* The sound popover opens upward over the page; the home panel is drawn after the slots and would cover it. */
-.shell-slot--bottom-left {
-  z-index: 3;
 }
 
 .shell-slot--bottom-right {

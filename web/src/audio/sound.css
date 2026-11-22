@@ -1,4 +1,4 @@
-/* The speaker button and its popover. The app shell's bottom-left slot places it. */
+/* The speaker button and its popover. The app shell's top-right slot places it; the popover opens downward. */
 .sound-button {
   position: relative;
   display: grid;
@@ -23,16 +23,16 @@ html[data-quality='low'] .sound-toggle {
   padding: var(--space-2) var(--space-4);
   border-radius: var(--radius-md);
   position: absolute;
-  left: 0;
-  bottom: calc(100% + var(--space-2));
-  transform-origin: bottom left;
+  right: 0;
+  top: calc(100% + var(--space-2));
+  transform-origin: top right;
   animation: sound-popover-in var(--dur-slow) var(--ease-out);
 }
 
 @keyframes sound-popover-in {
   from {
     opacity: 0;
-    transform: translateY(6px) scale(0.97);
+    transform: translateY(-6px) scale(0.97);
   }
 }
 

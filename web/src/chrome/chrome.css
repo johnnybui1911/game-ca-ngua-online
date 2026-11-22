@@ -1,13 +1,7 @@
 /*
- * Corner chrome: the creator's badge (top right) and the feedback pill (bottom right), plus the
+ * Corner chrome: the creator's badge (bottom left; top right in a match) and the feedback pill (bottom right), plus the
  * feedback dialog. The app shell positions the slots; these rules size what goes in them.
  */
-
-/* The badge stays above a match page (which the shell draws after the slots); its room is
-   reserved by the match HUD. Dialogs (z-index 70) still cover it. */
-.shell-slot--top-right {
-  z-index: 2;
-}
 
 /* Creator badge */
 

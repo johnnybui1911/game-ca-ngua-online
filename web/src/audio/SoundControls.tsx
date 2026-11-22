@@ -43,7 +43,7 @@ export function SoundSwitches() {
   );
 }
 
-/** Speaker button that opens the switches; the app shell docks it in its bottom-left corner. */
+/** Speaker button that opens the switches; the app shell docks it in its top-right corner. */
 export function SoundButton() {
   const settings = useSyncExternalStore(sound.subscribe, sound.getSettings);
   const [open, setOpen] = useState(false);
