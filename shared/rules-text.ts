@@ -1,5 +1,5 @@
 /**
- * Rules copy shown inside rooms. The landing page (`co-ca-ngua-online.html`, `.lp-rules`) stays static
+ * Rules copy shown inside rooms. The landing page (`gioi-thieu.html`, `.lp-rules`) stays static
  * HTML for search engines; `rules-text.test.ts` fails when the two disagree.
  * The rules themselves live in `shared/game/types.ts`.
  */
