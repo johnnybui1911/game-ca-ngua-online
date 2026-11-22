@@ -23,6 +23,7 @@ import { HorseNamesDialog } from './HorseNamesDialog';
 import { Modal } from './Modal';
 import { RulesButton, RulesSheet } from './RulesSheet';
 import { describeMove } from './move-text';
+import { reportAfterExpiry, rollHeld, type BoardReport } from './board-wait';
 import { useShakeToRoll } from './shake';
 import { reserveInsets, type ReservedInsets } from '../scene/camera';
 import { Icon } from '../ui/Icon';
@@ -33,16 +34,23 @@ const REMINDER_SECONDS = 10;
 /** Longest the roll waits for the board to finish animating; a slow device must not hold the player up. */
 const MAX_BOARD_WAIT_MS = 1500;
 
-/** True while the board is still animating what the server reported, for at most MAX_BOARD_WAIT_MS per state. */
+/**
+ * True while the roll waits for the board: from the first frame of the match until the board reports, then
+ * while it animates what the server reported, for at most MAX_BOARD_WAIT_MS per state.
+ */
 function useBoardWait(seq: number): [boolean, (busy: boolean) => void] {
-  const [busy, setBusy] = useState(false);
+  const [report, setReport] = useState<BoardReport>(null);
   const [expiredAt, setExpiredAt] = useState<number | null>(null);
+  const waiting = report ?? true;
   useEffect(() => {
-    if (!busy) return;
-    const timer = setTimeout(() => setExpiredAt(seq), MAX_BOARD_WAIT_MS);
+    if (!waiting) return;
+    const timer = setTimeout(() => {
+      setExpiredAt(seq);
+      setReport(reportAfterExpiry);
+    }, MAX_BOARD_WAIT_MS);
     return () => clearTimeout(timer);
-  }, [busy, seq]);
-  return [busy && expiredAt !== seq, setBusy];
+  }, [waiting, seq]);
+  return [rollHeld(report, seq, expiredAt), setReport];
 }
 
 const GameScene = lazy(() => import('../scene/GameScene'));
