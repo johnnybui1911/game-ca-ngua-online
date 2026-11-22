@@ -181,14 +181,17 @@ export default function TetSet() {
   const lampRefs = useRef<(PointLight | null)[]>([]);
   const clock = useRef(0);
   // What the levels were last written for; a change of any of it means they must be written again.
-  const applied = useRef('');
+  const applied = useRef<{ motion: number; tier: QualityTier | null; viewport: number }>({ motion: -1, tier: null, viewport: -1 });
 
   useFrame((state, dt) => {
     kit.tick(Math.min(dt, 0.1));
     const viewport = state.size.height * state.viewport.dpr;
-    const signature = `${motion}|${tier}|${viewport}`;
-    if (motion === 0 && kit.settled && applied.current === signature) return;
-    applied.current = signature;
+    const last = applied.current;
+    const unchanged = last.motion === motion && last.tier === tier && last.viewport === viewport;
+    if (motion === 0 && kit.settled && unchanged) return;
+    last.motion = motion;
+    last.tier = tier;
+    last.viewport = viewport;
     clock.current += Math.min(dt, 0.1) * motion;
     const time = clock.current;
     const fade = kit.level;

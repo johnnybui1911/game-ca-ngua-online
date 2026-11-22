@@ -205,3 +205,8 @@ html[data-quality='low'] .feedback-pill {
 .feedback-sent .ui-icon {
   color: var(--color-success);
 }
+
+/* A software renderer composites the whole page on the CPU for every animated frame. */
+html[data-webgl='software'] .feedback-live {
+  animation: none;
+}

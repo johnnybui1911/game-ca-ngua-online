@@ -2,6 +2,7 @@ import { PerformanceMonitor } from '@react-three/drei';
 import { useThree } from '@react-three/fiber';
 import { Suspense, lazy, useEffect } from 'react';
 import type { ComponentType } from 'react';
+import FrameGate from './FrameGate';
 import Lighting from './Lighting';
 import { useQuality } from './QualityProvider';
 import { DIMMED_FPS } from './quality';
@@ -21,7 +22,7 @@ function fpsBounds(refreshRate: number): [number, number] {
 
 /** Everything of the picture that is not the game: lights, backdrop, post-processing, frame-rate watch. */
 export default function RenderPipeline() {
-  const { tier, settings, activity, reportPerformance } = useQuality();
+  const { tier, settings, activity, webgl, reportPerformance } = useQuality();
   const invalidate = useThree((s) => s.invalidate);
 
   // A dimmed canvas draws on demand; this is the demand.
@@ -43,6 +44,8 @@ export default function RenderPipeline() {
         />
       )}
       <Lighting />
+      {/* A software renderer at full activity draws only what changed; the other activities already ration their pictures. */}
+      {webgl === 'software' && activity === 'full' && !settings.postprocessing && <FrameGate />}
       {settings.postprocessing && (
         <Suspense fallback={null}>
           <Effects key={tier} settings={settings} />
