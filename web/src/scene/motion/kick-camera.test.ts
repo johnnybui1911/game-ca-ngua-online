@@ -98,4 +98,28 @@ describe('KickCamera', () => {
     run(cam, 0.5);
     expect(cam.focusX).toBeCloseTo(-4, 1);
   });
+
+  it('keeps the framing and does not shake while the picture must stay calm', () => {
+    const cam = new KickCamera(() => true);
+    cam.start(3, -4, 0.2);
+    run(cam, 0.2);
+    cam.contact();
+    run(cam, 0.1);
+    expect(cam.active).toBe(false);
+    expect(cam.weight).toBe(0);
+  });
+
+  it('lets go of a close-up when the picture turns calm', () => {
+    let calm = false;
+    const cam = new KickCamera(() => calm);
+    cam.start(3, -4, 0.3);
+    run(cam, 0.3);
+    const leaned = cam.weight;
+    expect(leaned).toBeGreaterThan(0.8);
+    calm = true;
+    run(cam, 0.1);
+    expect(cam.weight).toBeLessThan(leaned);
+    run(cam, 2);
+    expect(cam.active).toBe(false);
+  });
 });

@@ -2,6 +2,7 @@ import { useLayoutEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { sound } from '../audio/sound';
 import { useSession } from '../auth/session-context';
+import { useDemoCalmZone } from '../demo/calm-zone';
 import { JoinByCodeForm, LobbyPage } from '../lobby/LobbyPage';
 import { Icon } from '../ui/Icon';
 import { entered, useEntered } from './entered';
@@ -45,6 +46,7 @@ function Hero() {
   const [joining, setJoining] = useState(false);
   const { titleRef, bandRef, insets } = useHeroInsets();
   useSceneStage({ activity: 'full', orbit: true, insets });
+  useDemoCalmZone(bandRef);
 
   const play = () => {
     sound.setTrack('lobby', ENTRY_FADE_SECONDS);
