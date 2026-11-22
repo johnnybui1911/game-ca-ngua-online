@@ -1218,3 +1218,8 @@ html[data-quality='low'] .hud-player {
     transform: scale(0.6) rotate(-12deg);
   }
 }
+
+/* A software renderer composites the whole page on the CPU for every animated frame: the turn stays marked by the card's ring. */
+html[data-webgl='software'] .hud-player.is-turn .seat-dot {
+  animation: none;
+}

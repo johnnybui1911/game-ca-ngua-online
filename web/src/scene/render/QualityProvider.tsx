@@ -77,6 +77,12 @@ export function QualityProvider({ children }: { children: ReactNode }) {
     setGovernor((g) => governorStep(g, signal, performance.now()));
   }, []);
 
+  // Contract with the stylesheet: endless decorative animations stop on `data-webgl="software"`, where
+  // every animated frame makes the CPU composite the whole page again.
+  useEffect(() => {
+    document.documentElement.dataset.webgl = start.webgl;
+  }, [start]);
+
   const tier = governor.tier;
   // Contract with the stylesheet: glass panels fall back to plain ones on `data-quality="low"`.
   // The log line makes tier switches observable in the field.

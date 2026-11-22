@@ -21,7 +21,6 @@ import {
   freeBand,
   freeBandX,
   homePose,
-  mixPose,
   poseOf,
   posePosition,
   seatPose,
@@ -194,7 +193,15 @@ function Rig({ seat, sourceKey, insets, orbit, kickCamera }: RigProps) {
     const fl = flight.current;
     if (fl) {
       fl.t = instant ? 1 : Math.min(1, fl.t + dt / SEAT_FLIGHT_SECONDS);
-      camera.position.set(...posePosition(mixPose(fl.from, fl.to, easeInOut(fl.t)), nextFit));
+      // The pose between the two ends, turning the shorter way round the board (as `mixPose` and
+      // `posePosition` do), written out so a flight allocates nothing per frame.
+      const e = easeInOut(fl.t);
+      const turn = Math.atan2(Math.sin(fl.to.azimuth - fl.from.azimuth), Math.cos(fl.to.azimuth - fl.from.azimuth));
+      const azimuth = fl.from.azimuth + turn * e;
+      const tilt = fl.from.polar + (fl.to.polar - fl.from.polar) * e;
+      const radius = (fl.from.zoom + (fl.to.zoom - fl.from.zoom) * e) * nextFit;
+      const flat = radius * Math.sin(tilt);
+      camera.position.set(flat * Math.sin(azimuth), radius * Math.cos(tilt), flat * Math.cos(azimuth));
       camera.lookAt(0, 0, 0);
       if (fl.t >= 1) flight.current = null;
     } else {
@@ -209,7 +216,11 @@ function Rig({ seat, sourceKey, insets, orbit, kickCamera }: RigProps) {
     camera.far = far;
     // Setting the view offset also rebuilds the projection.
     if (refar || resized || x !== f.x || y !== f.y) camera.setViewOffset(size.width, size.height, x, y, size.width, size.height);
-    frame.current = { fit: nextFit, x, y, width: size.width, height: size.height };
+    f.fit = nextFit;
+    f.x = x;
+    f.y = y;
+    f.width = size.width;
+    f.height = size.height;
 
     const c = controls.current;
     if (c) {

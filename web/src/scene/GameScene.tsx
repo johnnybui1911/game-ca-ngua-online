@@ -172,8 +172,7 @@ export function SceneCanvas({ eventSource, labelled = true, onReady, onFail, tes
             eventSource={eventSource ?? undefined}
             onCreated={() => {
               canvasMounts += 1;
-              // One line per canvas ever created on this page: the app shell must stay at 1 across routes.
-              console.info(`[scene] canvas mounted (${canvasMounts})`);
+              // Counts every canvas ever created on this page: the app shell must stay at 1 across routes.
               document.documentElement.dataset.sceneMounts = String(canvasMounts);
             }}
           >
