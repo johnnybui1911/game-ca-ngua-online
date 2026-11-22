@@ -12,6 +12,10 @@ import { coupletScroll, floorFade, floorTile, lacquerTop, plaqueFace, platformSh
 /** Seconds the set takes to come up. */
 export const FADE_SECONDS = 1.6;
 
+/** How much of a mirror the gold of the statue is, and the share it keeps where no environment is drawn to reflect. */
+export const GILT_METALNESS = 0.95;
+export const GILT_METALNESS_UNLIT = 0.55;
+
 interface Disposable {
   dispose(): void;
 }
@@ -117,6 +121,16 @@ export class SetKit {
   /** Lettered face of the nameplate of the golden horse. */
   plaque(): MeshStandardMaterial {
     return this.lettered(plaqueFace());
+  }
+
+  /**
+   * Polished gold of the horse statue. The room is dark, so its reflections are turned up and
+   * the gold carries a little warm light of its own to keep from going muddy.
+   */
+  gilt(): MeshStandardMaterial {
+    return this.lit(
+      new MeshStandardMaterial({ color: '#ffd15c', roughness: 0.24, metalness: GILT_METALNESS, envMapIntensity: 2.2, emissive: new Color('#80600e'), emissiveIntensity: 0.6 }),
+    );
   }
 
   readonly petals = this.lit(

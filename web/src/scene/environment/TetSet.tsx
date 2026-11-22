@@ -23,6 +23,7 @@ import {
   TEA_TRAY_TOP,
   coupletStand,
   createLanternBody,
+  createStatueBody,
   goldenHorse,
   lanternStand,
   platform,
@@ -32,7 +33,7 @@ import {
   teaTray,
 } from './pieces';
 import { SURFACES, SetBuilder, place } from './set-builder';
-import { SetKit } from './set-kit';
+import { GILT_METALNESS, GILT_METALNESS_UNLIT, SetKit } from './set-kit';
 import { useMotionScale } from './use-motion-scale';
 
 const VASE_URL = '/models/ceramic-vase.glb';
@@ -162,6 +163,8 @@ export default function TetSet() {
       scrollMaterials: [kit.scroll(0), kit.scroll(1)],
       plaque: kit.own(new PlaneGeometry(PLAQUE_WIDTH, PLAQUE_HEIGHT)),
       plaqueMaterial: kit.plaque(),
+      statue: kit.own(createStatueBody()),
+      statueMaterial: kit.gilt(),
       lanterns: kit.own(createLanterns(createLanternBody(), LANTERN_CENTRES, 6.4)),
       vases: piecesOf('blossom').map((piece) => place(standing(piece), [0, 0, 0], [0, 0, 0], VASE_SCALE)),
       teaSets: piecesOf('offering')
@@ -169,6 +172,12 @@ export default function TetSet() {
         .map((piece) => place(standing(piece), [0, TEA_TRAY_TOP, 0.1], [0, 0, 0], TEA_SET_SCALE)),
     };
   }, [kit]);
+
+  // Without an environment to reflect, a mirror of gold would stand black.
+  const reflective = settings.environmentResolution > 0;
+  useEffect(() => {
+    base.statueMaterial.metalness = reflective ? GILT_METALNESS : GILT_METALNESS_UNLIT;
+  }, [base, reflective]);
 
   const flowers = useMemo(() => buildFlowers(kit, FLOWERS[tier]), [kit, tier]);
   useEffect(
@@ -231,6 +240,7 @@ export default function TetSet() {
         .map((piece, i) => (
           <group key={i} position={[piece.x, TABLE_TOP_Y, piece.z]} rotation={[0, piece.yaw, 0]}>
             <mesh geometry={base.plaque} material={base.plaqueMaterial} position={PLAQUE_FACE} rotation={[PLAQUE_TILT, 0, 0]} />
+            <mesh geometry={base.statue} material={base.statueMaterial} />
           </group>
         ))}
       <primitive object={flowers} />

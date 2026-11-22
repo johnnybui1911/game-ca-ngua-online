@@ -308,10 +308,10 @@ export const PLAQUE_WISH = 'Mã đáo thành công';
 
 /** Face of the nameplate: red lacquer, a gold line border and the wish in gold on one line. */
 export function plaqueFace(): CanvasTexture {
-  const w = 768;
-  const h = 128;
+  const w = 1152;
+  const h = 192;
   const [c, ctx] = canvas(w, h);
-  const size = 76;
+  const size = 118;
   const paint = () => {
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     const lacquer = ctx.createLinearGradient(0, 0, 0, h);
@@ -320,18 +320,18 @@ export function plaqueFace(): CanvasTexture {
     ctx.fillStyle = lacquer;
     ctx.fillRect(0, 0, w, h);
     ctx.strokeStyle = GOLD;
-    ctx.lineWidth = 3;
-    ctx.strokeRect(8, 8, w - 16, h - 16);
+    ctx.lineWidth = 4;
+    ctx.strokeRect(11, 11, w - 22, h - 22);
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.font = `italic 700 ${size}px ${COUPLET_FONT}`;
-    const limit = w - 56;
+    const limit = w - 84;
     const measured = ctx.measureText(PLAQUE_WISH).width;
     if (measured > limit) ctx.font = `italic 700 ${Math.floor((size * limit) / measured)}px ${COUPLET_FONT}`;
     ctx.fillStyle = 'rgb(70 8 4 / 55%)';
-    ctx.fillText(PLAQUE_WISH, w / 2 + 2.5, h / 2 + 5);
+    ctx.fillText(PLAQUE_WISH, w / 2 + 3.5, h / 2 + 7);
     ctx.fillStyle = '#f2cf7a';
-    ctx.fillText(PLAQUE_WISH, w / 2, h / 2 + 2);
+    ctx.fillText(PLAQUE_WISH, w / 2, h / 2 + 3);
   };
   return lettered(c, `italic 700 ${size}px "Playfair Display"`, PLAQUE_WISH, paint);
 }

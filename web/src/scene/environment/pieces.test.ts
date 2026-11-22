@@ -3,7 +3,7 @@ import type { BufferGeometry } from 'three';
 import { describe, expect, it } from 'vitest';
 import { createHorseBody } from '../horse-geometry';
 import { piecesOf } from './layout';
-import { PLAQUE_FACE, PLAQUE_HEIGHT, PLAQUE_TILT, PLAQUE_WIDTH, goldenHorse } from './pieces';
+import { PLAQUE_FACE, PLAQUE_HEIGHT, PLAQUE_TILT, PLAQUE_WIDTH, createStatueBody, goldenHorse } from './pieces';
 import { SURFACES, SetBuilder } from './set-builder';
 
 function vertices(geometry: BufferGeometry): Vector3[] {
@@ -16,7 +16,8 @@ describe('golden horse', () => {
   const b = new SetBuilder();
   goldenHorse(b, new Matrix4());
   const built = b.build();
-  const points = SURFACES.flatMap((surface) => (built[surface] ? vertices(built[surface]) : []));
+  const body = createStatueBody();
+  const points = [...SURFACES.flatMap((surface) => (built[surface] ? vertices(built[surface]) : [])), ...vertices(body)];
 
   it('stands on the platform inside the space reserved for an offering', () => {
     for (const p of points) {
