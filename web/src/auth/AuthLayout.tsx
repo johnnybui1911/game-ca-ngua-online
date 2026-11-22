@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { SoundButton, useMusic } from '../audio/SoundControls';
+import { useMusic } from '../audio/SoundControls';
 
 /** Glass panel for the account pages; reads over the board or the plain page background. */
 export function AuthLayout({ title, children }: { title: string; children: ReactNode }) {
@@ -19,7 +19,6 @@ export function AuthLayout({ title, children }: { title: string; children: React
         </h1>
         {children}
       </section>
-      <SoundButton />
     </main>
   );
 }
