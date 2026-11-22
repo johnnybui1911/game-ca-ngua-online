@@ -1,6 +1,6 @@
 import { useLayoutEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { sound } from '../audio/sound';
+import { useMusic } from '../audio/SoundControls';
 import { useSession } from '../auth/session-context';
 import { useDemoCalmZone } from '../demo/calm-zone';
 import { JoinByCodeForm, LobbyPage } from '../lobby/LobbyPage';
@@ -9,8 +9,6 @@ import { entered, useEntered } from './entered';
 import { focusScreen, panelWasShown } from './PanelHost';
 import { useSceneStage } from './scene-host';
 
-/** Seconds the lobby music takes to fade in after "Chơi ngay". */
-const ENTRY_FADE_SECONDS = 2.5;
 /** Up to this width the title lies across the top of the board, so the board is framed below it. */
 const NARROW_PX = 720;
 
@@ -53,13 +51,10 @@ function Hero() {
   useLayoutEffect(() => {
     if (homeRef.current && panelWasShown()) focusScreen(homeRef.current);
   }, []);
-  // The home page is silent until "Chơi ngay": coming back from the lobby must not keep its track playing.
-  useLayoutEffect(() => {
-    sound.setTrack(null);
-  }, []);
+  // The lobby music is wanted from the first screen; browsers let it start on the visitor's first tap.
+  useMusic('lobby');
 
   const play = () => {
-    sound.setTrack('lobby', ENTRY_FADE_SECONDS);
     entered.set(true);
     // Signed in: this page turns into the lobby. Otherwise the name comes first.
     if (!user) void navigate('/bat-dau');
