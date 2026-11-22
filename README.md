@@ -16,7 +16,7 @@ Biểu cảm nhanh: người đã có chỗ ngồi bấm nút "Biểu cảm" (bi
 
 Âm thanh: nhạc nền ở các màn hình vào game, sảnh và phòng chờ, nhạc khác khi đang chơi, tiếng xúc xắc, tiếng vó ngựa theo từng ô quân đi (thêm tiếng va khi đá quân), và chuông báo khi tới lượt mình (thêm một lần khi còn 10 giây). Trình duyệt chỉ cho phát tiếng sau lần chạm đầu tiên; bấm "Chơi ngay" bật nhạc sảnh với fade-in. Tất cả được tổng hợp bằng Web Audio trong `web/src/audio/`, không có tệp âm thanh; bật/tắt nhạc và hiệu ứng ở nút loa góc dưới bên trái (hoặc "Menu" khi đang chơi), lựa chọn lưu trong trình duyệt.
 
-Hoạt cảnh và chất lượng: "Hoạt cảnh: Đầy đủ / Giảm" trong "Menu" (lưu ở `ca-ngua:motion`, hệ điều hành bật "giảm chuyển động" cũng tính là Giảm) đổi nhảy từng ô, đá quân có khựng hình và camera lướt gần thành các bước trượt ngắn. Chất lượng hình (`high | medium | low`) tự chọn theo thiết bị rồi tự hạ khi khung hình tụt; ép mức bằng `?quality=low|medium|high`.
+Hoạt cảnh và chất lượng: "Hoạt cảnh: Đầy đủ / Giảm" trong "Cài đặt ván" ở phòng chờ và trong "Menu" khi đang chơi (lưu ở `ca-ngua:motion`, hệ điều hành bật "giảm chuyển động" cũng tính là Giảm) đổi nhảy từng ô, đá quân có khựng hình và camera lướt gần thành các bước trượt ngắn. Chất lượng hình (`high | medium | low`) tự chọn theo thiết bị rồi tự hạ khi khung hình tụt; ép mức bằng `?quality=low|medium|high`.
 
 Production: <https://ca-ngua-online.johnny-bui1911.workers.dev>
 

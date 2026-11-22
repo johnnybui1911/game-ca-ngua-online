@@ -1,7 +1,7 @@
 import { useState, type CSSProperties } from 'react';
 import { useNavigate } from 'react-router';
 import { horseLabel, type RoomClientMessage, type RoomSnapshot } from '../../../shared/protocol';
-import { SoundButton, useMusic } from '../audio/SoundControls';
+import { useMusic } from '../audio/SoundControls';
 import { inviteLink, reportInviteShared } from '../analytics';
 import { useLobby } from '../lobby/LobbyProvider';
 import { Icon } from '../ui/Icon';
@@ -271,7 +271,6 @@ export function WaitingView({ room, myId, send, actionError, emotes, offline }: 
       {renaming && mySeat && (
         <HorseNamesDialog color={mySeat.color} names={mySeat.horseNames} send={send} onClose={() => setRenaming(false)} />
       )}
-      <SoundButton />
     </main>
   );
 }

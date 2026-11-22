@@ -1,8 +1,6 @@
 import { Component, Suspense, lazy, useEffect, useState } from 'react';
 import type { CSSProperties, ReactNode } from 'react';
 import { Outlet, useLocation } from 'react-router';
-import { SoundPlacement } from '../audio/SoundControls';
-import { DemoMatch } from '../demo/DemoMatch';
 import { entered } from './entered';
 import { LoadingOverlay } from './LoadingOverlay';
 import { useQuality } from '../scene/render/QualityProvider';
@@ -12,6 +10,8 @@ import { CreatorLogoSlot, FeedbackSlot, SoundSlot } from './slots';
 import './shell.css';
 
 const PersistentScene = lazy(() => import('./PersistentScene'));
+// The demo game pulls in the director, the motion curves, the engine and the CPU: not the entry chunk.
+const DemoMatch = lazy(() => import('../demo/DemoMatch').then((m) => ({ default: m.DemoMatch })));
 
 /** The 3D chunk failed to load or the canvas failed: the poster stays and says so. */
 class SceneBoundary extends Component<{ children: ReactNode; onFail: () => void }, { failed: boolean }> {
@@ -72,9 +72,7 @@ function Chrome() {
       {!match && (
         <>
           <div className="shell-slot shell-slot--bottom-left" data-testid="slot-sound">
-            <SoundPlacement value="inline">
-              <SoundSlot />
-            </SoundPlacement>
+            <SoundSlot />
           </div>
           <div className="shell-slot shell-slot--bottom-right" data-testid="slot-feedback">
             <FeedbackSlot />
@@ -99,11 +97,11 @@ export function AppShell() {
     <SceneHostProvider>
       <div className="shell">
         <SceneLayer />
-        <DemoMatch />
+        <Suspense fallback={null}>
+          <DemoMatch />
+        </Suspense>
         <Chrome />
-        <SoundPlacement value="docked">
-          <Outlet />
-        </SoundPlacement>
+        <Outlet />
       </div>
     </SceneHostProvider>
   );

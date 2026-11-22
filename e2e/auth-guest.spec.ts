@@ -44,6 +44,34 @@ test('an unknown room code says so and continues to the lobby', async ({ browser
   await context.close();
 });
 
+test('each panel takes the focus on its title, so nothing is left focused on the page body', async ({ browser }) => {
+  const context = await browser.newContext({ baseURL: ORIGIN, locale: 'vi-VN' });
+  const page = await context.newPage();
+  await page.goto('/');
+  await page.getByTestId('play-now').click();
+  await expect(page.getByTestId('panel-host').locator('h1')).toBeFocused();
+  await page.getByTestId('guest-name').fill('Khách Bàn Phím');
+  await page.getByTestId('guest-submit').click();
+  await expect(page.getByTestId('greeting')).toBeFocused();
+  await page.getByTestId('lobby-home').click();
+  await expect(page.getByTestId('home').locator('h1')).toBeFocused();
+  await page.getByTestId('play-now').click();
+  await page.getByTestId('create-name').fill('Phòng bàn phím');
+  await page.getByTestId('create-submit').click();
+  await expect(page.getByTestId('room-name')).toBeFocused();
+  await context.close();
+
+  const visitor = await browser.newContext({ baseURL: ORIGIN, locale: 'vi-VN' });
+  const signIn = await visitor.newPage();
+  await signIn.goto('/bat-dau');
+  await signIn.getByTestId('to-signin').click();
+  await expect(signIn.locator('#auth-title')).toBeFocused();
+  await signIn.getByTestId('to-signup').click();
+  await expect(signIn.locator('#auth-title')).toHaveText('Đăng ký');
+  await expect(signIn.locator('#auth-title')).toBeFocused();
+  await visitor.close();
+});
+
 test('the entry screen validates the name and /bat-dau with a session goes on to returnTo', async ({ browser }) => {
   const context = await browser.newContext({ baseURL: ORIGIN, locale: 'vi-VN' });
   const page = await context.newPage();

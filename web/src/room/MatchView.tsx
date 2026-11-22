@@ -22,6 +22,7 @@ import { EmotePicker } from './EmotePicker';
 import type { EmoteBySeat } from './emote-feed';
 import { HorseNamesDialog } from './HorseNamesDialog';
 import { Modal } from './Modal';
+import { MotionLevelControl } from './MotionLevelControl';
 import { RulesButton, RulesSheet } from './RulesSheet';
 import { describeMove } from './move-text';
 import { reportAfterExpiry, rollHeld, type BoardReport } from './board-wait';
@@ -444,6 +445,7 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
                 />
               </label>
             )}
+            <MotionLevelControl variant="menu" />
           </div>
           <div className="dialog-actions">
             <button

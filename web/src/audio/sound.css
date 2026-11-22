@@ -62,6 +62,16 @@ html[data-quality='low'] .sound-toggle {
   border-top: 1px solid var(--color-border);
 }
 
+/* "Hoạt cảnh" in the match menu: a sound-switch row whose control is two pills, not a switch. */
+.motion-switch {
+  flex-wrap: wrap;
+  cursor: default;
+}
+
+.sound-switch > .motion-level-pills {
+  flex: none;
+}
+
 /*
  * On/off switch drawn on the native checkbox so keyboard, forms and tests keep working.
  * Room settings, the emote picker and the match menu reuse `.switch-input`.

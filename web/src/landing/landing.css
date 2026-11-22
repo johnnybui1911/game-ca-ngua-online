@@ -87,6 +87,33 @@ body.landing {
     var(--color-bg-deep);
 }
 
+/* The creator's mark, as the game shows it top right: decorative-sized, not a link. */
+.lp-creator {
+  position: absolute;
+  top: calc(var(--space-3) + env(safe-area-inset-top));
+  right: calc(var(--space-3) + env(safe-area-inset-right));
+  z-index: 2;
+  display: block;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--color-bg-deep);
+  border: 1px solid var(--color-gold);
+  box-shadow: var(--shadow-sm), 0 0 0 3px rgb(13 8 6 / 35%);
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.lp-creator img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  -webkit-user-drag: none;
+}
+
 /*
  * Hero: full-bleed render fading into the fixed board below. Narrow screens show the portrait
  * render above the copy; wide screens put the copy over the left of the landscape clip.
@@ -520,6 +547,11 @@ body.landing {
 }
 
 @media (min-width: 768px) {
+  .lp-creator {
+    width: 56px;
+    height: 56px;
+  }
+
   .lp-hero {
     display: flex;
     align-items: flex-end;
@@ -535,9 +567,10 @@ body.landing {
     mask-image: linear-gradient(180deg, #000 72%, transparent);
   }
 
+  /* The copy sits on the left over bright board cells: the scrim stays dark under all of it (≥ 4.5:1). */
   .lp-hero-media::after {
     background:
-      linear-gradient(90deg, rgb(13 8 6 / 80%) 0%, rgb(13 8 6 / 40%) 45%, transparent 70%),
+      linear-gradient(90deg, rgb(13 8 6 / 88%) 0%, rgb(13 8 6 / 80%) 40%, rgb(13 8 6 / 55%) 58%, transparent 78%),
       linear-gradient(180deg, rgb(13 8 6 / 30%), transparent 20%);
   }
 

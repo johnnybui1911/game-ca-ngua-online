@@ -1,5 +1,6 @@
 import { useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
 import type { ReactNode } from 'react';
+import { useLocation } from 'react-router';
 import { useSceneStage } from './scene-host';
 
 /** From this width the panel stands beside the board; below it, it slides up over the lower part. */
@@ -43,6 +44,24 @@ function playPanelExit(panel: HTMLElement, parent: Node): void {
   ghost.scrollTop = scrolled;
 }
 
+/** Whether a panel has been on screen in this tab, so a screen shown after one knows focus was dropped. */
+let panelShown = false;
+export const panelWasShown = () => panelShown;
+
+/**
+ * A screen that just opened takes the focus, so a keyboard or screen-reader user lands in it and
+ * hears its title instead of being left on the page body: its heading, else its status line.
+ * Focus a child already took (an `autoFocus` field) or an open dialog keeps it.
+ */
+export function focusScreen(screen: HTMLElement): void {
+  const active = document.activeElement;
+  if (active && active !== document.body && (screen.contains(active) || active.closest('[role="dialog"]'))) return;
+  const target = screen.querySelector<HTMLElement>('h1') ?? screen.querySelector<HTMLElement>('h2') ?? screen.querySelector<HTMLElement>('[role="status"]');
+  if (!target) return;
+  if (!target.matches('a[href], button, input, select, textarea, [tabindex]')) target.tabIndex = -1;
+  target.focus({ preventScroll: true });
+}
+
 /**
  * Where every screen that is not the home page or a match lives: a column on the right of a wide
  * screen, a sheet over the lower part of a narrow one. It dims the board and tells the camera
@@ -53,6 +72,13 @@ export function PanelHost({ children, wide = false }: { children: ReactNode; /**
   const ref = useRef<HTMLDivElement>(null);
   const side = useSyncExternalStore(subscribeSide, () => window.matchMedia(SIDE_QUERY).matches);
   const [box, setBox] = useState({ width: 0, height: 0 });
+  const { pathname } = useLocation();
+
+  // On mount, and for each new page shown in the same panel (sign-in and sign-up share one).
+  useLayoutEffect(() => {
+    panelShown = true;
+    if (ref.current) focusScreen(ref.current);
+  }, [pathname]);
 
   useLayoutEffect(() => {
     const el = ref.current;
