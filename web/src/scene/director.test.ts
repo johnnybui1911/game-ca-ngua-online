@@ -654,4 +654,140 @@ describe('Director', () => {
       expect(view.maxY).toBeCloseTo(HORSE_Y, 6);
     });
   });
+
+  describe('sendHome', () => {
+    /** A game some way in, with horses of several colours on the track. */
+    function midGame() {
+      const steps = playActions(160);
+      const game = steps[steps.length - 1]!.game;
+      const out = game.horses.flat().filter((pos) => pos >= 0).length;
+      expect(out).toBeGreaterThan(2);
+      return { steps, game, out };
+    }
+    const allHome = (game: GameState): GameState => ({ ...game, horses: game.horses.map((row) => row.map(() => -1)) });
+
+    it('flies every horse outside its stable home within 0.8 to 1.2 seconds and reports that time', () => {
+      const { game } = midGame();
+      const view = new FakeView();
+      const d = new Director(view);
+      d.reset(game);
+      view.maxY = 0;
+      const seconds = d.sendHome();
+      expect(seconds).toBeGreaterThanOrEqual(0.8);
+      expect(seconds).toBeLessThanOrEqual(1.2);
+      expect(d.isBusy).toBe(true);
+      const elapsed = drain(d);
+      expect(elapsed).toBeGreaterThanOrEqual(seconds - 1 / 60);
+      expect(elapsed).toBeLessThanOrEqual(seconds + 2 / 60);
+      expect(view.maxY).toBeGreaterThan(HORSE_Y + 1);
+      view.expectShows(allHome(game));
+    });
+
+    it('takes off one horse after the other', () => {
+      const { game, out } = midGame();
+      const view = new FakeView();
+      const d = new Director(view);
+      d.reset(game);
+      d.sendHome();
+      const airborne = () => [...view.horses.values()].filter((h) => h.y > HORSE_Y + 0.01).length;
+      for (let i = 0; i < 9; i++) d.update(1 / 60);
+      const early = airborne();
+      expect(early).toBeGreaterThan(0);
+      expect(early).toBeLessThan(out);
+      drain(d);
+      expect(airborne()).toBe(0);
+    });
+
+    it('clears the die, the active colour and a celebration', () => {
+      const view = new FakeView();
+      const d = new Director(view);
+      const rolled = applyRoll(createGame([0, 2]), 6);
+      d.reset(rolled.state);
+      expect(view.die.visible).toBe(true);
+      const moved = applyMove(rolled.state, 0);
+      d.push(moved.state, moved.events);
+      drain(d);
+      view.celebration = 0;
+      d.sendHome();
+      expect(view.die.visible).toBe(false);
+      expect(view.active).toBeNull();
+      expect(view.celebration).toBeNull();
+      drain(d);
+      expect(view.die.visible).toBe(false);
+      expect(view.active).toBeNull();
+      view.expectShows(allHome(moved.state));
+    });
+
+    it('skips what is still queued and flies from the newest game', () => {
+      const { steps, game } = midGame();
+      const view = new FakeView();
+      const d = new Director(view);
+      d.reset(steps[steps.length - 3]!.game);
+      d.push(steps[steps.length - 2]!.game, steps[steps.length - 2]!.events);
+      d.push(game, steps[steps.length - 1]!.events);
+      d.update(1 / 60);
+      const moves = view.moves.length;
+      d.sendHome();
+      // The frame it is asked in shows the newest game, every horse still on its cell.
+      d.update(0);
+      view.expectShows(game);
+      drain(d);
+      expect(view.moves).toHaveLength(moves);
+      view.expectShows(allHome(game));
+    });
+
+    it('returns 0 and stays idle when every horse is home already', () => {
+      const busy: boolean[] = [];
+      const d = new Director(new FakeView(), (b) => busy.push(b));
+      expect(d.sendHome()).toBe(0);
+      d.reset(createGame([0, 1, 2, 3]));
+      expect(d.sendHome()).toBe(0);
+      expect(d.isBusy).toBe(false);
+      expect(busy).toEqual([]);
+    });
+
+    it('reports busy for the length of the flight, and a second request joins it', () => {
+      const { game } = midGame();
+      const busy: boolean[] = [];
+      const d = new Director(new FakeView(), (b) => busy.push(b));
+      d.reset(game);
+      const seconds = d.sendHome();
+      for (let i = 0; i < 30; i++) d.update(1 / 60);
+      expect(d.sendHome()).toBeCloseTo(seconds - 0.5, 6);
+      drain(d);
+      expect(busy).toEqual([true, false]);
+      expect(d.sendHome()).toBe(0);
+    });
+
+    it('animates the next game from the stables', () => {
+      const { game } = midGame();
+      const view = new FakeView();
+      const d = new Director(view);
+      d.reset(game);
+      d.sendHome();
+      drain(d);
+      const fresh = createGame([0, 1, 2, 3], 'quick');
+      const events: GameEvent[] = fresh.colors.map((color) => ({ type: 'moved', color, horse: 0, from: -1, to: 0, kicked: null }));
+      d.push(fresh, events);
+      d.update(1 / 60);
+      const first = view.horses.get('0:0')!;
+      const stable = horseGround(0, 0, -1);
+      expect(Math.hypot(first.x - stable.x, first.z - stable.z)).toBeLessThan(1);
+      drain(d);
+      expect(view.moves.length).toBe(4);
+      view.expectShows(fresh);
+    });
+
+    it('slides home flat and quickly in reduced motion', () => {
+      const { game } = midGame();
+      const view = new FakeView();
+      const d = new Director(view, undefined, { reducedMotion: () => true });
+      d.reset(game);
+      view.maxY = 0;
+      expect(d.sendHome()).toBeLessThanOrEqual(0.3);
+      drain(d);
+      expect(view.maxY).toBeCloseTo(HORSE_Y, 6);
+      view.expectShows(allHome(game));
+    });
+  });
 });

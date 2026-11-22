@@ -42,6 +42,7 @@ import RenderPipeline from './render/RenderPipeline';
 import { sound } from '../audio/sound';
 import { KickCamera, SHAKE_SECONDS } from './motion/kick-camera';
 import { motionSetting } from './motion/motion-setting';
+import { stableReturn } from './motion/stable-return';
 
 function createView(state: SceneState, kickCamera: KickCamera): SceneView {
   return {
@@ -291,6 +292,8 @@ export default function SceneContent({
   useEffect(() => {
     onBusyChange?.(busy);
   }, [busy, onBusyChange]);
+  // The game on the board can be asked to clear it: a showcase sends its horses home before a match takes over.
+  useEffect(() => stableReturn.attach(() => director.sendHome()), [director]);
   // A board that goes away (WebGL loss, leaving the match) must not leave the page waiting on it.
   useEffect(() => () => onBusyChange?.(false), [onBusyChange]);
   const camera = useThree((s) => s.camera);

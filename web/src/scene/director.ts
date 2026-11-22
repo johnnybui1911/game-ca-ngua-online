@@ -10,6 +10,8 @@ import { DIE_REST, horseGround, restYaw, stableSlot, yawBetween } from './layout
 import type { Vec2 } from './layout';
 import { angleDelta, arc, dampedSpring, easeOutCubic, lerp, lerpAngle, smoothstep } from './motion/curves';
 import { createDieTumble, dieTumble, tiltedRise } from './motion/dice';
+import { flyHomeDelay, flyHomePose, flyHomeSeconds } from './motion/fly-home';
+import type { HomeFlight } from './motion/fly-home';
 import { crouchLean, crouchStretch, hopEnergy, hopLean, hopStretch, settleStretch } from './motion/hop';
 
 /** Height of a resting horse base above the board top. */
@@ -135,6 +137,7 @@ type Seg =
   | { k: 'roll'; color: Color; dice: DiceValue; reduced: boolean; dur: number }
   | MoveSeg
   | { k: 'hold'; dur: number }
+  | { k: 'home'; flights: (HomeFlight & { color: Color; horse: number })[]; reduced: boolean; dur: number }
   | { k: 'turn'; color: Color; dur: 0 }
   | { k: 'win'; color: Color; dur: 0 };
 
@@ -193,7 +196,10 @@ export class Director {
   private celebrating: { color: Color; t: number } | null = null;
   private celebrated: Color | null = null;
   private busy = false;
+  /** The newest game this director was given. */
+  private latest: GameState | null = null;
   private readonly tumble = createDieTumble();
+  private readonly flightPose = [0, 0, 0, 0, 0, 0];
 
   constructor(
     private readonly view: SceneView,
@@ -203,6 +209,7 @@ export class Director {
 
   /** Show `game` immediately without celebrating a finished game (mount, reload). */
   reset(game: GameState): void {
+    this.latest = game;
     this.celebrated = game.winner;
     this.celebrating = null;
     this.view.setCelebration(null, 0);
@@ -211,6 +218,7 @@ export class Director {
 
   /** Queue a new batch; snaps to the latest state when too many are waiting. */
   push(game: GameState, events: GameEvent[]): void {
+    this.latest = game;
     this.queue.push({ game, events });
     if (this.queue.length > MAX_WAITING) {
       const latest = this.queue[this.queue.length - 1];
@@ -218,6 +226,63 @@ export class Director {
       return;
     }
     this.notify();
+  }
+
+  /**
+   * Ends the game on the board: whatever is still animating is skipped, the die and any celebration go,
+   * and every horse outside its stable flies home, one taking off after the other (a plain slide in
+   * reduced motion). The board then shows that game with every horse in its stable until the next
+   * `push` or `reset`. Returns the seconds it takes; 0 when every horse is home already.
+   */
+  sendHome(): number {
+    const flying = this.run?.segs[this.run.i];
+    if (this.run && flying?.k === 'home') return flying.dur - this.run.t;
+    const game = this.latest;
+    if (!game) return 0;
+    const rest: GameState = {
+      ...game,
+      horses: game.horses.map((row) => row.map(() => POS_STABLE)),
+      phase: 'finished',
+      dice: null,
+      legalHorses: [],
+    };
+    this.latest = rest;
+    this.queue = [];
+    this.run = null;
+    this.reconcile(game, false);
+    this.celebrating = null;
+    this.view.setCelebration(null, 0);
+    this.view.setActive(null);
+    this.view.setDie(false, 0, 0, 0, 0, 0, 0);
+
+    const out: { color: Color; horse: number; pos: HorsePos }[] = [];
+    for (const color of game.colors) {
+      game.horses[color]?.forEach((pos, horse) => {
+        if (pos !== POS_STABLE) out.push({ color, horse, pos });
+      });
+    }
+    const reduced = this.options.reducedMotion?.() ?? false;
+    const dur = flyHomeSeconds(out.length, reduced);
+    if (out.length > 0) {
+      const flights = out.map(({ color, horse, pos }, index) => {
+        const from = horseGround(color, horse, pos);
+        const to = stableSlot(color, horse);
+        return {
+          color,
+          horse,
+          fromX: from.x,
+          fromZ: from.z,
+          toX: to.x,
+          toZ: to.z,
+          yawFrom: restYaw(color, horse, pos),
+          yawTo: restYaw(color, horse, POS_STABLE),
+          delay: flyHomeDelay(index, out.length),
+        };
+      });
+      this.run = { batch: { game: rest, events: [] }, segs: [{ k: 'home', flights, reduced, dur }], i: 0, t: 0, started: false, cues: 0, hadRoll: false };
+    }
+    this.notify();
+    return dur;
   }
 
   private snap(game: GameState): void {
@@ -389,6 +454,11 @@ export class Director {
     else if (seg.k === 'move') {
       if (seg.reduced) this.poseSlide(seg, t);
       else this.poseMove(seg, t);
+    } else if (seg.k === 'home') {
+      for (const flight of seg.flights) {
+        const p = flyHomePose(this.flightPose, flight, t, seg.reduced);
+        this.view.setHorse(flight.color, flight.horse, p[0]!, HORSE_Y + p[1]!, p[2]!, p[3]!, p[4]!, p[5]!);
+      }
     }
   }
 
@@ -398,6 +468,8 @@ export class Director {
     } else if (seg.k === 'move') {
       this.place(seg.color, seg.horse, seg.to);
       if (seg.kicked) this.place(seg.kicked.color, seg.kicked.horse, POS_STABLE);
+    } else if (seg.k === 'home') {
+      for (const flight of seg.flights) this.place(flight.color, flight.horse, POS_STABLE);
     }
   }
 
