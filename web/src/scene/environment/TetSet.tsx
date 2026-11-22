@@ -25,7 +25,7 @@ import {
   sprayBranches,
   sweetsBox,
   teaTray,
-  watermelonPlates,
+  watermelonPlate,
 } from './pieces';
 import { SURFACES, SetBuilder, place } from './set-builder';
 import { SetKit } from './set-kit';
@@ -48,7 +48,7 @@ const PETALS = ['#f6c61e', '#f39ab5'];
 const BUDS = ['#b9c634', '#d64f78'];
 
 /** Offering in front of each seat's far side: watermelon, rice cakes, tea, sweets. */
-const OFFERINGS = [watermelonPlates, riceCakes, teaTray, sweetsBox];
+const OFFERINGS = [watermelonPlate, riceCakes, teaTray, sweetsBox];
 const TEA_SIDE = OFFERINGS.indexOf(teaTray);
 
 const LAMP_COLOUR = '#ff9d5c';

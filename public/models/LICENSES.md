@@ -1,6 +1,6 @@
 # Third-party 3D assets
 
-Every model in this folder that was not made for this project is listed here. Textures are embedded in the `.glb` files; `public/textures/` holds none. Everything else in the living-room set (platform, floor tiles, lanterns, couplets, blossom, whole watermelon on its plate and dish of red melon seeds, rice cakes, sweets box) is generated in code under `web/src/scene/environment/`.
+Every model in this folder that was not made for this project is listed here. Textures are embedded in the `.glb` files; `public/textures/` holds none. Everything else in the living-room set (platform, floor tiles, lanterns, couplets, blossom, half watermelon and its wedge slices on a plate, rice cakes, sweets box) is generated in code under `web/src/scene/environment/`.
 
 | File | Asset | Authors | Source | Licence | Size |
 | --- | --- | --- | --- | --- | --- |

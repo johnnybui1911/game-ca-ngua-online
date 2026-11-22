@@ -2,7 +2,7 @@ import { Matrix4, Vector3 } from 'three';
 import type { BufferGeometry } from 'three';
 import { describe, expect, it } from 'vitest';
 import { piecesOf } from './layout';
-import { createMelonSkin, seedSpots, watermelonPlates } from './pieces';
+import { createMelonSkin, createMelonWedge, seedSpots, watermelonPlate } from './pieces';
 import { SURFACES, SetBuilder } from './set-builder';
 
 function vertices(geometry: BufferGeometry): Vector3[] {
@@ -56,6 +56,56 @@ describe('melon skin', () => {
     const folded = new Set(longitudes.map((l) => (((l + pitch / 2) % pitch) + pitch) % pitch).map((l) => l.toFixed(3)));
     expect(folded.size).toBeGreaterThan(6);
   });
+
+  it('stops at the cut when it spans half a melon, leaving no gap along the rim', () => {
+    const half = createMelonSkin(stripes, 7, Math.PI / 2);
+    let area = 0;
+    for (const geometry of [half.dark, half.light]) {
+      for (const p of vertices(geometry)) expect(p.y).toBeGreaterThanOrEqual(-1e-6);
+      area += outwardArea(geometry);
+    }
+    expect(area).toBeGreaterThan(2 * Math.PI * 0.95);
+    expect(area).toBeLessThanOrEqual(2 * Math.PI);
+  });
+});
+
+describe('melon wedge', () => {
+  const angle = 0.8;
+  const thickness = 0.2;
+  const wedge = createMelonWedge(angle, thickness, 4);
+  const layers = [wedge.flesh, wedge.pith, wedge.rind];
+
+  it('keeps every layer inside the slice, the rind outermost and the flesh at the point', () => {
+    const reach = layers.map((geometry) => vertices(geometry).map((p) => Math.hypot(p.x, p.y)));
+    for (const [i, geometry] of layers.entries()) {
+      for (const p of vertices(geometry)) {
+        expect(Math.abs(p.z)).toBeCloseTo(thickness / 2, 6);
+        expect(Math.abs(Math.atan2(p.x, -p.y))).toBeLessThanOrEqual(angle / 2 + 1e-6);
+      }
+      if (i > 0) expect(Math.min(...reach[i]!)).toBeCloseTo(Math.max(...reach[i - 1]!), 6);
+    }
+    expect(Math.min(...reach[0]!)).toBe(0);
+    expect(Math.max(...reach[2]!)).toBeCloseTo(1, 6);
+    // Mostly flesh, with a thin band of pith and of rind.
+    expect(Math.max(...reach[0]!)).toBeGreaterThan(0.8);
+  });
+
+  it('shows every face away from the middle of the slice, lit by its own normal', () => {
+    const middle = new Vector3(0, -0.6, 0);
+    for (const geometry of layers) {
+      const points = vertices(geometry);
+      const normal = geometry.getAttribute('normal');
+      const index = geometry.index!;
+      for (let i = 0; i < index.count; i += 3) {
+        const [a, b, c] = [points[index.getX(i)]!, points[index.getX(i + 1)]!, points[index.getX(i + 2)]!];
+        const cross = b.clone().sub(a).cross(c.clone().sub(a));
+        expect(cross.length()).toBeGreaterThan(1e-6);
+        const lit = new Vector3().fromBufferAttribute(normal, index.getX(i));
+        expect(cross.normalize().distanceTo(lit)).toBeLessThan(1e-5);
+        expect(lit.dot(a.clone().add(b).add(c).divideScalar(3).sub(middle))).toBeGreaterThan(0);
+      }
+    }
+  });
 });
 
 describe('seed spots', () => {
@@ -75,11 +125,11 @@ describe('seed spots', () => {
   });
 });
 
-describe('watermelon plates', () => {
-  it('stand on the platform inside the space reserved for an offering', () => {
+describe('watermelon plate', () => {
+  it('stands on the platform inside the space reserved for an offering', () => {
     const slot = piecesOf('offering')[0]!;
     const b = new SetBuilder();
-    watermelonPlates(b, new Matrix4());
+    watermelonPlate(b, new Matrix4());
     const built = b.build();
     for (const surface of SURFACES) {
       const geometry = built[surface];

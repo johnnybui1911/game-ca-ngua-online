@@ -7,14 +7,17 @@ import {
   BoxGeometry,
   BufferGeometry,
   CatmullRomCurve3,
+  CircleGeometry,
   CylinderGeometry,
   Float32BufferAttribute,
   LatheGeometry,
   Matrix4,
+  RingGeometry,
   SphereGeometry,
   TorusGeometry,
   TubeGeometry,
   Vector2,
+  Vector3,
 } from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import type { Spray } from './blossom';
@@ -121,8 +124,11 @@ export function sprayBranches(b: SetBuilder, m: Matrix4, spray: Spray): void {
  * The skin of a melon as a unit sphere with its poles on the y axis, cut into `stripes` pairs of
  * a narrow light band and a wide dark one that run from pole to pole. The edges between the
  * bands waver, each in its own rhythm, and straighten towards the poles where the bands meet.
+ * `span` is how far the skin reaches down from the top pole: half a turn for a whole melon, a
+ * quarter for the half that is left after a cut across the middle.
  */
-export function createMelonSkin(stripes: number, rows: number): { dark: BufferGeometry; light: BufferGeometry } {
+export function createMelonSkin(stripes: number, rows: number, span = Math.PI): { dark: BufferGeometry; light: BufferGeometry } {
+  const whole = span >= Math.PI;
   const pitch = (Math.PI * 2) / stripes;
   const lightWidth = pitch * 0.36;
   const sway = lightWidth * 0.3;
@@ -135,7 +141,7 @@ export function createMelonSkin(stripes: number, rows: number): { dark: BufferGe
     const first = out.positions.length / 3;
     const at = (row: number, column: number) => first + row * columns.length + column;
     for (let row = 0; row <= rows; row++) {
-      const theta = (row / rows) * Math.PI;
+      const theta = (row / rows) * span;
       for (const column of columns) {
         const phi = column(theta);
         out.positions.push(Math.sin(theta) * Math.cos(phi), Math.cos(theta), Math.sin(theta) * Math.sin(phi));
@@ -145,7 +151,7 @@ export function createMelonSkin(stripes: number, rows: number): { dark: BufferGe
       for (let column = 0; column + 1 < columns.length; column++) {
         // At a pole the row is a single point, and the triangle along it is empty.
         if (row > 0) out.index.push(at(row, column), at(row, column + 1), at(row + 1, column));
-        if (row < rows - 1) out.index.push(at(row, column + 1), at(row + 1, column + 1), at(row + 1, column));
+        if (!whole || row < rows - 1) out.index.push(at(row, column + 1), at(row + 1, column + 1), at(row + 1, column));
       }
     }
   };
@@ -202,38 +208,131 @@ function porcelainDish(b: SetBuilder, m: Matrix4, radius: number, height: number
   return 0.36 * height;
 }
 
-/** Half length and half thickness of the watermelon, and the bands of its skin. */
-const MELON_LENGTH = 1.5;
-const MELON_GIRTH = 1.12;
-const MELON_STRIPES = 10;
-const MELON_SEEDS = 34;
+/** Share of a melon's radius taken by its red flesh, and by the flesh and the white pith under the rind. */
+const FLESH_EDGE = 0.86;
+const PITH_EDGE = 0.93;
+
+export interface MelonWedge {
+  rind: BufferGeometry;
+  pith: BufferGeometry;
+  flesh: BufferGeometry;
+}
 
 /**
- * Dưa hấu and hạt dưa: a whole striped watermelon lying on a porcelain plate, its stem end
- * turned towards the player opposite, and beside it a small dish heaped with red melon seeds.
+ * A wedge cut from a round of melon: its point at the origin, the rind an arc of unit radius
+ * `angle` wide below it, `thickness` along z. The flesh, the pith and the rind are separate
+ * shapes that touch, each closed on every side that shows.
  */
-export function watermelonPlates(b: SetBuilder, m: Matrix4): void {
-  const plate = place(m, [-0.6, 0, 0]);
-  const well = porcelainDish(b, plate, 1.55, 0.26, 24);
-  // Lying on its side: the poles of the skin along the plate, sunk a little into the well.
-  const lying = place(plate, [0, well + MELON_GIRTH - 0.03, 0], [0, -0.5, QUARTER]);
-  const skin = createMelonSkin(MELON_STRIPES, 12);
-  const body = place(lying, [0, 0, 0], [0, 0, 0], [MELON_GIRTH, MELON_LENGTH, MELON_GIRTH]);
-  b.add('gloss', skin.dark, '#17502a', body);
-  b.add('gloss', skin.light, '#86b84e', body);
-  b.add('matte', new CylinderGeometry(0.035, 0.06, 0.26, 5), '#6b6a35', place(lying, [0.04, -MELON_LENGTH - 0.09, 0], [0, 0, -0.35]));
+export function createMelonWedge(angle: number, thickness: number, steps: number): MelonWedge {
+  const half = thickness / 2;
+  const at = (radius: number, step: number, z: number) => {
+    const phi = (step / steps - 0.5) * angle;
+    return new Vector3(radius * Math.sin(phi), -radius * Math.cos(phi), z);
+  };
+  const layer = (inner: number, outer: number, skinned: boolean) => {
+    const positions: number[] = [];
+    const normals: number[] = [];
+    const index: number[] = [];
+    /** A flat face of three or four corners, wound to show towards `normal`. */
+    const face = (corners: Vector3[], normal: Vector3) => {
+      const [a, b, c] = corners as [Vector3, Vector3, Vector3];
+      const wound = b.clone().sub(a).cross(c.clone().sub(a)).dot(normal) > 0 ? corners : [...corners].reverse();
+      const first = positions.length / 3;
+      for (const corner of wound) {
+        positions.push(corner.x, corner.y, corner.z);
+        normals.push(normal.x, normal.y, normal.z);
+      }
+      for (let i = 2; i < wound.length; i++) index.push(first, first + i - 1, first + i);
+    };
+    for (let step = 0; step < steps; step++) {
+      for (const z of [half, -half]) {
+        const corners = [at(outer, step, z), at(outer, step + 1, z), at(inner, step + 1, z)];
+        // The flesh ends in the point of the wedge.
+        if (inner > 0) corners.push(at(inner, step, z));
+        face(corners, new Vector3(0, 0, Math.sign(z)));
+      }
+      if (skinned) {
+        const out = at(1, step + 0.5, 0);
+        face([at(outer, step, half), at(outer, step + 1, half), at(outer, step + 1, -half), at(outer, step, -half)], out);
+      }
+    }
+    for (const step of [0, steps]) {
+      const along = at(1, step, 0);
+      const side = new Vector3(-along.y, along.x, 0).multiplyScalar(step === 0 ? -1 : 1);
+      face([at(inner, step, half), at(outer, step, half), at(outer, step, -half), at(inner, step, -half)], side);
+    }
+    const geometry = new BufferGeometry();
+    geometry.setAttribute('position', new Float32BufferAttribute(positions, 3));
+    geometry.setAttribute('normal', new Float32BufferAttribute(normals, 3));
+    geometry.setIndex(index);
+    return geometry;
+  };
+  return { rind: layer(PITH_EDGE, 1, true), pith: layer(FLESH_EDGE, PITH_EDGE, false), flesh: layer(0, FLESH_EDGE, false) };
+}
 
-  const dish = place(m, [1.7, 0, 0.35]);
-  const floor = porcelainDish(b, dish, 0.68, 0.3, 16);
-  const heap = 0.2;
-  b.add('matte', new SphereGeometry(1, 10, 3, 0, Math.PI * 2, 0, QUARTER), '#8c1512', place(dish, [0, floor, 0], [0, 0, 0], [0.54, heap, 0.54]));
-  const shades: BufferGeometry[][] = [[], []];
-  seedSpots(MELON_SEEDS, 0.48).forEach((spot, i) => {
-    const y = floor + heap * Math.sqrt(1 - (Math.hypot(spot.x, spot.z) / 0.54) ** 2) + 0.012;
-    shades[i % 2]!.push(new SphereGeometry(1, 4, 2).applyMatrix4(place(dish, [spot.x, y, spot.z], [0, spot.turn, 0], [0.05, 0.028, 0.09])));
-  });
-  b.add('matte', gathered(shades[0]!), '#c9211c', new Matrix4());
-  b.add('matte', gathered(shades[1]!), '#e2482c', new Matrix4());
+/** Half length and half thickness of the watermelon, and the bands of its skin. */
+const MELON_LENGTH = 1.35;
+const MELON_GIRTH = 1.05;
+const MELON_STRIPES = 10;
+/** How far the cut face of the half melon leans back, and how far it turns away from the slices. */
+const MELON_LEAN = 0.08;
+const MELON_TURN = -0.5;
+const MELON_SEEDS = 7;
+/** The slices beside it: how many, their height, the angle at their point and their thickness. */
+const SLICES = 4;
+const SLICE_HEIGHT = 1.15;
+const SLICE_ANGLE = 0.8;
+const SLICE_THICKNESS = 0.2;
+
+const RIND = '#17502a';
+const PITH = '#e9edc8';
+const FLESH = '#d3262a';
+const PIP = '#16100c';
+
+/**
+ * Dưa hấu on one porcelain plate: half a striped watermelon lying on its side, its cut face
+ * turned towards the player opposite, and to that player's right four wedge slices standing
+ * on their rind in a fan.
+ */
+export function watermelonPlate(b: SetBuilder, m: Matrix4): void {
+  const radius = 2.3;
+  const height = 0.3;
+  const well = porcelainDish(b, m, radius, height, 24);
+  /** Height of the dish under a point: flat in the well, then rising to the lip. */
+  const dishAt = (x: number, z: number) => well + Math.max(0, ((Math.hypot(x, z) / radius - 0.6) / 0.29) * 0.49 * height);
+
+  // The poles of the skin lie along the plate, the cut across the middle faces the front and a little up.
+  const rest = Math.hypot(MELON_GIRTH * Math.cos(MELON_LEAN), MELON_LENGTH * Math.sin(MELON_LEAN));
+  const lying = place(place(m, [-0.85, well + rest - 0.03, -0.1], [0, MELON_TURN, 0]), [0, 0, 0], [-QUARTER - MELON_LEAN, 0, 0]);
+  const skin = createMelonSkin(MELON_STRIPES, 6, QUARTER);
+  const body = place(lying, [0, 0, 0], [0, 0, 0], [MELON_GIRTH, MELON_LENGTH, MELON_GIRTH]);
+  b.add('gloss', skin.dark, RIND, body);
+  b.add('gloss', skin.light, '#86b84e', body);
+  const cut = place(lying, [0, 0, 0], [QUARTER, 0, 0], MELON_GIRTH);
+  b.add('matte', new RingGeometry(PITH_EDGE, 1, 24), RIND, cut);
+  b.add('matte', new RingGeometry(FLESH_EDGE, PITH_EDGE, 24), PITH, cut);
+  b.add('matte', new CircleGeometry(FLESH_EDGE, 24), FLESH, cut);
+  const pips = seedSpots(MELON_SEEDS, 0.62).map((spot) =>
+    new SphereGeometry(1, 4, 2).applyMatrix4(place(cut, [spot.x, spot.z, 0.008], [0, 0, spot.turn], [0.04, 0.075, 0.014])),
+  );
+
+  const reach = SLICE_THICKNESS / SLICE_HEIGHT / 2;
+  for (let i = 0; i < SLICES; i++) {
+    const x = 0.7 + i * 0.3;
+    const z = 0.5 + i * 0.1;
+    // Standing on the middle of its rind, leaning back a little, each turned further than the last.
+    const slice = place(m, [x, dishAt(x, z) + SLICE_HEIGHT - 0.01, z], [-0.1, 0.3 - i * 0.2, 0], SLICE_HEIGHT);
+    const wedge = createMelonWedge(SLICE_ANGLE, SLICE_THICKNESS / SLICE_HEIGHT, 4);
+    b.add('matte', wedge.rind, RIND, slice);
+    b.add('matte', wedge.pith, PITH, slice);
+    b.add('matte', wedge.flesh, FLESH, slice);
+    for (const [px, py] of i % 2 === 0 ? [[-0.07, -0.58], [0.1, -0.42]] : [[0.03, -0.5]]) {
+      for (const face of [1, -1]) {
+        pips.push(new SphereGeometry(1, 4, 2).applyMatrix4(place(slice, [px! * face, py!, face * (reach + 0.004)], [0, 0, px! * 2], [0.03, 0.055, 0.012])));
+      }
+    }
+  }
+  b.add('matte', gathered(pips), PIP, new Matrix4());
 }
 
 /** Height of the tray floor the tea service model stands on. */
