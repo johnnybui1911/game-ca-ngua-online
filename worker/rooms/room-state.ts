@@ -77,15 +77,19 @@ export function settingsOf(state: RoomState): RoomSettings {
   return { ...stored, pace: isPaceName(stored.pace) ? stored.pace : DEFAULT_PACE };
 }
 
-/** Settings from a client message, or null unless it is exactly `{turnSeconds, quick, autoRoll, pace}` with allowed values. */
-export function parseRoomSettings(raw: unknown): RoomSettings | null {
+/**
+ * Settings from a client message, or null unless it is exactly `{turnSeconds, quick, autoRoll, pace}` with allowed
+ * values. `pace` may be missing (a tab loaded before the setting existed): the room then keeps its current pace.
+ */
+export function parseRoomSettings(raw: unknown): (Omit<RoomSettings, 'pace'> & { pace?: PaceName }) | null {
   if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return null;
   const o = raw as Record<string, unknown>;
-  if (Object.keys(o).length !== 4) return null;
   const { turnSeconds, quick, autoRoll, pace } = o;
+  if (Object.keys(o).length !== ('pace' in o ? 4 : 3)) return null;
   const turn = TURN_SECONDS_OPTIONS.find((n) => n === turnSeconds);
-  if (turn === undefined || typeof quick !== 'boolean' || typeof autoRoll !== 'boolean' || !isPaceName(pace)) return null;
-  return { turnSeconds: turn, quick, autoRoll, pace };
+  if (turn === undefined || typeof quick !== 'boolean' || typeof autoRoll !== 'boolean') return null;
+  if (!('pace' in o)) return { turnSeconds: turn, quick, autoRoll };
+  return isPaceName(pace) ? { turnSeconds: turn, quick, autoRoll, pace } : null;
 }
 
 /** The base timings with this room's turn time: `turnSeconds` of `turnUnitMs` each. */

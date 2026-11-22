@@ -389,7 +389,7 @@ export class RoomDO extends DurableObject<Env> {
       case 'settings': {
         needHostBudget();
         if (room.status !== 'waiting') throw new RoomError('bad_state', 'Chỉ đổi cài đặt khi đang chờ.');
-        room.settings = msg.settings;
+        room.settings = { ...msg.settings, pace: msg.settings.pace ?? settingsOf(room).pace };
         await this.commit([]);
         return;
       }

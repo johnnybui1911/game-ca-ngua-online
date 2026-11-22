@@ -554,6 +554,8 @@ describe('room settings', () => {
     for (const pace of PACE_NAMES) {
       expect(parseRoomSettings({ turnSeconds: 30, quick: false, autoRoll: false, pace })?.pace).toBe(pace);
     }
+    // A tab loaded before the pace setting existed sends no pace: accepted, the room keeps its own.
+    expect(parseRoomSettings({ turnSeconds: 30, quick: false, autoRoll: false })).toEqual({ turnSeconds: 30, quick: false, autoRoll: false });
     const bad: unknown[] = [
       null,
       'x',
@@ -567,7 +569,6 @@ describe('room settings', () => {
       { turnSeconds: 30, quick: 1, autoRoll: false, pace: 'vua' },
       { turnSeconds: 30, quick: false, autoRoll: undefined, pace: 'vua' },
       { turnSeconds: 30, quick: false, pace: 'vua' },
-      { turnSeconds: 30, quick: false, autoRoll: false },
       { turnSeconds: 30, quick: false, autoRoll: false, pace: 'vua', extra: 1 },
       { turnSeconds: 30, quick: false, autoRoll: false, pace: 'current' },
       { turnSeconds: 30, quick: false, autoRoll: false, pace: 'Vừa' },
