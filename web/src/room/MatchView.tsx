@@ -7,6 +7,7 @@ import { SaveAccountBlock } from '../auth/SaveAccountBlock';
 import { useSession } from '../auth/session-context';
 import type { RoomClientMessage, RoomSnapshot, Seat } from '../../../shared/protocol';
 import { sound } from '../audio/sound';
+import { FeedbackModal } from '../chrome/FeedbackModal';
 import { SoundSwitches, useMusic } from '../audio/SoundControls';
 import { unconsumed, type StateBatch } from './batches';
 import { secondsLeft } from './countdown';
@@ -173,6 +174,7 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
   const [menuOpen, setMenuOpen] = useState(false);
   const [renaming, setRenaming] = useState(false);
   const [rulesOpen, setRulesOpen] = useState(false);
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [confirmClose, setConfirmClose] = useState(false);
   // Decided once per mount: the first quick match on a device explains itself, later ones do not.
   const [introOpen, setIntroOpen] = useState(
@@ -456,6 +458,18 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
               <Icon name="rules" />
               Luật chơi
             </button>
+            <button
+              type="button"
+              className="ui-btn ui-btn--secondary"
+              data-testid="menu-feedback"
+              onClick={() => {
+                setMenuOpen(false);
+                setFeedbackOpen(true);
+              }}
+            >
+              <Icon name="feedback" />
+              Góp ý
+            </button>
             {mySeat && (
               <button
                 type="button"
@@ -506,6 +520,8 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
       )}
 
       {rulesOpen && <RulesSheet settings={room.settings} secondsLeft={myTurn && !finished ? seconds : null} onClose={() => setRulesOpen(false)} />}
+
+      {feedbackOpen && <FeedbackModal onClose={() => setFeedbackOpen(false)} />}
 
       {introOpen && !finished && (
         <QuickIntroCard

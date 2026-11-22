@@ -485,6 +485,19 @@
   }
 }
 
+/* The creator's badge sits in the top-right corner: the player cards stop short of it. */
+@media (max-width: 719px) {
+  .hud-players {
+    padding-right: calc(var(--space-2) + 36px + var(--space-3) + env(safe-area-inset-right));
+  }
+}
+
+@media (min-width: 720px) and (max-width: 1100px) {
+  .hud-players {
+    padding-right: calc(var(--space-2) + 56px + var(--space-3) + env(safe-area-inset-right));
+  }
+}
+
 /* Player card: a dense glass pill that stays readable over the brightest part of the board. */
 .hud-player {
   position: relative;
@@ -986,6 +999,8 @@ html[data-quality='low'] .hud-player {
 }
 
 .match-menu {
+  max-height: calc(100dvh - 2 * var(--space-4));
+  overflow-y: auto;
   text-align: left;
 }
 
