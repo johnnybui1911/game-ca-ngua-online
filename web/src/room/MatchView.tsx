@@ -32,12 +32,16 @@ import { describeMove } from './move-text';
 import { pendingAfterArrival, pendingAfterExpiry, pendingAfterReport, playsOnBoard, reportAfterExpiry, rollHeld, type BoardReport, type Pending } from './board-wait';
 import { useShakeToRoll } from './shake';
 import { reserveInsets, type ReservedInsets } from '../scene/camera';
+import { CELEBRATION_SECONDS } from '../scene/director';
 import { Icon } from '../ui/Icon';
 
 /** Seconds left on the local player's action at which the reminder sounds. */
 const REMINDER_SECONDS = 10;
 /** Added to the longest batch of the room's pace for how long a roll waits for the board, for a slow device. */
 const BOARD_WAIT_MARGIN_SECONDS = 0.5;
+/** Pause after the fireworks end before the win dialog appears. */
+const WIN_DIALOG_HOLD_SECONDS = 1.5;
+const WIN_DIALOG_DELAY_MS = Math.ceil((CELEBRATION_SECONDS + WIN_DIALOG_HOLD_SECONDS) * 1000);
 
 /** The match page's view of the board: what the roll waits for, and the state the HUD may show. */
 interface BoardView {
@@ -264,6 +268,18 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
   const needKick = useNeedKick(shownBatches, myColor);
   const forfeitToast = useForfeitToast(shownBatches, myColor);
   const finished = game?.phase === 'finished';
+  // The win dialog covers the board, so a win reached while watching waits out the celebration (plus a
+  // beat to admire it). A match opened on an already finished game has no celebration: dialog at once.
+  const [winDialogOpen, setWinDialogOpen] = useState(() => room.game?.phase === 'finished');
+  useEffect(() => {
+    if (!finished) {
+      setWinDialogOpen(false);
+      return;
+    }
+    const timer = window.setTimeout(() => setWinDialogOpen(true), WIN_DIALOG_DELAY_MS);
+    return () => window.clearTimeout(timer);
+  }, [finished]);
+  const showWinDialog = finished && winDialogOpen;
   const paused = room.paused;
   const myTurn = game !== null && myColor !== null && game.turn === myColor && !finished;
   const canRoll = myTurn && !paused && game?.phase === 'roll' && !board.held;
@@ -647,7 +663,7 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
         </Modal>
       )}
 
-      {finished && (
+      {showWinDialog && (
         <Modal labelledBy="win-title" testId="win-dialog" className="win-dialog">
           <span
             className="win-emblem"
