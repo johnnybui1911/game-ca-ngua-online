@@ -23,6 +23,8 @@ function showcaseRoom(step: ShowcaseStep, quick: boolean): RoomSnapshot {
     turnDeadline: null,
     allowTakeover: false,
     joinRequests: [],
+    gameDeadline: null,
+    gamePausedRemaining: null,
     paused: false,
     cpuLevel: DEFAULT_CPU_LEVEL,
     settings: { ...DEFAULT_ROOM_SETTINGS, quick },

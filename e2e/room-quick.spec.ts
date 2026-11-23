@@ -38,10 +38,18 @@ test('the host sets the turn time and Ván nhanh; others see them read-only', as
   // Defaults: 30 s, classic.
   await expect(host.page.getByTestId('turn-seconds')).toHaveValue('30');
   await expect(host.page.getByTestId('mode-basic')).toHaveAttribute('aria-checked', 'true');
+  await expect(host.page.getByTestId('game-time').getByRole('radio')).toHaveText(['∞', "20'", "30'", "60'"]);
+  await expect(host.page.getByTestId('game-time-60')).toHaveAttribute('aria-checked', 'true');
+  await expect(guest.page.getByTestId('game-time-label')).toHaveText("60'");
+  await expect(host.page.getByTestId('game-settings')).not.toContainText('Nhịp ván');
+  await expect(guest.page.getByTestId('game-settings')).not.toContainText('Nhịp ván');
   await expect(host.page.getByTestId('auto-roll-toggle')).not.toBeChecked();
   await expect(host.page.getByTestId('mode-summary')).toContainText(CLASSIC_MODE_SUMMARY);
   await expect(guest.page.getByTestId('turn-seconds')).toHaveText('30 giây');
   await expect(host.page.getByTestId('game-settings')).toContainText('Máy đổ giúp sau 1,5 giây.');
+  await host.page.getByTestId('game-time-0').click();
+  await expect(guest.page.getByTestId('game-time-label')).toHaveText('∞');
+  await host.page.waitForTimeout(600);
 
   // Turning quick on from 30 s preselects 20 s; the guest sees it live, read-only.
   await host.page.getByTestId('mode-quick').click();

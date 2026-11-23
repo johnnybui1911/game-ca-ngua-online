@@ -768,6 +768,15 @@ html[data-quality='low'] .hud-player {
   gap: 2px;
 }
 
+.game-countdown {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-muted);
+}
+
 .turn-banner {
   display: flex;
   align-items: center;

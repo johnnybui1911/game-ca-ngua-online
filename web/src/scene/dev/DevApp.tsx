@@ -55,6 +55,8 @@ function snapshot(step: ShowcaseStep, players: number): RoomSnapshot {
     turnDeadline: null,
     allowTakeover: false,
     joinRequests: [],
+    gameDeadline: null,
+    gamePausedRemaining: null,
     paused: false,
     cpuLevel: devLevel(),
     settings: { ...DEFAULT_ROOM_SETTINGS, quick: devQuick(), pace: devPace() },

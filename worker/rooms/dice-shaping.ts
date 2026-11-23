@@ -33,10 +33,10 @@ export const BONUS_ROLLS_BEFORE_PLAIN = 2;
 const PLAIN_FACES: readonly DiceValue[] = [2, 3, 4, 5];
 
 /** A face drawn uniformly from `faces`; bytes that would favour some faces are rejected. */
-export function drawFrom(
-  faces: readonly DiceValue[],
+export function drawFrom<T>(
+  faces: readonly T[],
   fill: (bytes: Uint8Array) => Uint8Array = (b) => crypto.getRandomValues(b),
-): DiceValue {
+): T {
   const limit = 256 - (256 % faces.length);
   const buf = new Uint8Array(1);
   for (;;) {

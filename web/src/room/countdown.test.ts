@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { secondsLeft } from './countdown';
+import { formatGameTime, secondsLeft } from './countdown';
 
 describe('secondsLeft', () => {
   it('is independent of the local clock once the offset is applied', () => {
@@ -15,5 +15,9 @@ describe('secondsLeft', () => {
 
   it('never goes below zero', () => {
     expect(secondsLeft(1_000, 5_000, 0)).toBe(0);
+  });
+
+  it('formats a whole-game clock without losing hours', () => {
+    expect([0, 9, 61, 3600].map(formatGameTime)).toEqual(['0:00', '0:09', '1:01', '60:00']);
   });
 });

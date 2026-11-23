@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { PACE_NAMES } from '../../../shared/game/pace';
 import { DICE_SHAPING } from '../../../shared/experiments';
 import { CLASSIC_MODE_SUMMARY, QUICK_MODE_SUMMARY, TRIPLE_BONUS_FORFEIT_LABEL, TRIPLE_BONUS_FORFEIT_RULE } from '../../../shared/rules-text';
 import {
   TURN_SECONDS_OPTIONS,
+  GAME_MINUTES_OPTIONS,
   type RoomClientMessage,
   type RoomSettings,
   type RoomSnapshot,
@@ -11,7 +11,6 @@ import {
 } from '../../../shared/protocol';
 import { Icon } from '../ui/Icon';
 import { RulesSheet } from './RulesSheet';
-import { PACE_LABELS, paceEstimateText } from './paces';
 import { nextSettings } from './settings';
 import { MotionLevelControl } from './MotionLevelControl';
 import { CpuLevelControl } from './CpuLevelControl';
@@ -32,7 +31,7 @@ interface Props {
 }
 
 /**
- * Waiting room: the host picks turn time, Ván nhanh, the house rules (Luật), Nhịp ván and auto-roll; everyone else
+ * Waiting room: the host picks game and turn times, Ván nhanh, house rules and auto-roll; everyone else
  * reads the choice. Each setting is one `.setting-row` or `.setting-block` in the list, so a new one is a new block.
  */
 export function GameSettings({ room, isHost, offline, actionError, send }: Props) {
@@ -59,38 +58,36 @@ export function GameSettings({ room, isHost, offline, actionError, send }: Props
 
       <CpuLevelControl room={room} isHost={isHost} offline={offline} send={send} />
 
-      <div className="setting-block" data-testid="pace">
+      <div className="setting-block" data-testid="game-time">
         {isHost ? (
           <>
-            <span className="setting-label pace-title">Nhịp ván</span>
-            <div className="setting-pills" role="radiogroup" aria-label="Nhịp ván">
-              {PACE_NAMES.map((pace) => (
+            <span className="setting-label pace-title">Thời gian</span>
+            <div className="setting-pills" role="radiogroup" aria-label="Thời gian ván">
+              {GAME_MINUTES_OPTIONS.map((minutes) => (
                 <button
-                  key={pace}
+                  key={minutes}
                   type="button"
                   role="radio"
-                  aria-checked={settings.pace === pace}
+                  aria-checked={settings.gameMinutes === minutes}
                   className="ui-pill setting-pill"
-                  data-testid={`pace-${pace}`}
+                  data-testid={`game-time-${minutes}`}
+                  aria-label={minutes === 0 ? 'Vô cực' : `${minutes} phút`}
                   disabled={locked}
-                  onClick={() => settings.pace !== pace && change({ pace })}
+                  onClick={() => settings.gameMinutes !== minutes && change({ gameMinutes: minutes })}
                 >
-                  {PACE_LABELS[pace]}
+                  {minutes === 0 ? '∞' : `${minutes}'`}
                 </button>
               ))}
             </div>
           </>
         ) : (
           <p className="setting-row">
-            <span className="setting-label pace-title">Nhịp ván</span>
-            <strong className="setting-value" data-testid="pace-label">
-              {PACE_LABELS[settings.pace]}
+            <span className="setting-label pace-title">Thời gian</span>
+            <strong className="setting-value" data-testid="game-time-label">
+              {settings.gameMinutes === 0 ? '∞' : `${settings.gameMinutes}'`}
             </strong>
           </p>
         )}
-        <p className="ui-muted setting-help" data-testid="pace-estimate">
-          {paceEstimateText(settings.pace, room.seats.length, settings.quick)}
-        </p>
       </div>
 
       <div className="setting-row">

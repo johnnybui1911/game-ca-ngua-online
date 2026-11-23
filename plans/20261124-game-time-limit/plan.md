@@ -1,6 +1,6 @@
 ---
 title: Whole-game time limit
-status: accepted
+status: complete
 ---
 
 # Whole-game time limit
@@ -32,6 +32,7 @@ Changing turn time, pace behavior, kick scoring, or other game rules; deployment
 - Freeze the clock during host pause or complete disconnection, matching existing game/turn clock behavior.
 - Persist the result reason in the game state so reconnects and the delayed win dialog show the same result.
 - Use the existing byte-rejection crypto draw for uniform selection among tied colours.
+- A host-only test message is accepted only with `ROOM_FAST_TIMERS=1` to shorten one room's game for e2e without changing other tests.
 - Do not run e2e per Johnny's later instruction; use unit coverage of expiry and scheduling.
 
 ## Phases
