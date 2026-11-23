@@ -324,7 +324,7 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
                 data-active={active}
               >
                 <span className="seat-dot" title={COLOR_NAMES[s.color]}>
-                  {occ?.kind === 'cpu' && <Icon name="bot" size="sm" />}
+                  <Icon name={occ?.kind === 'cpu' ? 'bot' : 'user'} size="sm" />
                 </span>
                 <span className="hud-player-main">
                   <span className="hud-name">{seatName(s)}</span>
