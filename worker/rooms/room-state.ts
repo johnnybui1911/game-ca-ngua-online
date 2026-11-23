@@ -2,6 +2,8 @@ import { HORSES_PER_COLOR, type Color, type DiceValue, type HouseRules } from '.
 import {
   DEFAULT_ROOM_SETTINGS,
   MAX_HORSE_NAME,
+  MAX_HORSE_NAME_WORDS,
+  countWords,
   TURN_SECONDS_OPTIONS,
   type RoomSettings,
   type PublicUser,
@@ -162,7 +164,7 @@ export function cleanHorseNames(raw: unknown): string[] | null {
   for (const item of raw) {
     if (typeof item !== 'string') return null;
     const name = sanitizeText(item);
-    if ([...name].length > MAX_HORSE_NAME) return null;
+    if ([...name].length > MAX_HORSE_NAME || countWords(name) > MAX_HORSE_NAME_WORDS) return null;
     out.push(name);
   }
   return out;

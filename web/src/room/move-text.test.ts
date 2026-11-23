@@ -36,6 +36,6 @@ describe('describeMove', () => {
   it('mentions the colour that gets kicked', () => {
     // Red horse at progress 10 (cell 10) moving 4 lands on cell 14 = blue's entry, where a blue horse stands.
     const g = stateWith([10, POS_STABLE, POS_STABLE, POS_STABLE], 4, { color: 1, row: [0, -1, -1, -1] });
-    expect(describeMove(g, 0)).toBe('Quân 1: đi 4 ô, đá quân xanh dương');
+    expect(describeMove(g, 0)).toBe('Quân 1: đi 4 ô, đá xanh dương');
   });
 });

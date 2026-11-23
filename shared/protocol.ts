@@ -128,6 +128,13 @@ export const QUICK_TURN_SECONDS: TurnSeconds = 20;
 
 /** Longest horse name, in characters, after cleaning. */
 export const MAX_HORSE_NAME = 12;
+/** Most words in a horse name (whitespace-separated). */
+export const MAX_HORSE_NAME_WORDS = 6;
+
+/** Whitespace-separated words in `name`. */
+export function countWords(name: string): number {
+  return name.split(/\s+/).filter(Boolean).length;
+}
 
 /** Label of horse `index` given the names its seat holds. */
 export function horseLabel(names: readonly string[] | undefined, index: number): string {

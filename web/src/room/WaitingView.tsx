@@ -173,15 +173,15 @@ export function WaitingView({ room, myId, send, actionError, emotes, offline }: 
                       </button>
                     )}
                     {isHost && occ === null && (
-                      <button type="button" className="ui-btn ui-btn--secondary seat-action" aria-label="Thêm CPU" data-testid={`add-cpu-${i}`} onClick={() => send({ t: 'addCpu', seat: i })}>
+                      <button type="button" className="ui-btn ui-btn--secondary seat-action" aria-label="Thêm máy" data-testid={`add-cpu-${i}`} onClick={() => send({ t: 'addCpu', seat: i })}>
                         <Icon name="user-plus" size="sm" />
-                        <span className="seat-action-label">Thêm CPU</span>
+                        <span className="seat-action-label">Thêm máy</span>
                       </button>
                     )}
                     {isHost && occ?.kind === 'cpu' && (
-                      <button type="button" className="ui-btn ui-btn--ghost seat-action" aria-label="Bỏ CPU" data-testid={`remove-cpu-${i}`} onClick={() => send({ t: 'removeCpu', seat: i })}>
+                      <button type="button" className="ui-btn ui-btn--ghost seat-action" aria-label="Bỏ máy" data-testid={`remove-cpu-${i}`} onClick={() => send({ t: 'removeCpu', seat: i })}>
                         <Icon name="user-minus" size="sm" />
-                        <span className="seat-action-label">Bỏ CPU</span>
+                        <span className="seat-action-label">Bỏ máy</span>
                       </button>
                     )}
                   </li>
