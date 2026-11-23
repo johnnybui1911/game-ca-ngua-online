@@ -9,6 +9,7 @@ import type { Env } from '../env';
 import { IDLE_AUTOPLAY_AFTER, timingsFor, type Timings } from './constants';
 import { generateRoomCode, isRoomCode } from './room-code';
 import {
+  changeColor,
   cleanHorseNames,
   AlarmTracker,
   animationMs,
@@ -387,6 +388,83 @@ describe('horse names', () => {
     expect(toSnapshot(r, new Set()).seats[0]?.horseNames).toEqual(['A', 'B', 'C', 'D']);
     setOccupant(seat, { kind: 'cpu', name: 'Máy 1' });
     expect(toSnapshot(r, new Set()).seats[0]?.horseNames).toEqual(['', '', '', '']);
+  });
+});
+
+describe('changing colour in the waiting room', () => {
+  const four = (over: Partial<RoomState> = {}) =>
+    room({
+      seats: [
+        { color: 0, occupant: { kind: 'human', user: ann } },
+        { color: 1, occupant: null },
+        { color: 2, occupant: { kind: 'human', user: binh } },
+        { color: 3, occupant: { kind: 'cpu', name: 'Máy 1' } },
+      ],
+      ...over,
+    });
+
+  it('moves a person to a free colour with their horse names, keeping the host', () => {
+    const r = four();
+    r.seats[0]!.horseNames = ['A', 'B', 'C', 'D'];
+    r.seats[0]!.misses = 1;
+    expect(changeColor(r, 'u1', 1)).toBeNull();
+    expect(r.seats[0]!.occupant).toBeNull();
+    expect(r.seats[0]!.horseNames).toBeUndefined();
+    expect(r.seats[1]!.occupant).toEqual({ kind: 'human', user: ann });
+    expect(r.seats[1]!.horseNames).toEqual(['A', 'B', 'C', 'D']);
+    expect(r.seats[1]!.misses).toBe(1);
+    expect(r.hostId).toBe('u1');
+    expect(pickHost(r)).toBe('u1');
+  });
+
+  it('lets a guest move too, and the host seat stays the host', () => {
+    const r = four();
+    expect(changeColor(r, 'u2', 1)).toBeNull();
+    expect(r.seats.map((s) => s.occupant?.kind ?? null)).toEqual(['human', 'human', null, 'cpu']);
+    expect(r.hostId).toBe('u1');
+  });
+
+  it('rejects a colour held by a person or a CPU and changes nothing', () => {
+    const r = four();
+    const before = JSON.stringify(r);
+    expect(changeColor(r, 'u1', 2)).toBe('color_taken');
+    expect(changeColor(r, 'u1', 3)).toBe('color_taken');
+    expect(JSON.stringify(r)).toBe(before);
+  });
+
+  it('rejects a colour the room does not have and a person not seated', () => {
+    const r = room();
+    expect(changeColor(r, 'u1', 1)).toBe('bad_color');
+    expect(changeColor(r, 'u1', 'x')).toBe('bad_color');
+    expect(changeColor(r, 'nobody', 0)).toBe('not_seated');
+  });
+
+  it('rejects while playing or finished', () => {
+    for (const status of ['playing', 'finished'] as const) {
+      const r = four({ status });
+      expect(changeColor(r, 'u1', 1)).toBe('bad_state');
+      expect(r.seats[0]!.occupant).toEqual({ kind: 'human', user: ann });
+    }
+  });
+
+  it('treats the own colour as a no-op', () => {
+    const r = four();
+    const before = JSON.stringify(r);
+    expect(changeColor(r, 'u1', 0)).toBeNull();
+    expect(JSON.stringify(r)).toBe(before);
+  });
+
+  it('gives exactly one of two requests for the same colour', () => {
+    const r = four();
+    expect(changeColor(r, 'u1', 1)).toBeNull();
+    expect(changeColor(r, 'u2', 1)).toBe('color_taken');
+    expect(r.seats[2]!.occupant).toEqual({ kind: 'human', user: binh });
+  });
+
+  it('starts the game in colour order after a move', () => {
+    const r = four();
+    changeColor(r, 'u2', 1);
+    expect(r.seats.filter((s) => s.occupant !== null).map((s) => s.color)).toEqual([0, 1, 3]);
   });
 });
 

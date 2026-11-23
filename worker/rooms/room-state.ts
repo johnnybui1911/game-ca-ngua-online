@@ -210,6 +210,29 @@ export function seatIndexOfUser(state: RoomState, userId: string): number {
   return state.seats.findIndex((s) => s.occupant?.kind === 'human' && s.occupant.user.id === userId);
 }
 
+/**
+ * Moves a seated person to the empty seat of `color` while the room waits: the occupant, their horse names and
+ * missed turns go with them, the old seat is emptied. Seat colours never change, so the host (an id) and the
+ * turn order (ascending colour) are untouched. Returns an error code and leaves `state` as it was, or null.
+ * Choosing the colour already held is a no-op (null).
+ */
+export function changeColor(state: RoomState, userId: string, color: unknown): string | null {
+  const from = seatIndexOfUser(state, userId);
+  if (from < 0) return 'not_seated';
+  if (state.status !== 'waiting') return 'bad_state';
+  const to = state.seats.findIndex((s) => s.color === color);
+  if (to < 0) return 'bad_color';
+  if (to === from) return null;
+  const source = state.seats[from]!;
+  const target = state.seats[to]!;
+  if (target.occupant !== null) return 'color_taken';
+  target.occupant = source.occupant;
+  if (source.horseNames) target.horseNames = source.horseNames;
+  if (source.misses) target.misses = source.misses;
+  setOccupant(source, null);
+  return null;
+}
+
 export function firstEmptySeat(state: RoomState): number {
   return state.seats.findIndex((s) => s.occupant === null);
 }

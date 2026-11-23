@@ -238,6 +238,8 @@ export type RoomClientMessage =
   | { t: 'approveJoin'; userId: string }
   /** Host only: turn the request down; the requester waits a while before asking again. */
   | { t: 'rejectJoin'; userId: string }
+  /** Any seated player, while waiting: move to another colour nobody (person or CPU) holds. */
+  | { t: 'color'; color: Color }
   /** Name the four horses of the sender's own colour ('' resets one to its number). */
   | { t: 'horseNames'; names: string[] }
   /** Host only, while playing: stop the game (no rolls, moves, CPU turns or turn clock) until resumed. */
