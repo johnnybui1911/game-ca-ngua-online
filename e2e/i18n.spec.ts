@@ -56,7 +56,7 @@ test('the switch changes the lobby and the room to English at once, and is remem
   await expect(page.getByTestId('turn-banner')).toHaveText(/^(Your turn|CPU 1's turn)$/);
   await page.getByTestId('match-menu-button').click();
   await expect(page.getByTestId('menu-close')).toHaveText('Close');
-  await page.getByTestId('lang-vi').click();
+  await page.getByTestId('match-menu').getByTestId('lang-vi').click();
   await expect(page.getByTestId('menu-close')).toHaveText('Đóng');
   await expect(page.locator('html')).toHaveAttribute('lang', 'vi');
   await host.context.close();
