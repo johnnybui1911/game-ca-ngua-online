@@ -5,6 +5,7 @@
 import type { EmoteId } from './emotes';
 import type { CpuLevel } from './game/cpu-level';
 import { DEFAULT_PACE, type PaceName } from './game/pace';
+import { DICE_SHAPING } from './experiments';
 import type { Color, GameEvent, GameState, HouseRules } from './game/types';
 
 // ---------------------------------------------------------------- accounts
@@ -117,7 +118,8 @@ export const DEFAULT_ROOM_SETTINGS: RoomSettings = {
   autoRoll: false,
   pace: DEFAULT_PACE,
   // On unless the host turns it off: without it 1s and 6s in a row hand one colour long runs of extra rolls.
-  rules: { tripleBonusForfeit: true },
+  // Off while the dice experiment shapes those runs instead (see `shared/experiments.ts`).
+  rules: { tripleBonusForfeit: !DICE_SHAPING },
 };
 /** Settings as a client sends them: `pace` and `rules` are missing from tabs loaded before those settings existed. */
 export type SentRoomSettings = Omit<RoomSettings, 'pace' | 'rules'> & { pace?: PaceName; rules?: HouseRules };

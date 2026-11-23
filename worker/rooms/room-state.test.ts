@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { applyMove, applyRoll, createGame } from '../../shared/game/engine';
 import { PACES, PACE_NAMES, animationSeconds, pauseSeconds, type PaceName } from '../../shared/game/pace';
 import type { DiceValue, GameEvent } from '../../shared/game/types';
+import { DICE_SHAPING } from '../../shared/experiments';
+import { ALL_FACES, drawFrom } from './dice-shaping';
 import { DEFAULT_ROOM_SETTINGS, ROOM_CODE_ALPHABET, ROOM_CODE_LENGTH, TURN_SECONDS_OPTIONS, type RoomSettings } from '../../shared/protocol';
 import type { Env } from '../env';
 import { IDLE_AUTOPLAY_AFTER, timingsFor, type Timings } from './constants';
@@ -10,7 +12,6 @@ import {
   cleanHorseNames,
   AlarmTracker,
   animationMs,
-  drawDie,
   dueDelay,
   levelForOccupant,
   levelOf,
@@ -80,7 +81,7 @@ function room(over: Partial<RoomState> = {}): RoomState {
   };
 }
 
-describe('drawDie', () => {
+describe('drawFrom', () => {
   it('rejects biased bytes and maps the rest uniformly onto 1..6', () => {
     const feed = [255, 252, 253, 0, 1, 2, 3, 4, 5, 251];
     let i = 0;
@@ -88,13 +89,25 @@ describe('drawDie', () => {
       b[0] = feed[i++] ?? 0;
       return b;
     };
-    const got = Array.from({ length: 7 }, () => drawDie(fill));
+    const got = Array.from({ length: 7 }, () => drawFrom(ALL_FACES, fill));
     expect(got).toEqual([1, 2, 3, 4, 5, 6, 6]);
+  });
+
+  it('draws only the given faces, rejecting bytes that would favour some', () => {
+    // Five faces: 256 % 5 = 1, so byte 255 is rejected and 254 maps to the last face.
+    const feed = [255, 0, 4, 254];
+    let i = 0;
+    const fill = (b: Uint8Array) => {
+      b[0] = feed[i++] ?? 0;
+      return b;
+    };
+    const faces: DiceValue[] = [1, 2, 3, 4, 5];
+    expect(Array.from({ length: 3 }, () => drawFrom(faces, fill))).toEqual([1, 5, 5]);
   });
 
   it('is roughly uniform with the real RNG', () => {
     const counts = [0, 0, 0, 0, 0, 0];
-    for (let n = 0; n < 6000; n++) counts[drawDie() - 1]!++;
+    for (let n = 0; n < 6000; n++) counts[drawFrom(ALL_FACES) - 1]!++;
     for (const c of counts) expect(c).toBeGreaterThan(800);
   });
 });
@@ -529,12 +542,15 @@ describe('room settings', () => {
   const both = new Set(['u1', 'u2']);
 
   it('reads a room without settings as the defaults', () => {
-    expect(settingsOf(room())).toEqual({ turnSeconds: 30, quick: false, autoRoll: false, pace: 'vua', rules: { tripleBonusForfeit: true } });
+    expect(settingsOf(room())).toEqual({ turnSeconds: 30, quick: false, autoRoll: false, pace: 'vua', rules: DEFAULT_ROOM_SETTINGS.rules });
     // Settings stored before the rules existed read as the default rules.
-    expect(settingsOf(room({ settings: { turnSeconds: 20, quick: true, autoRoll: false } })).rules).toEqual({ tripleBonusForfeit: true });
-    // A host's choice to turn the rule off is kept.
+    expect(settingsOf(room({ settings: { turnSeconds: 20, quick: true, autoRoll: false } })).rules).toEqual(DEFAULT_ROOM_SETTINGS.rules);
+    // A host's choice to turn the rule off is kept; while the dice experiment runs the rule is off whatever is stored.
     expect(settingsOf(room({ settings: { turnSeconds: 20, quick: true, autoRoll: false, rules: { tripleBonusForfeit: false } } })).rules).toEqual({
       tripleBonusForfeit: false,
+    });
+    expect(settingsOf(room({ settings: { turnSeconds: 20, quick: true, autoRoll: false, rules: { tripleBonusForfeit: true } } })).rules).toEqual({
+      tripleBonusForfeit: !DICE_SHAPING,
     });
     expect(timingsOf(room(), BASE).turnMs).toBe(30_000);
     expect(paceMs(room(), BASE)).toBe(700);
@@ -634,7 +650,7 @@ describe('room settings', () => {
     const r = playing(settings({ turnSeconds: 20, quick: true }), { dueAt: 1_700, actionDueAt: 20_000 });
     r.seats[1]!.misses = IDLE_AUTOPLAY_AFTER;
     const snap = toSnapshot(r, both);
-    expect(snap.settings).toEqual({ turnSeconds: 20, quick: true, autoRoll: false, pace: 'vua', rules: { tripleBonusForfeit: true } });
+    expect(snap.settings).toEqual({ turnSeconds: 20, quick: true, autoRoll: false, pace: 'vua', rules: DEFAULT_ROOM_SETTINGS.rules });
     expect(snap.seats.map((s) => s.auto)).toEqual([false, true]);
     expect(snap.turnDeadline).toBe(20_000);
     r.actionDueAt = null;
@@ -867,7 +883,7 @@ describe('rematch', () => {
     r.seats[1]!.misses = 1;
     clearMisses(r);
     expect(r.seats.map((s) => s.misses)).toEqual([undefined, undefined]);
-    expect(settingsOf(r)).toEqual({ turnSeconds: 15, quick: true, autoRoll: true, pace: 'thu-thai', rules: { tripleBonusForfeit: true } });
+    expect(settingsOf(r)).toEqual({ turnSeconds: 15, quick: true, autoRoll: true, pace: 'thu-thai', rules: DEFAULT_ROOM_SETTINGS.rules });
   });
 });
 

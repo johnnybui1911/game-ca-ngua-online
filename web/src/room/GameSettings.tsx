@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { PACE_NAMES } from '../../../shared/game/pace';
+import { DICE_SHAPING } from '../../../shared/experiments';
 import { CLASSIC_MODE_SUMMARY, QUICK_MODE_SUMMARY, TRIPLE_BONUS_FORFEIT_LABEL, TRIPLE_BONUS_FORFEIT_RULE } from '../../../shared/rules-text';
 import {
   TURN_SECONDS_OPTIONS,
@@ -158,22 +159,25 @@ export function GameSettings({ room, isHost, offline, actionError, send }: Props
         </p>
       </div>
 
-      <div className="setting-block" data-testid="house-rules">
-        <span className="setting-label pace-title">Luật</span>
-        <label className="room-switch">
-          <span>{TRIPLE_BONUS_FORFEIT_LABEL}</span>
-          <input
-            type="checkbox"
-            role="switch"
-            className="switch-input"
-            data-testid="triple-bonus-forfeit-toggle"
-            checked={settings.rules.tripleBonusForfeit}
-            disabled={!isHost || locked}
-            onChange={(e) => change({ rules: { ...settings.rules, tripleBonusForfeit: e.target.checked } })}
-          />
-        </label>
-        <p className="ui-muted setting-help">{TRIPLE_BONUS_FORFEIT_RULE}</p>
-      </div>
+      {/* Hidden while the dice experiment replaces this rule (shared/experiments.ts). */}
+      {!DICE_SHAPING && (
+        <div className="setting-block" data-testid="house-rules">
+          <span className="setting-label pace-title">Luật</span>
+          <label className="room-switch">
+            <span>{TRIPLE_BONUS_FORFEIT_LABEL}</span>
+            <input
+              type="checkbox"
+              role="switch"
+              className="switch-input"
+              data-testid="triple-bonus-forfeit-toggle"
+              checked={settings.rules.tripleBonusForfeit}
+              disabled={!isHost || locked}
+              onChange={(e) => change({ rules: { ...settings.rules, tripleBonusForfeit: e.target.checked } })}
+            />
+          </label>
+          <p className="ui-muted setting-help">{TRIPLE_BONUS_FORFEIT_RULE}</p>
+        </div>
+      )}
 
       <div className="setting-block">
         <label className="room-switch">

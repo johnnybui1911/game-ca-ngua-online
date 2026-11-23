@@ -13,12 +13,14 @@ import {
   type SeatOccupant,
   type SentRoomSettings,
 } from '../../shared/protocol';
-import type { GameEvent, GameState } from '../../shared/game/types';
+import type { GameEvent, GameState, StepResult } from '../../shared/game/types';
 import { applyMove, rollAndSettle, segmentsOf } from '../../shared/game/engine';
+import { DICE_SHAPING } from '../../shared/experiments';
 import { DEFAULT_PACE, animationSeconds, isPaceName, paceTimings, pauseSeconds } from '../../shared/game/pace';
 import { chooseCpuMove } from '../../shared/game/cpu';
 import { DEFAULT_CPU_LEVEL, isCpuLevel, type CpuLevel } from '../../shared/game/cpu-level';
 import { IDLE_AUTOPLAY_AFTER, type RoomTimings, type Timings } from './constants';
+import { drawFrom, facesFor, rememberRoll, type DiceMemory } from './dice-shaping';
 import { sanitizeText } from '../auth/validate';
 
 /** Occupant as persisted: connection state is derived from open sockets, never stored. */
@@ -62,6 +64,8 @@ export interface RoomState {
    * `pace` and `rules` are absent in settings stored before they existed: Vừa, and no house rule.
    */
   settings?: SentRoomSettings;
+  /** The dice experiment's memory of the current game (see `dice-shaping.ts`); absent before its first roll. */
+  diceMemory?: DiceMemory;
 }
 
 /** Seats a new occupant (or empties the seat); horse names belong to the previous occupant and are dropped. */
@@ -71,11 +75,15 @@ export function setOccupant(seat: StoredSeat, occupant: StoredOccupant | null): 
   delete seat.misses;
 }
 
-/** The room's settings; an absent stored value reads as the defaults, as does an absent pace or set of rules. */
+/**
+ * The room's settings; an absent stored value reads as the defaults, as does an absent pace or set of rules.
+ * While the dice experiment is on, the house rules are the defaults (off) whatever is stored.
+ */
 export function settingsOf(state: RoomState): RoomSettings {
   const stored = state.settings;
   if (!stored) return DEFAULT_ROOM_SETTINGS;
-  return { ...stored, pace: isPaceName(stored.pace) ? stored.pace : DEFAULT_PACE, rules: stored.rules ?? DEFAULT_ROOM_SETTINGS.rules };
+  const rules = DICE_SHAPING ? DEFAULT_ROOM_SETTINGS.rules : (stored.rules ?? DEFAULT_ROOM_SETTINGS.rules);
+  return { ...stored, pace: isPaceName(stored.pace) ? stored.pace : DEFAULT_PACE, rules };
 }
 
 /** House rules from a client message, or null unless exactly `{tripleBonusForfeit}` with a boolean. */
@@ -290,7 +298,7 @@ export function playDueAction(
   connected: ReadonlySet<string>,
   now: number,
   timings: RoomTimings,
-  draw: () => DiceValue = drawDie,
+  draw: (faces: readonly DiceValue[]) => DiceValue = drawFrom,
 ): { events: GameEvent[]; finished: boolean } | null {
   const game = state.game;
   if (!game) return null;
@@ -304,7 +312,7 @@ export function playDueAction(
   let result;
   if (game.phase === 'roll') {
     const automated = isAutomatedActor(state, connected);
-    result = rollAndSettle(game, draw(), quick);
+    result = rollFor(state, game, quick, draw);
     if (automated && result.state.phase === 'move' && result.state.turn === game.turn) {
       const moved = applyMove(result.state, chooseCpuMove(result.state, level));
       result = { state: moved.state, events: [...result.events, ...moved.events] };
@@ -474,14 +482,20 @@ export function toSummary(state: RoomState): RoomSummary {
   };
 }
 
-/** Uniform die value from a byte source: bytes 252..255 are rejected so 1..6 stay equally likely. */
-export function drawDie(fill: (bytes: Uint8Array) => Uint8Array = (b) => crypto.getRandomValues(b)): DiceValue {
-  const buf = new Uint8Array(1);
-  for (;;) {
-    fill(buf);
-    const b = buf[0] ?? 255;
-    if (b < 252) return ((b % 6) + 1) as DiceValue;
-  }
+/**
+ * Rolls for the colour on turn of `game` (the room's game) with the faces the dice experiment allows, settles a
+ * forced move in a quick match, and keeps the experiment's memory in step.
+ */
+export function rollFor(
+  state: RoomState,
+  game: GameState,
+  quick: boolean,
+  draw: (faces: readonly DiceValue[]) => DiceValue = drawFrom,
+): StepResult {
+  const dice = draw(facesFor(state, game));
+  const result = rollAndSettle(game, dice, quick);
+  rememberRoll(state, game, dice, result.state);
+  return result;
 }
 
 export type AlarmAction = 'set' | 'delete' | 'none';
