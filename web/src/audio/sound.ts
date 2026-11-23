@@ -20,6 +20,8 @@ const DEFAULT_FADE_IN_S = 1;
 interface Voice {
   wave: OscillatorType | 'noise' | 'kick';
   gain: number;
+  /** Centre frequency of a `noise` hit in Hz (default 7000: a hi-hat; low values sound like a wood block). */
+  freq?: number;
   events: NoteEvent[];
 }
 
@@ -30,29 +32,61 @@ interface Song {
   voices: Voice[];
 }
 
-/** Calm A-minor pentatonic tune for the entry, lobby and waiting screens. */
+const bars = (...b: string[]): string => b.join(' ');
+
+/** Folk-flavoured C pentatonic tune with wood-block knocks for the entry, lobby and waiting screens. */
 const LOBBY: Song = {
-  bpm: 84,
+  bpm: 116,
   steps: 64,
   voices: [
     {
       wave: 'triangle',
-      gain: 0.16,
+      gain: 0.15,
       events: parsePattern(
-        'A4 - - - C5 - D5 - E5 - - - G5 - E5 - ' +
-          'D5 - - - C5 - A4 - C5 - - - - - - - ' +
-          'E5 - - - G5 - A5 - G5 - E5 - D5 - - - ' +
-          'C5 - D5 - C5 - A4 - A4 - - - - - - -',
+        bars(
+          'E5 . E5 G5 . A5 . G5 E5 . D5 . C5 . . .',
+          'D5 . D5 E5 . G5 . E5 D5 . C5 . A4 . . .',
+          'E5 . E5 G5 . A5 . C6 A5 . G5 . E5 . . .',
+          'G5 . E5 D5 . E5 . D5 C5 . A4 . C5 - - -',
+        ),
       ),
     },
     {
       wave: 'sine',
-      gain: 0.18,
+      gain: 0.2,
       events: parsePattern(
-        'A2 - - - - - - - E3 - - - - - - - ' +
-          'D3 - - - - - - - A2 - - - - - - - ' +
-          'C3 - - - - - - - G2 - - - - - - - ' +
-          'A2 - - - - - - - E3 - - - - - - -',
+        bars(
+          'C3 . . . . . . . G2 . . . . . . .',
+          'C3 . . . . . . . G2 . . . . . . .',
+          'A2 . . . . . . . E3 . . . . . . .',
+          'G2 . . . . . . . C3 . . . . . . .',
+        ),
+      ),
+    },
+    {
+      wave: 'noise',
+      gain: 0.22,
+      freq: 1400,
+      events: parsePattern(
+        bars(
+          '. . . . X . . . . . . . X . . .',
+          '. . . . X . . . . . . . X . . .',
+          '. . . . X . . . . . . . X . . .',
+          '. . . . X . . . . . . . X . . .',
+        ),
+      ),
+    },
+    {
+      wave: 'noise',
+      gain: 0.05,
+      freq: 3200,
+      events: parsePattern(
+        bars(
+          '. . X . . . X . . . X . . . X .',
+          '. . X . . . X . . . X . . . X .',
+          '. . X . . . X . . . X . . . X .',
+          '. . X . . . X . . . X . . . X .',
+        ),
       ),
     },
   ],
@@ -87,6 +121,7 @@ const GAME: Song = {
     { wave: 'noise', gain: 0.05, events: parsePattern('. . X . . . X . . . X . . . X X '.repeat(4)) },
   ],
 };
+
 
 const SONGS: Record<Track, Song> = { lobby: LOBBY, game: GAME };
 
@@ -319,7 +354,7 @@ class SoundEngine {
     const env = ctx.createGain();
     env.connect(out);
     if (voice.wave === 'noise') {
-      this.noiseBurst(t, 7000, voice.gain, 0.04, env);
+      this.noiseBurst(t, voice.freq ?? 7000, voice.gain, 0.04, env);
       return;
     }
     if (voice.wave === 'kick') {
