@@ -18,15 +18,15 @@ type EstimateSeats = (typeof ESTIMATE_SEATS)[number];
 
 export const PACE_ESTIMATES: Record<PaceName, Record<'normal' | 'quick', Record<EstimateSeats, MatchEstimate>>> = {
   nhanh: {
-    normal: { 2: { people: 4.1, cpus: 5.5 }, 3: { people: 8.7, cpus: 11.7 }, 4: { people: 17.4, cpus: 23.2 } },
+    normal: { 2: { people: 3.7, cpus: 5 }, 3: { people: 8.4, cpus: 11.3 }, 4: { people: 17.1, cpus: 22.8 } },
     quick: { 2: { people: 0.7, cpus: 0.7 }, 3: { people: 1.2, cpus: 1.3 }, 4: { people: 2, cpus: 2.3 } },
   },
   vua: {
-    normal: { 2: { people: 6.8, cpus: 9.1 }, 3: { people: 14.4, cpus: 19.4 }, 4: { people: 28.9, cpus: 38.8 } },
+    normal: { 2: { people: 6.2, cpus: 8.3 }, 3: { people: 14, cpus: 18.8 }, 4: { people: 28.3, cpus: 38 } },
     quick: { 2: { people: 1.1, cpus: 1.4 }, 3: { people: 2, cpus: 2.5 }, 4: { people: 3.5, cpus: 4.3 } },
   },
   'thu-thai': {
-    normal: { 2: { people: 8.8, cpus: 12.4 }, 3: { people: 18.8, cpus: 26.3 }, 4: { people: 37.7, cpus: 52.6 } },
+    normal: { 2: { people: 8, cpus: 11.3 }, 3: { people: 18.2, cpus: 25.5 }, 4: { people: 36.9, cpus: 51.5 } },
     quick: { 2: { people: 1.4, cpus: 1.7 }, 3: { people: 2.5, cpus: 3.1 }, 4: { people: 4.4, cpus: 5.4 } },
   },
 };

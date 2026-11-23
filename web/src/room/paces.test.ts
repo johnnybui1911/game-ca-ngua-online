@@ -6,7 +6,7 @@ describe('paceEstimateText', () => {
   it('names the pace, the seats and a range from the bare animations to an all-CPU match', () => {
     expect(paceEstimateText('vua', 4, false)).toBe('Vừa · ván 4 người khoảng 30–40 phút bàn cờ chạy, chưa kể thời gian suy nghĩ.');
     expect(paceEstimateText('nhanh', 4, false)).toContain('Nhanh · ván 4 người khoảng 15–25 phút');
-    expect(paceEstimateText('thu-thai', 2, false)).toContain('Thư thả · ván 2 người khoảng 9–10 phút');
+    expect(paceEstimateText('thu-thai', 2, false)).toContain('Thư thả · ván 2 người khoảng 8–10 phút');
   });
 
   it('says a quick match is one, shows a single number when both ends round to it, and never 0 minutes', () => {
