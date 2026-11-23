@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { QUICK_DIFFERENCES, rulesFor } from '../../../shared/rules-text';
+import { QUICK_DIFFERENCES, TRIPLE_BONUS_FORFEIT_RULE, rulesFor } from '../../../shared/rules-text';
 import landingHtml from '../../../gioi-thieu.html?raw';
 
 const text = (html: string) => html.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
@@ -24,6 +24,13 @@ describe('rulesFor', () => {
     expect(quick[0]?.items).toEqual([...QUICK_DIFFERENCES]);
     expect(quick[1]?.items).toEqual([...(rulesFor()[0]?.items ?? [])]);
     expect(rulesFor({ quick: false })).toEqual(rulesFor());
+  });
+
+  it('adds the house rules the room turned on last, and nothing when they are off', () => {
+    const on = { tripleBonusForfeit: true };
+    expect(rulesFor({ quick: false, rules: on }).at(-1)?.items).toEqual([TRIPLE_BONUS_FORFEIT_RULE]);
+    expect(rulesFor({ quick: true, rules: on })).toHaveLength(3);
+    expect(rulesFor({ quick: false, rules: { tripleBonusForfeit: false } })).toEqual(rulesFor());
   });
 
   it('keeps the landing page comparison in step with the quick differences', () => {

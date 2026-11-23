@@ -1,4 +1,5 @@
 import {
+  BONUS_STREAK_LIMIT,
   COLORS,
   HORSES_PER_COLOR,
   POS_GATE,
@@ -12,6 +13,7 @@ import {
   type GameEvent,
   type GameState,
   type HorsePos,
+  type HouseRules,
   type RuleVariant,
   type RulesEngine,
   type StepResult,
@@ -112,7 +114,8 @@ export function legalHorsesFor(horses: HorsePos[][], color: Color, dice: DiceVal
   return out;
 }
 
-export function createGame(colors: Color[], variant: RuleVariant = 'classic'): GameState {
+/** `houseRules` with every rule off leaves the game exactly as it was before house rules existed. */
+export function createGame(colors: Color[], variant: RuleVariant = 'classic', houseRules?: HouseRules): GameState {
   const sorted = [...colors].sort((a, b) => a - b);
   if (sorted.length < 2 || sorted.length > 4) throw new Error('A game needs 2 to 4 colours');
   for (let i = 0; i < sorted.length; i++) {
@@ -120,8 +123,9 @@ export function createGame(colors: Color[], variant: RuleVariant = 'classic'): G
     if (i > 0 && sorted[i] === sorted[i - 1]) throw new Error('Colours must be distinct');
   }
   const horses = COLORS.map(() => new Array<HorsePos>(HORSES_PER_COLOR).fill(POS_STABLE));
+  const house = houseRules?.tripleBonusForfeit ? { houseRules: { ...houseRules }, bonusStreak: 0 } : {};
   if (variant === 'classic') {
-    return { colors: sorted, horses, turn: at(sorted, 0), phase: 'roll', dice: null, legalHorses: [], winner: null };
+    return { colors: sorted, horses, turn: at(sorted, 0), phase: 'roll', dice: null, legalHorses: [], winner: null, ...house };
   }
   // Quick: one horse per playing colour starts on its entry cell, and every home column starts locked.
   for (const color of sorted) at(horses, color)[0] = POS_START;
@@ -135,6 +139,7 @@ export function createGame(colors: Color[], variant: RuleVariant = 'classic'): G
     winner: null,
     variant,
     unlocked: COLORS.map(() => false),
+    ...house,
   };
 }
 
@@ -148,11 +153,24 @@ function passTurn(state: GameState, dice: DiceValue, events: GameEvent[]): GameS
   const extraRoll = dice === 1 || dice === 6;
   const turn = extraRoll ? state.turn : nextColor(state);
   events.push({ type: 'turn', color: turn, extraRoll });
-  return { ...state, turn, phase: 'roll', dice: null, legalHorses: [] };
+  const next: GameState = { ...state, turn, phase: 'roll', dice: null, legalHorses: [] };
+  if (state.houseRules?.tripleBonusForfeit) next.bonusStreak = extraRoll ? (state.bonusStreak ?? 0) + 1 : 0;
+  return next;
 }
 
 export function applyRoll(state: GameState, dice: DiceValue): StepResult {
   if (state.phase !== 'roll') throw new Error('Cannot roll outside the roll phase');
+  const bonus = dice === 1 || dice === 6;
+  if (bonus && state.houseRules?.tripleBonusForfeit && (state.bonusStreak ?? 0) >= BONUS_STREAK_LIMIT - 1) {
+    const turn = nextColor(state);
+    return {
+      state: { ...state, horses: cloneHorses(state.horses), turn, phase: 'roll', dice: null, legalHorses: [], bonusStreak: 0 },
+      events: [
+        { type: 'rolled', color: state.turn, dice, legalHorses: [], forfeit: true },
+        { type: 'turn', color: turn, extraRoll: false },
+      ],
+    };
+  }
   const legalHorses = legalHorsesFor(state.horses, state.turn, dice, isLocked(state, state.turn));
   const events: GameEvent[] = [{ type: 'rolled', color: state.turn, dice, legalHorses }];
   if (legalHorses.length > 0) {

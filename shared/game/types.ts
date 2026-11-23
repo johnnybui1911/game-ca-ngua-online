@@ -79,12 +79,29 @@ export interface GameState {
   variant?: RuleVariant;
   /** Quick variant only, indexed by colour: true once that colour has kicked an opponent horse (its home column is open). */
   unlocked?: boolean[];
+  /** House rules this game was started with. Absent in games without any (and in games stored before they existed). */
+  houseRules?: HouseRules;
+  /** Only with `houseRules.tripleBonusForfeit`: rolls of 1 or 6 in a row the colour on turn has made in this turn. */
+  bonusStreak?: number;
 }
 
 export type RuleVariant = 'classic' | 'quick';
 
+/**
+ * Optional rules on top of the variant, chosen per room. A game created without them plays none; a room's defaults
+ * are in `DEFAULT_ROOM_SETTINGS` (shared/protocol.ts).
+ */
+export interface HouseRules {
+  /** The third roll of 1 or 6 in a row within one turn is void: no move, and the turn passes. */
+  tripleBonusForfeit: boolean;
+}
+
+/** Rolls of 1 or 6 in a row after which, under `tripleBonusForfeit`, the turn is lost. */
+export const BONUS_STREAK_LIMIT = 3;
+
 export type GameEvent =
-  | { type: 'rolled'; color: Color; dice: DiceValue; legalHorses: number[] }
+  /** `forfeit`: the roll was the `BONUS_STREAK_LIMIT`-th 1 or 6 in a row under `tripleBonusForfeit`; it moves nothing and the turn passes. */
+  | { type: 'rolled'; color: Color; dice: DiceValue; legalHorses: number[]; forfeit?: true }
   | {
       type: 'moved';
       color: Color;
@@ -118,7 +135,9 @@ export interface StepResult {
  *    exactly k+1, and only if that step is empty.
  * 5. A roll of 1 or 6 grants another roll after the move (or after no legal
  *    move). Any other roll ends the turn once the move is made or no move is
- *    legal.
+ *    legal. House rule `tripleBonusForfeit`: the third 1 or 6 in a row within
+ *    one turn is void; nothing moves and the turn passes to the next colour.
+ *    Moves made with the two rolls before it stand.
  * 6. If at least one move is legal the player must make one of them.
  * 7. The first colour with all four horses on its home column wins.
  *
@@ -131,7 +150,7 @@ export interface StepResult {
  * c. Rule 7 becomes: the first horse of any colour to enter its home column (any step) wins at once.
  */
 export interface RulesEngine {
-  createGame(colors: Color[], variant?: RuleVariant): GameState;
+  createGame(colors: Color[], variant?: RuleVariant, houseRules?: HouseRules): GameState;
   /** Apply a roll for the current colour. Phase must be 'roll'. */
   applyRoll(state: GameState, dice: DiceValue): StepResult;
   /** Move one of `state.legalHorses`. Phase must be 'move'. */

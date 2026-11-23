@@ -4,6 +4,8 @@
  * The rules themselves live in `shared/game/types.ts`.
  */
 
+import type { HouseRules } from './game/types';
+
 export interface RulesSection {
   heading: string;
   /** Plain text, one rule per item. */
@@ -45,9 +47,18 @@ export const UNLOCKED_LABEL = 'Đã mở chuồng';
 export const NEED_KICK_HINT = 'Cần đá 1 ngựa trước';
 export const QUICK_WIN_TEXT = 'Thắng ván nhanh: ngựa đầu tiên lên chuồng';
 
-/** The sections of the rules sheet, first section first. A quick room lists its differences before the classic rules. */
-export function rulesFor(settings?: { quick: boolean }): RulesSection[] {
+/** The house rule `tripleBonusForfeit`: its switch label in the waiting room, and its line in the rules sheet. */
+export const TRIPLE_BONUS_FORFEIT_LABEL = 'Tung 1 hoặc 6 ba lần liên tiếp thì mất lượt';
+export const TRIPLE_BONUS_FORFEIT_RULE =
+  'Trong một lượt, lần tung 1 hoặc 6 thứ ba liên tiếp bị hủy: không được đi và mất lượt. Các nước đã đi trước đó vẫn giữ.';
+
+/**
+ * The sections of the rules sheet, first section first. A quick room lists its differences before the classic rules;
+ * the house rules the room turned on come last.
+ */
+export function rulesFor(settings?: { quick: boolean; rules?: HouseRules }): RulesSection[] {
   const classic: RulesSection = { heading: 'Luật cá ngựa', items: CLASSIC_RULES };
-  if (!settings?.quick) return [classic];
-  return [{ heading: 'Ván nhanh khác ván thường', items: QUICK_DIFFERENCES }, classic];
+  const sections = settings?.quick ? [{ heading: 'Ván nhanh khác ván thường', items: QUICK_DIFFERENCES }, classic] : [classic];
+  if (settings?.rules?.tripleBonusForfeit) sections.push({ heading: 'Luật thêm của phòng', items: [TRIPLE_BONUS_FORFEIT_RULE] });
+  return sections;
 }

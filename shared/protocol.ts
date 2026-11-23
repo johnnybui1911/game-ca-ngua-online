@@ -5,7 +5,7 @@
 import type { EmoteId } from './emotes';
 import type { CpuLevel } from './game/cpu-level';
 import { DEFAULT_PACE, type PaceName } from './game/pace';
-import type { Color, GameEvent, GameState } from './game/types';
+import type { Color, GameEvent, GameState, HouseRules } from './game/types';
 
 // ---------------------------------------------------------------- accounts
 
@@ -107,9 +107,20 @@ export interface RoomSettings {
   autoRoll: boolean;
   /** Nhịp ván: how long the board animates a roll and a move, and how long the server waits for it. */
   pace: PaceName;
+  /** Luật: optional house rules the game starts with. */
+  rules: HouseRules;
 }
 
-export const DEFAULT_ROOM_SETTINGS: RoomSettings = { turnSeconds: 30, quick: false, autoRoll: false, pace: DEFAULT_PACE };
+export const DEFAULT_ROOM_SETTINGS: RoomSettings = {
+  turnSeconds: 30,
+  quick: false,
+  autoRoll: false,
+  pace: DEFAULT_PACE,
+  // On unless the host turns it off: without it 1s and 6s in a row hand one colour long runs of extra rolls.
+  rules: { tripleBonusForfeit: true },
+};
+/** Settings as a client sends them: `pace` and `rules` are missing from tabs loaded before those settings existed. */
+export type SentRoomSettings = Omit<RoomSettings, 'pace' | 'rules'> & { pace?: PaceName; rules?: HouseRules };
 /** Time preselected when the host turns Ván nhanh on while the turn time is still the default. */
 export const QUICK_TURN_SECONDS: TurnSeconds = 20;
 
@@ -176,10 +187,10 @@ export type RoomClientMessage =
   /** Host only, while waiting: how well every CPU of the room plays. */
   | { t: 'cpuLevel'; level: CpuLevel }
   /**
-   * Host only, while waiting: turn time, quick match, auto-roll and pace, all at once. Tabs loaded before the pace
-   * setting existed send no `pace`; the room keeps its current one.
+   * Host only, while waiting: every setting at once. Tabs loaded before a setting existed leave it out (see
+   * `SentRoomSettings`); the room keeps its current value.
    */
-  | { t: 'settings'; settings: Omit<RoomSettings, 'pace'> & { pace?: PaceName } }
+  | { t: 'settings'; settings: SentRoomSettings }
   /** Host only: start when at least two seats are occupied. */
   | { t: 'start' }
   | { t: 'roll' }

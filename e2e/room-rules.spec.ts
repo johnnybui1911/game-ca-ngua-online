@@ -8,7 +8,8 @@ test('the rules sheet opens from the waiting room', async ({ browser }) => {
   await host.page.getByTestId('waiting-rules').click();
   const sheet = host.page.getByTestId('rules-sheet');
   await expect(sheet).toBeVisible();
-  await expect(sheet.locator('li')).toHaveCount(7);
+  // Seven classic rules and the house rule a new room has on.
+  await expect(sheet.locator('li')).toHaveCount(8);
   await expect(sheet.getByTestId('rules-countdown')).toHaveCount(0);
   await sheet.getByRole('button', { name: 'Đóng' }).click();
   await expect(sheet).toBeHidden();
@@ -31,7 +32,7 @@ test('the rules sheet opens during a match without pausing the turn clock', asyn
   await button.click();
   const sheet = page.getByTestId('rules-sheet');
   await expect(sheet).toBeVisible();
-  await expect(sheet.locator('li')).toHaveCount(7);
+  await expect(sheet.locator('li')).toHaveCount(8);
 
   const read = async () => Number(/(\d+)/.exec((await sheet.getByTestId('rules-countdown').textContent()) ?? '')?.[1]);
   await expect(sheet.getByTestId('rules-countdown')).toContainText('Còn');

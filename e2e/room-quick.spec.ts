@@ -78,17 +78,17 @@ test('the rules sheet lists the quick differences first in a quick room, from th
   await host.page.goto(`/r/${code}`);
   const sheet = host.page.getByTestId('rules-sheet');
 
-  // Classic room: only the classic rules.
+  // Classic room: the classic rules, then the house rule a new room has on.
   await host.page.getByTestId('mode-rules').click();
-  await expect(sheet.locator('h3')).toHaveText(['Luật cá ngựa']);
-  await expect(sheet.locator('li')).toHaveCount(CLASSIC_RULES.length);
+  await expect(sheet.locator('h3')).toHaveText(['Luật cá ngựa', 'Luật thêm của phòng']);
+  await expect(sheet.locator('li')).toHaveCount(CLASSIC_RULES.length + 1);
   await host.page.keyboard.press('Escape');
 
   await host.page.getByTestId('mode-quick').click();
   await expect(host.page.getByTestId('mode-quick')).toHaveAttribute('aria-checked', 'true');
   await host.page.getByTestId('mode-rules').click();
   await expect(sheet.locator('h3').first()).toHaveText('Ván nhanh khác ván thường');
-  await expect(sheet.locator('li')).toHaveCount(QUICK_DIFFERENCES.length + CLASSIC_RULES.length);
+  await expect(sheet.locator('li')).toHaveCount(QUICK_DIFFERENCES.length + CLASSIC_RULES.length + 1);
   await expect(sheet.locator('li').first()).toHaveText(QUICK_DIFFERENCES[0]!);
   await host.page.keyboard.press('Escape');
   await host.page.getByTestId('waiting-rules').click();

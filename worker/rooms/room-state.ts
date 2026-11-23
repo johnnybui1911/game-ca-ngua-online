@@ -1,4 +1,4 @@
-import { HORSES_PER_COLOR, type Color, type DiceValue } from '../../shared/game/types';
+import { HORSES_PER_COLOR, type Color, type DiceValue, type HouseRules } from '../../shared/game/types';
 import {
   DEFAULT_ROOM_SETTINGS,
   MAX_HORSE_NAME,
@@ -11,10 +11,11 @@ import {
   type RoomVisibility,
   type Seat,
   type SeatOccupant,
+  type SentRoomSettings,
 } from '../../shared/protocol';
 import type { GameEvent, GameState } from '../../shared/game/types';
 import { applyMove, rollAndSettle, segmentsOf } from '../../shared/game/engine';
-import { DEFAULT_PACE, animationSeconds, isPaceName, paceTimings, pauseSeconds, type PaceName } from '../../shared/game/pace';
+import { DEFAULT_PACE, animationSeconds, isPaceName, paceTimings, pauseSeconds } from '../../shared/game/pace';
 import { chooseCpuMove } from '../../shared/game/cpu';
 import { DEFAULT_CPU_LEVEL, isCpuLevel, type CpuLevel } from '../../shared/game/cpu-level';
 import { IDLE_AUTOPLAY_AFTER, type RoomTimings, type Timings } from './constants';
@@ -58,9 +59,9 @@ export interface RoomState {
   cpuLevel?: CpuLevel;
   /**
    * Absent in rooms stored before the settings existed, and in rooms whose host never changed them: the defaults.
-   * `pace` is absent in settings stored before it existed: Vừa.
+   * `pace` and `rules` are absent in settings stored before they existed: Vừa, and no house rule.
    */
-  settings?: Omit<RoomSettings, 'pace'> & { pace?: PaceName };
+  settings?: SentRoomSettings;
 }
 
 /** Seats a new occupant (or empties the seat); horse names belong to the previous occupant and are dropped. */
@@ -70,26 +71,45 @@ export function setOccupant(seat: StoredSeat, occupant: StoredOccupant | null): 
   delete seat.misses;
 }
 
-/** The room's settings; an absent stored value reads as the defaults, an absent pace as the default pace. */
+/** The room's settings; an absent stored value reads as the defaults, as does an absent pace or set of rules. */
 export function settingsOf(state: RoomState): RoomSettings {
   const stored = state.settings;
   if (!stored) return DEFAULT_ROOM_SETTINGS;
-  return { ...stored, pace: isPaceName(stored.pace) ? stored.pace : DEFAULT_PACE };
+  return { ...stored, pace: isPaceName(stored.pace) ? stored.pace : DEFAULT_PACE, rules: stored.rules ?? DEFAULT_ROOM_SETTINGS.rules };
 }
 
-/**
- * Settings from a client message, or null unless it is exactly `{turnSeconds, quick, autoRoll, pace}` with allowed
- * values. `pace` may be missing (a tab loaded before the setting existed): the room then keeps its current pace.
- */
-export function parseRoomSettings(raw: unknown): (Omit<RoomSettings, 'pace'> & { pace?: PaceName }) | null {
+/** House rules from a client message, or null unless exactly `{tripleBonusForfeit}` with a boolean. */
+function parseHouseRules(raw: unknown): HouseRules | null {
   if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return null;
   const o = raw as Record<string, unknown>;
+  if (Object.keys(o).length !== 1 || typeof o.tripleBonusForfeit !== 'boolean') return null;
+  return { tripleBonusForfeit: o.tripleBonusForfeit };
+}
+
+const SETTINGS_KEYS: readonly string[] = ['turnSeconds', 'quick', 'autoRoll', 'pace', 'rules'];
+
+/**
+ * Settings from a client message, or null unless it is exactly `{turnSeconds, quick, autoRoll, pace, rules}` with
+ * allowed values. `pace` and `rules` may be missing (a tab loaded before the setting existed): the room then keeps its own.
+ */
+export function parseRoomSettings(raw: unknown): SentRoomSettings | null {
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return null;
+  const o = raw as Record<string, unknown>;
+  if (Object.keys(o).some((key) => !SETTINGS_KEYS.includes(key))) return null;
   const { turnSeconds, quick, autoRoll, pace } = o;
-  if (Object.keys(o).length !== ('pace' in o ? 4 : 3)) return null;
   const turn = TURN_SECONDS_OPTIONS.find((n) => n === turnSeconds);
   if (turn === undefined || typeof quick !== 'boolean' || typeof autoRoll !== 'boolean') return null;
-  if (!('pace' in o)) return { turnSeconds: turn, quick, autoRoll };
-  return isPaceName(pace) ? { turnSeconds: turn, quick, autoRoll, pace } : null;
+  const out: SentRoomSettings = { turnSeconds: turn, quick, autoRoll };
+  if ('pace' in o) {
+    if (!isPaceName(pace)) return null;
+    out.pace = pace;
+  }
+  if ('rules' in o) {
+    const rules = parseHouseRules(o.rules);
+    if (!rules) return null;
+    out.rules = rules;
+  }
+  return out;
 }
 
 /** The base timings with this room's turn time: `turnSeconds` of `turnUnitMs` each. */

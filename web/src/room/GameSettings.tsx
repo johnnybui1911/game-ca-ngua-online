@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { PACE_NAMES } from '../../../shared/game/pace';
-import { CLASSIC_MODE_SUMMARY, QUICK_MODE_SUMMARY } from '../../../shared/rules-text';
+import { CLASSIC_MODE_SUMMARY, QUICK_MODE_SUMMARY, TRIPLE_BONUS_FORFEIT_LABEL, TRIPLE_BONUS_FORFEIT_RULE } from '../../../shared/rules-text';
 import {
   TURN_SECONDS_OPTIONS,
   type RoomClientMessage,
@@ -31,8 +31,8 @@ interface Props {
 }
 
 /**
- * Waiting room: the host picks turn time, Ván nhanh, Nhịp ván and auto-roll; everyone else reads the choice.
- * Each setting is one `.setting-row` or `.setting-block` in the list, so a new one is a new block.
+ * Waiting room: the host picks turn time, Ván nhanh, the house rules (Luật), Nhịp ván and auto-roll; everyone else
+ * reads the choice. Each setting is one `.setting-row` or `.setting-block` in the list, so a new one is a new block.
  */
 export function GameSettings({ room, isHost, offline, actionError, send }: Props) {
   const settings = room.settings;
@@ -156,6 +156,23 @@ export function GameSettings({ room, isHost, offline, actionError, send }: Props
             Xem luật
           </button>
         </p>
+      </div>
+
+      <div className="setting-block" data-testid="house-rules">
+        <span className="setting-label pace-title">Luật</span>
+        <label className="room-switch">
+          <span>{TRIPLE_BONUS_FORFEIT_LABEL}</span>
+          <input
+            type="checkbox"
+            role="switch"
+            className="switch-input"
+            data-testid="triple-bonus-forfeit-toggle"
+            checked={settings.rules.tripleBonusForfeit}
+            disabled={!isHost || locked}
+            onChange={(e) => change({ rules: { ...settings.rules, tripleBonusForfeit: e.target.checked } })}
+          />
+        </label>
+        <p className="ui-muted setting-help">{TRIPLE_BONUS_FORFEIT_RULE}</p>
       </div>
 
       <div className="setting-block">

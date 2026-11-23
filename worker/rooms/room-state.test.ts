@@ -529,7 +529,13 @@ describe('room settings', () => {
   const both = new Set(['u1', 'u2']);
 
   it('reads a room without settings as the defaults', () => {
-    expect(settingsOf(room())).toEqual({ turnSeconds: 30, quick: false, autoRoll: false, pace: 'vua' });
+    expect(settingsOf(room())).toEqual({ turnSeconds: 30, quick: false, autoRoll: false, pace: 'vua', rules: { tripleBonusForfeit: true } });
+    // Settings stored before the rules existed read as the default rules.
+    expect(settingsOf(room({ settings: { turnSeconds: 20, quick: true, autoRoll: false } })).rules).toEqual({ tripleBonusForfeit: true });
+    // A host's choice to turn the rule off is kept.
+    expect(settingsOf(room({ settings: { turnSeconds: 20, quick: true, autoRoll: false, rules: { tripleBonusForfeit: false } } })).rules).toEqual({
+      tripleBonusForfeit: false,
+    });
     expect(timingsOf(room(), BASE).turnMs).toBe(30_000);
     expect(paceMs(room(), BASE)).toBe(700);
   });
@@ -556,6 +562,12 @@ describe('room settings', () => {
     }
     // A tab loaded before the pace setting existed sends no pace: accepted, the room keeps its own.
     expect(parseRoomSettings({ turnSeconds: 30, quick: false, autoRoll: false })).toEqual({ turnSeconds: 30, quick: false, autoRoll: false });
+    // Likewise a tab loaded before the rules existed sends none; a newer tab sends them.
+    for (const tripleBonusForfeit of [true, false]) {
+      expect(parseRoomSettings({ turnSeconds: 30, quick: false, autoRoll: false, pace: 'vua', rules: { tripleBonusForfeit } })?.rules).toEqual({
+        tripleBonusForfeit,
+      });
+    }
     const bad: unknown[] = [
       null,
       'x',
@@ -575,6 +587,11 @@ describe('room settings', () => {
       { turnSeconds: 30, quick: false, autoRoll: false, pace: 1 },
       { turnSeconds: 30, quick: false, autoRoll: false, pace: null },
       { turnSeconds: 30, quick: false, autoRoll: false, pace: 'toString' },
+      { turnSeconds: 30, quick: false, autoRoll: false, pace: 'vua', rules: null },
+      { turnSeconds: 30, quick: false, autoRoll: false, pace: 'vua', rules: {} },
+      { turnSeconds: 30, quick: false, autoRoll: false, pace: 'vua', rules: { tripleBonusForfeit: 'true' } },
+      { turnSeconds: 30, quick: false, autoRoll: false, pace: 'vua', rules: { tripleBonusForfeit: true, extra: 1 } },
+      { turnSeconds: 30, quick: false, autoRoll: false, pace: 'vua', rules: [true] },
     ];
     for (const b of bad) expect(parseRoomSettings(b)).toBeNull();
   });
@@ -617,7 +634,7 @@ describe('room settings', () => {
     const r = playing(settings({ turnSeconds: 20, quick: true }), { dueAt: 1_700, actionDueAt: 20_000 });
     r.seats[1]!.misses = IDLE_AUTOPLAY_AFTER;
     const snap = toSnapshot(r, both);
-    expect(snap.settings).toEqual({ turnSeconds: 20, quick: true, autoRoll: false, pace: 'vua' });
+    expect(snap.settings).toEqual({ turnSeconds: 20, quick: true, autoRoll: false, pace: 'vua', rules: { tripleBonusForfeit: true } });
     expect(snap.seats.map((s) => s.auto)).toEqual([false, true]);
     expect(snap.turnDeadline).toBe(20_000);
     r.actionDueAt = null;
@@ -850,7 +867,7 @@ describe('rematch', () => {
     r.seats[1]!.misses = 1;
     clearMisses(r);
     expect(r.seats.map((s) => s.misses)).toEqual([undefined, undefined]);
-    expect(settingsOf(r)).toEqual({ turnSeconds: 15, quick: true, autoRoll: true, pace: 'thu-thai' });
+    expect(settingsOf(r)).toEqual({ turnSeconds: 15, quick: true, autoRoll: true, pace: 'thu-thai', rules: { tripleBonusForfeit: true } });
   });
 });
 

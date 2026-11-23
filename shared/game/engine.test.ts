@@ -10,6 +10,7 @@ import {
   trackCell,
   type Color,
   type DiceValue,
+  type GameEvent,
   type GameState,
   type HorsePos,
 } from './types';
@@ -208,6 +209,71 @@ describe('rule 5: extra rolls and turn order', () => {
       seen.push(g.turn);
     }
     expect(seen).toEqual(order);
+  });
+});
+
+describe('house rule: the third 1 or 6 in a row loses the turn', () => {
+  const ON = { tripleBonusForfeit: true };
+  /** Rolls `dice` in order for whoever is on turn, moving the first legal horse after each roll that allows one. */
+  function play(state: GameState, dice: DiceValue[]): { state: GameState; events: GameEvent[] } {
+    const events: GameEvent[] = [];
+    for (const d of dice) {
+      const r = rollAndSettle(state, d, false);
+      events.push(...r.events);
+      state = r.state;
+      if (state.phase === 'move') {
+        const m = applyMove(state, state.legalHorses[0]!);
+        events.push(...m.events);
+        state = m.state;
+      }
+    }
+    return { state, events };
+  }
+
+  it.each([
+    [[6, 6, 6]],
+    [[1, 1, 1]],
+    [[6, 1, 6]],
+    [[1, 6, 1]],
+  ] as DiceValue[][][])('voids the third of %j: nothing moves and the next colour is on turn', (dice) => {
+    const before = play(createGame([0, 1], 'classic', ON), dice.slice(0, 2)).state;
+    expect(before.turn).toBe(0);
+    const r = applyRoll(before, dice[2]!);
+    expect(r.events).toEqual([
+      { type: 'rolled', color: 0, dice: dice[2], legalHorses: [], forfeit: true },
+      { type: 'turn', color: 1, extraRoll: false },
+    ]);
+    expect(r.state.horses).toEqual(before.horses);
+    expect(r.state.turn).toBe(1);
+    expect(r.state.phase).toBe('roll');
+  });
+
+  it('keeps the moves made with the two rolls before the void one', () => {
+    const start = createGame([0, 1], 'classic', ON);
+    const two = play(start, [6, 6]).state;
+    expect(two.horses).not.toEqual(start.horses);
+    expect(play(start, [6, 6, 6]).state.horses).toEqual(two.horses);
+  });
+
+  it('counts only within one turn, whether or not a roll had a legal move', () => {
+    // Red: 6, 2 ends the turn. Blue: 1, 6, then its third roll is void. Red then starts a fresh count.
+    const { state, events } = play(createGame([0, 1], 'classic', ON), [6, 2, 1, 6, 6, 6, 6]);
+    const forfeits = events.filter((e) => e.type === 'rolled' && e.forfeit);
+    expect(forfeits).toEqual([{ type: 'rolled', color: 1, dice: 6, legalHorses: [], forfeit: true }]);
+    expect(state.turn).toBe(0);
+  });
+
+  it('lets a 1 or 6 after any other roll grant extra rolls again', () => {
+    const { state } = play(createGame([0, 1], 'classic', ON), [6, 6, 3]);
+    expect(state.turn).toBe(1);
+    expect(play(state, [1, 6]).state.turn).toBe(1);
+  });
+
+  it('never applies without the house rule', () => {
+    const { events } = play(createGame([0, 1]), [6, 6, 6, 6, 1, 1]);
+    expect(events.some((e) => e.type === 'rolled' && e.forfeit)).toBe(false);
+    expect(events.filter((e) => e.type === 'turn').every((e) => e.type === 'turn' && e.extraRoll && e.color === 0)).toBe(true);
+    expect(createGame([0, 1], 'quick', { tripleBonusForfeit: false })).toEqual(createGame([0, 1], 'quick'));
   });
 });
 

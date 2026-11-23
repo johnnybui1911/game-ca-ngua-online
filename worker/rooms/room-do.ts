@@ -389,7 +389,8 @@ export class RoomDO extends DurableObject<Env> {
       case 'settings': {
         needHostBudget();
         if (room.status !== 'waiting') throw new RoomError('bad_state', 'Chỉ đổi cài đặt khi đang chờ.');
-        room.settings = { ...msg.settings, pace: msg.settings.pace ?? settingsOf(room).pace };
+        const current = settingsOf(room);
+        room.settings = { ...msg.settings, pace: msg.settings.pace ?? current.pace, rules: msg.settings.rules ?? current.rules };
         await this.commit([]);
         return;
       }
@@ -398,7 +399,8 @@ export class RoomDO extends DurableObject<Env> {
         if (room.status !== 'waiting') throw new RoomError('bad_state', 'Ván đấu đã bắt đầu.');
         if (occupiedCount(room) < 2) throw new RoomError('need_players', 'Cần ít nhất 2 người chơi để bắt đầu.');
         const colors = room.seats.filter((s) => s.occupant !== null).map((s) => s.color);
-        room.game = createGame(colors, settingsOf(room).quick ? 'quick' : 'classic');
+        const settings = settingsOf(room);
+        room.game = createGame(colors, settings.quick ? 'quick' : 'classic', settings.rules);
         room.status = 'playing';
         room.pausedAt = null;
         clearMisses(room);
