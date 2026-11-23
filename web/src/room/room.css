@@ -330,6 +330,19 @@
   width: 100%;
 }
 
+@media (max-width: 899px) {
+  .start-row {
+    position: sticky;
+    top: calc(var(--space-3) + env(safe-area-inset-top));
+    z-index: 2;
+    margin: 0 calc(-1 * var(--space-4));
+    padding: var(--space-3) var(--space-4);
+    background: rgb(27 18 14 / 96%);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-md);
+  }
+}
+
 .start-row p,
 .await-host {
   margin: 0;
