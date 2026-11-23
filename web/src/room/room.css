@@ -693,6 +693,46 @@ html[data-quality='low'] .hud-player {
   box-shadow: var(--glass-specular), var(--shadow-glow-gold), var(--glass-shadow);
 }
 
+/* Announces the player's own lost turn: rides on the bar's top edge, then fades out. The timer in the page removes it. */
+.forfeit-toast {
+  position: absolute;
+  z-index: 6;
+  left: 50%;
+  bottom: calc(100% + var(--space-2));
+  width: max-content;
+  max-width: calc(100% - 2 * (40px + var(--space-2)));
+  margin: 0;
+  padding: var(--space-2) var(--space-4);
+  text-align: center;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-bold);
+  color: var(--color-danger);
+  background: color-mix(in srgb, var(--glass-fill-solid) 92%, transparent);
+  border: 1px solid rgb(240 122 104 / 45%);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  pointer-events: none;
+  transform: translateX(-50%);
+  animation: forfeit-toast 2s var(--ease-out) forwards;
+}
+
+@keyframes forfeit-toast {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(8px);
+  }
+  12% {
+    opacity: 1;
+    transform: translateX(-50%);
+  }
+  72% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
 .hud-line {
   display: flex;
   align-items: center;

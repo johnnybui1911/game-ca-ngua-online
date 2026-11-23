@@ -15,6 +15,7 @@ import { unconsumed, type StateBatch } from './batches';
 import { secondsLeft } from './countdown';
 import { lastRollAfter, type LastRoll } from './last-roll';
 import { needKickAfter } from './need-kick';
+import { FORFEIT_TOAST_MS, FORFEIT_TOAST_TEXT, forfeitsAfter } from './forfeit-toast';
 import { QuickIntroCard } from './QuickIntroCard';
 import { quickIntro } from './quick-intro';
 import { COLOR_NAMES, COLOR_VARS } from './colors';
@@ -146,6 +147,22 @@ function useNeedKick(batches: StateBatch[], color: Color | null): boolean {
   return folded.hint;
 }
 
+/** Count of the local player's lost turns (three 1s or 6s in a row) while the toast announcing the newest one is up; null otherwise. */
+function useForfeitToast(batches: StateBatch[], color: Color | null): number | null {
+  const [folded, setFolded] = useState<{ count: number; seq: number | null }>({ count: 0, seq: null });
+  if (unconsumed(batches, folded.seq).length > 0) {
+    setFolded({ count: folded.count + forfeitsAfter(batches, folded.seq, color), seq: batches[batches.length - 1]?.room.seq ?? folded.seq });
+  }
+  const [shown, setShown] = useState<number | null>(null);
+  useEffect(() => {
+    if (folded.count === 0) return;
+    setShown(folded.count);
+    const timer = window.setTimeout(() => setShown(null), FORFEIT_TOAST_MS);
+    return () => window.clearTimeout(timer);
+  }, [folded.count]);
+  return shown;
+}
+
 function useCountdown(deadline: number | null, offset: number): number | null {
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
@@ -245,6 +262,7 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
   const mySeat = room.seats.find((s) => s.occupant?.kind === 'human' && s.occupant.user.id === myId);
   const myColor = mySeat?.color ?? null;
   const needKick = useNeedKick(shownBatches, myColor);
+  const forfeitToast = useForfeitToast(shownBatches, myColor);
   const finished = game?.phase === 'finished';
   const paused = room.paused;
   const myTurn = game !== null && myColor !== null && game.turn === myColor && !finished;
@@ -369,6 +387,11 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
 
       <section className={`glass hud-bottom${myTurn && !paused ? ' is-my-turn' : ''}`} aria-label="Điều khiển" ref={hud.bottomRef}>
         <CreatorBadge />
+        {forfeitToast !== null && !finished && (
+          <p key={forfeitToast} className="forfeit-toast" role="status" data-testid="forfeit-toast">
+            {FORFEIT_TOAST_TEXT}
+          </p>
+        )}
         <div className="hud-line">
           <DieFace value={board.rolling ? null : (lastRoll?.dice ?? null)} seatColor={dieColor === undefined ? undefined : COLOR_VARS[dieColor]} />
           <div className="turn-info">
