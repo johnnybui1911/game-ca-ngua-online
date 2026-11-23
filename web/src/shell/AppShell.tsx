@@ -56,25 +56,20 @@ function SceneLayer() {
   );
 }
 
-/** The corner controls. A match has its own menu, so all but the creator's badge step aside for it. Outside a match the badge sits bottom left and the sound button top right; in a match the badge moves to the top right, where the HUD reserves room for it. */
+/** The corner controls. A match has its own menu, bottom bar and creator badge (above the bar), so all of them step aside for it. */
 function Chrome() {
   const { stage, match } = useSceneHostState();
-  // A match has its own menu and bottom bar: only the creator's badge stays (the feedback entry is in the menu).
   const style = {
     '--shell-panel-right': `${stage.panel?.right ?? 0}px`,
     '--shell-panel-bottom': `${stage.panel?.bottom ?? 0}px`,
   } as CSSProperties;
   return (
     <div className="shell-chrome" style={style}>
-      <div
-        className={`shell-slot ${match ? 'shell-slot--top-right' : 'shell-slot--bottom-left'}`}
-        data-testid="slot-creator"
-        data-match={match ? '' : undefined}
-      >
-        <CreatorLogoSlot />
-      </div>
       {!match && (
         <>
+          <div className="shell-slot shell-slot--bottom-left" data-testid="slot-creator">
+            <CreatorLogoSlot />
+          </div>
           <div className="shell-slot shell-slot--top-right" data-testid="slot-sound">
             <SoundSlot />
           </div>
