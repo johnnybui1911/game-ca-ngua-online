@@ -21,6 +21,9 @@ interface HorseProps {
   onPick: (horse: number) => void;
 }
 
+/** Height of the gold arrow over a pickable horse: clear above its number label, which sits on a horse at 1.75. */
+const ARROW_HEIGHT = 2.5;
+
 /** One horse. The outer group is positioned by the director; the inner group only bobs. */
 export function Horse({ assets, state, color, index, pickable, onPick }: HorseProps) {
   const bob = useRef<Group>(null);
@@ -40,7 +43,7 @@ export function Horse({ assets, state, color, index, pickable, onPick }: HorsePr
     const h = halo.current;
     if (h) h.scale.setScalar(1 + state.tap * 0.14);
     const a = arrow.current;
-    if (a) a.position.y = 1.78 + state.tap * 0.16;
+    if (a) a.position.y = ARROW_HEIGHT + state.tap * 0.16;
   });
 
   const stop = (e: ThreeEvent<MouseEvent>) => {
@@ -71,7 +74,7 @@ export function Horse({ assets, state, color, index, pickable, onPick }: HorsePr
           <group ref={halo} position={[0, 0.0, 0]}>
             <mesh geometry={assets.haloGeometry} material={assets.haloMat} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.005, 0]} />
           </group>
-          <group ref={arrow} position={[0, 1.8, 0]}>
+          <group ref={arrow} position={[0, ARROW_HEIGHT, 0]}>
             <mesh geometry={assets.arrowGeometry} material={assets.arrowMat} />
           </group>
           <mesh
