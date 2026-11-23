@@ -68,7 +68,7 @@ import {
  * | wifi-off    | offline player badge             | WifiOff            |
  * | shake       | shake-to-roll                    | Vibrate            |
  * | help        | "?" rules button in a match      | CircleHelp         |
- * | knight      | human player (non-host) in match | ChessKnight        |
+ * | knight      | human player (non-host) | ChessKnight        |
  */
 const ICONS = {
   'sound-on': Volume2,
