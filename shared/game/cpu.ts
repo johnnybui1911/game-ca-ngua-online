@@ -53,9 +53,9 @@ function chooseEasy(state: GameState, rand: () => number): number {
 
 /**
  * Ties go to the lowest horse index.
- * Classic: reach or climb the home column (highest resulting step first); else kick a victim that has made at
- * least NORMAL_KICK_MIN_PROGRESS; else leave the stable; else advance the furthest horse whose move kicks nobody,
- * else the furthest horse. So a kick of a horse that has not got far is only played when every legal move kicks.
+ * Classic: reach or climb the home column (highest resulting step first); else leave the stable; else kick a victim
+ * that has made at least NORMAL_KICK_MIN_PROGRESS; else advance the furthest horse whose move kicks nobody, else the
+ * furthest horse. So a kick of a horse that has not got far is only played when every legal move kicks.
  * Quick: entering the home column wins at once, so it comes first; then a kick (it is how a locked column
  * opens, and a locked column keeps climbs out of the legal moves); then leaving the stable; then the furthest horse.
  */
@@ -97,7 +97,7 @@ function chooseNormal(state: GameState): number {
     }
   }
 
-  const order = state.variant === 'quick' ? [kick, home, leave, advance] : [home, farKick, leave, calm, advance];
+  const order = state.variant === 'quick' ? [kick, home, leave, advance] : [home, leave, farKick, calm, advance];
   for (const pick of order) if (pick >= 0) return pick;
   throw new Error('No legal horse to choose');
 }

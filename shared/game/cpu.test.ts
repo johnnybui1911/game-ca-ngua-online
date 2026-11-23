@@ -77,6 +77,9 @@ describe('Normal', () => {
     expect(yellowAt(14)).toBeGreaterThanOrEqual(NORMAL_KICK_MIN_PROGRESS);
     expect(chooseCpuMove(moveState([0, 2], { 0: [11, 20, S, S], ...farVictim }, 3), 'normal')).toBe(0);
   });
+  it('leaves the stable rather than kick, even a victim near its home', () => {
+    expect(chooseCpuMove(moveState([0, 2], { 0: [8, S, S, S], ...farVictim }, 6), 'normal')).toBe(1);
+  });
   it('leaves a victim that has not got far alone when another move kicks nobody', () => {
     expect(chooseCpuMove(moveState([0, 1], { 0: [11, 20, S, S], ...nearVictim }, 3), 'normal')).toBe(1);
     // With a 6, leaving the stable comes first too.
