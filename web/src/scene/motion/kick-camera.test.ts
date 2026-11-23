@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CLOSE_UP_HOLD_SECONDS, KickCamera, SHAKE_SECONDS } from './kick-camera';
+import { CLOSE_UP_HOLD_SECONDS, KickCamera, PULLED_BACK_WEIGHT, SHAKE_SECONDS, TIGHT_WEIGHT } from './kick-camera';
 
 const DT = 1 / 60;
 function run(cam: KickCamera, seconds: number): void {
@@ -28,6 +28,29 @@ describe('KickCamera', () => {
     run(cam, 1.2);
     expect(cam.weight).toBe(0);
     expect(cam.active).toBe(false);
+  });
+
+  it('a slow-motion kick zooms in tighter than a plain one, then pulls back once the victim is flung', () => {
+    const cam = new KickCamera();
+    cam.start(3, -4, 0.5, 2.5);
+    run(cam, 0.5);
+    expect(cam.weight).toBeGreaterThan(1.3);
+    cam.contact();
+    run(cam, 0.3);
+    expect(cam.weight).toBeLessThanOrEqual(TIGHT_WEIGHT + 1e-9);
+    expect(cam.weight).toBeGreaterThan(1.3);
+    // The victim lifts: the camera stays tight and follows it.
+    cam.follow(3.5, -4.2, 1, false);
+    run(cam, 0.3);
+    expect(cam.weight).toBeGreaterThan(1.3);
+    expect(cam.focusY).toBeGreaterThan(0.5);
+    // Once it is flung the camera backs off, but stays on it until the close-up ends.
+    cam.follow(5, -6, 3, true);
+    run(cam, 1);
+    expect(cam.weight).toBeLessThan(PULLED_BACK_WEIGHT + 0.1);
+    expect(cam.weight).toBeGreaterThan(0);
+    run(cam, 3);
+    expect(cam.weight).toBe(0);
   });
 
   it('never overshoots: the weight stays between the framing and the full close-up', () => {

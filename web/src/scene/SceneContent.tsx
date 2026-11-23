@@ -32,7 +32,7 @@ import { Director } from './director';
 import { useHorseModel } from './horse-model';
 import type { SceneView } from './director';
 import LockMarkers from './LockMarkers';
-import { Celebration, Die, Horse } from './Pieces';
+import { Celebration, Die, Horse, KickImpact } from './Pieces';
 import { createSceneState } from './scene-state';
 import type { SceneState } from './scene-state';
 import { unconsumed } from '../room/batches';
@@ -46,14 +46,18 @@ import { motionSetting } from './motion/motion-setting';
 import { stableReturn } from './motion/stable-return';
 
 function createView(state: SceneState, kickCamera: KickCamera): SceneView {
+  // The kick being played: where it lands, and whether it is the slow-motion one (dust, flash, a chasing camera).
+  let kickX = 0;
+  let kickZ = 0;
+  let cinematic = false;
   return {
-    setHorse(color, horse, x, y, z, yaw, pitch, stretch) {
+    setHorse(color, horse, x, y, z, yaw, pitch, stretch, roll = 0) {
       const g = state.horses[color]?.[horse];
       if (!g) return;
       g.visible = true;
       g.position.set(x, y, z);
-      // Order YXZ: the lean tips the horse along the way it faces.
-      g.rotation.set(pitch, yaw, 0);
+      // Order YXZ: the lean tips the horse along the way it faces, the roll to its side.
+      g.rotation.set(pitch, yaw, roll);
       // Squash and stretch keep the volume: what the height gains, the footprint gives up.
       const wide = 1 / Math.sqrt(stretch);
       g.scale.set(wide, stretch, wide);
@@ -74,14 +78,25 @@ function createView(state: SceneState, kickCamera: KickCamera): SceneView {
       state.celebration.color = color;
       state.celebration.t = t;
     },
-    moveStarted(hops, hopSeconds, kickAt) {
-      sound.playHooves(hops, hopSeconds, kickAt);
+    moveStarted(hops, hopSeconds, kickAt, flight) {
+      sound.playHooves(hops, hopSeconds, kickAt, flight);
     },
-    kickStarted(x, z, contactIn) {
-      kickCamera.start(x, z, contactIn);
+    kickStarted(x, z, contactIn, holdSeconds) {
+      kickX = x;
+      kickZ = z;
+      cinematic = holdSeconds > 0;
+      kickCamera.start(x, z, contactIn, holdSeconds);
     },
     kickLanded() {
       kickCamera.contact();
+      if (cinematic) {
+        state.impact.x = kickX;
+        state.impact.z = kickZ;
+        state.impact.t = 0;
+      }
+    },
+    kickFollow(x, z, y, flung) {
+      kickCamera.follow(x, z, y, flung);
     },
   };
 }
@@ -240,7 +255,7 @@ function Rig({ seat, sourceKey, insets, orbit, kickCamera }: RigProps) {
     const p = camera.position;
     // A tall viewport already has the board edge to edge: lean in half as far, so less of it leaves the screen.
     const weight = kickCamera.weight * Math.min(1, Math.max(0.5, size.width / Math.max(1, size.height)));
-    const shot = closeUpFraming(framing.closeUp, p.x, p.y, p.z, kickCamera.focusX, kickCamera.focusZ, weight);
+    const shot = closeUpFraming(framing.closeUp, p.x, p.y, p.z, kickCamera.focusX, kickCamera.focusZ, weight, kickCamera.focusY);
     p.set(shot[0]!, shot[1]!, shot[2]!);
     camera.lookAt(shot[3]!, shot[4]!, shot[5]!);
     const s = shakeOffset(framing.shake, kickCamera.shakeTime, SHAKE_SECONDS);
@@ -295,11 +310,16 @@ export default function SceneContent({
   // The settings cannot change while a match is on screen.
   const { quick, pace } = room.settings;
   const kickCamera = useMemo(() => new KickCamera(), []);
+  const { activity, settings } = useQuality();
+  // Read when a batch starts, so a tier change applies to the next kick.
+  const cinematicKick = useRef(settings.cinematicKick);
+  cinematicKick.current = settings.cinematicKick;
   const director = useMemo(
     () =>
       new Director(createView(state, kickCamera), setBusy, {
         pace: paceTimings(pace, quick),
         reducedMotion: motionSetting.isReduced,
+        cinematicKick: () => cinematicKick.current,
       }),
     [state, kickCamera, quick, pace],
   );
@@ -344,7 +364,6 @@ export default function SceneContent({
   }, [director, room.seq, batches, sourceKey]);
 
   // A paused canvas has no frame loop: draw one picture whenever what it shows changes.
-  const { activity } = useQuality();
   const advance = useThree((s) => s.advance);
   const left = insets.left ?? 0;
   const right = insets.right ?? 0;
@@ -421,6 +440,7 @@ export default function SceneContent({
         )),
       )}
       <Celebration assets={assets} state={state} />
+      {settings.cinematicKick && <KickImpact assets={assets} state={state} count={Math.min(20, Math.floor(settings.particleBudget / 16))} />}
       <Rig
         seat={view === 'seat' ? (myColor ?? 0) : null}
         sourceKey={sourceKey}

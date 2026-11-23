@@ -25,22 +25,21 @@ import type { Color } from '../../../shared/game/types';
 import type { Assets } from './assets';
 import {
   HOME,
+  INLAY_TOP,
   SLAB_HALF,
   STABLE,
   STABLE_CENTERS,
   STABLE_TRAY_SIZE,
   STAIR_RISE,
   TRACK,
+  TREAD_WIDTH,
   armDirection,
   yawBetween,
 } from './layout';
 import { HORSE_COLORS } from './palette';
 import type { SceneState } from './scene-state';
 
-const INLAY_TOP = 0.04;
 const DECAL_Y = 0.0725;
-/** Width of a stair tread: the home cell with a little ledge on both sides. */
-const TREAD_WIDTH = 1.12;
 /** Where the centre medallion floats, above the dais at the top of the stairs, and how far it bobs. */
 const HUB_REST = INLAY_TOP + (HOME_STEPS + 1) * STAIR_RISE - DECAL_Y + 0.03;
 const HUB_BOB = 0.012;

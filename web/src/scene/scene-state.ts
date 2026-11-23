@@ -19,6 +19,8 @@ export interface SceneState {
   /** Seconds since mount. */
   time: number;
   celebration: { color: Color | null; t: number };
+  /** Dust and flash where a slow-motion kick hit: `t` is seconds since contact, -1 when nothing plays. */
+  impact: { x: number; z: number; t: number };
 }
 
 export function createSceneState(): SceneState {
@@ -30,5 +32,6 @@ export function createSceneState(): SceneState {
     tap: 0,
     time: 0,
     celebration: { color: null, t: 0 },
+    impact: { x: 0, z: 0, t: -1 },
   };
 }

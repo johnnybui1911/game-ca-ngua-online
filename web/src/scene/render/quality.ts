@@ -25,6 +25,8 @@ export interface QualitySettings {
   environmentResolution: number;
   /** How many particles decorative effects may keep alive at once. */
   particleBudget: number;
+  /** Whether a kick plays its slow-motion rise, spin and chasing camera; off, it plays the plain hit-stop and flight. */
+  cinematicKick: boolean;
 }
 
 const SETTINGS: Record<QualityTier, QualitySettings> = {
@@ -37,6 +39,7 @@ const SETTINGS: Record<QualityTier, QualitySettings> = {
     antialiasing: 'msaa',
     environmentResolution: 256,
     particleBudget: 400,
+    cinematicKick: true,
   },
   medium: {
     dprCap: 1.5,
@@ -47,6 +50,7 @@ const SETTINGS: Record<QualityTier, QualitySettings> = {
     antialiasing: 'smaa',
     environmentResolution: 128,
     particleBudget: 160,
+    cinematicKick: true,
   },
   low: {
     dprCap: 1.25,
@@ -57,11 +61,12 @@ const SETTINGS: Record<QualityTier, QualitySettings> = {
     antialiasing: 'none',
     environmentResolution: 0,
     particleBudget: 40,
+    cinematicKick: false,
   },
 };
 
 /** Software rasterisers pay per pixel on the CPU, so they also lose the extra pixels and the particles. */
-const SOFTWARE_SETTINGS: QualitySettings = { ...SETTINGS.low, dprCap: 1, particleBudget: 0 };
+const SOFTWARE_SETTINGS: QualitySettings = { ...SETTINGS.low, dprCap: 1, particleBudget: 0, cinematicKick: false };
 
 export function settingsFor(tier: QualityTier, software = false): QualitySettings {
   return software ? SOFTWARE_SETTINGS : SETTINGS[tier];

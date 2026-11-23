@@ -149,3 +149,35 @@ export function armDirection(color: Color): Vec2 {
   const tip = toWorld(color, 0, 1);
   return tip;
 }
+
+/** Top of the inlay the cells sit on, above the board top, and the width of a stair tread: the home cell with a ledge on both sides. */
+export const INLAY_TOP = 0.04;
+export const TREAD_WIDTH = 1.12;
+
+/**
+ * Height above the board top of the tallest stair tread, or the dais in the centre, that a disc of `radius`
+ * centred on ground point (`x`, `z`) touches: 0 where it is clear of all of them. The treads run along each
+ * colour's home column, `TREAD_WIDTH` wide and one cell long, and rise by `STAIR_RISE` with every step.
+ */
+export function obstacleHeight(x: number, z: number, radius: number): number {
+  let top = 0;
+  const daisReach = TREAD_WIDTH / 2 + radius;
+  if (Math.abs(x) < daisReach && Math.abs(z) < daisReach) top = INLAY_TOP + (HOME_STEPS + 1) * STAIR_RISE;
+  for (const color of COLORS) {
+    const dir = armDirection(color);
+    const steps = HOME[color]!;
+    for (let i = steps.length - 1; i >= 0; i--) {
+      const height = INLAY_TOP + (i + 1) * STAIR_RISE;
+      // Higher treads come last in a column, so a tread that cannot beat what is found is not worth testing.
+      if (height <= top) break;
+      const c = steps[i]!;
+      const along = (x - c.x) * dir.x + (z - c.z) * dir.z;
+      const across = (x - c.x) * dir.z - (z - c.z) * dir.x;
+      if (Math.abs(along) < 0.5 + radius && Math.abs(across) < TREAD_WIDTH / 2 + radius) {
+        top = height;
+        break;
+      }
+    }
+  }
+  return top;
+}

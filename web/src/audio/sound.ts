@@ -223,9 +223,10 @@ class SoundEngine {
 
   /**
    * Hoof beats for a horse moving `hops` cells, one "clip-clop" per hop, spaced like the board
-   * animation; with `kickAt` (seconds from now) a heavy knock where it kicks an opponent home.
+   * animation; with `kickAt` (seconds from now) a heavy knock where it kicks an opponent home. A slow-motion
+   * kick gives `flight`: a whoosh over the victim's fling, starting `after` seconds from now.
    */
-  playHooves(hops: number, hopSeconds: number, kickAt: number | null): void {
+  playHooves(hops: number, hopSeconds: number, kickAt: number | null, flight: { after: number; seconds: number } | null = null): void {
     const ctx = this.boardMuted ? null : this.effectsContext();
     if (!ctx) return;
     const t0 = ctx.currentTime;
@@ -236,6 +237,7 @@ class SoundEngine {
       this.hoof(t + Math.min(0.06, gap * 0.4), 0.88 + (i % 2) * 0.1, 0.35);
     }
     if (kickAt !== null) this.knock(t0 + kickAt);
+    if (flight) this.whoosh(t0 + flight.after, flight.seconds);
   }
 
   // ----------------------------------------------------------------- internals
@@ -418,6 +420,28 @@ class SoundEngine {
     osc.start(t);
     osc.stop(t + 0.32);
     this.noiseBurst(t, 900, 0.5, 0.12, this.master);
+  }
+
+  /** The victim flung across the board: filtered noise that swells and sweeps up, then falls away as it comes down. */
+  private whoosh(t: number, seconds: number): void {
+    const ctx = this.ctx;
+    if (!ctx || !this.master || !this.noise) return;
+    const src = ctx.createBufferSource();
+    src.buffer = this.noise;
+    src.loop = true;
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.Q.value = 2.2;
+    filter.frequency.setValueAtTime(350, t);
+    filter.frequency.exponentialRampToValueAtTime(2200, t + seconds * 0.35);
+    filter.frequency.exponentialRampToValueAtTime(450, t + seconds);
+    const env = ctx.createGain();
+    env.gain.setValueAtTime(0.001, t);
+    env.gain.exponentialRampToValueAtTime(0.5, t + seconds * 0.3);
+    env.gain.exponentialRampToValueAtTime(0.001, t + seconds);
+    src.connect(filter).connect(env).connect(this.master);
+    src.start(t, Math.random() * 0.5);
+    src.stop(t + seconds + 0.05);
   }
 }
 

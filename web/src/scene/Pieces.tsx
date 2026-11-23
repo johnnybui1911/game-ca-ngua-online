@@ -1,7 +1,7 @@
 import { useFrame } from '@react-three/fiber';
 import type { ThreeEvent } from '@react-three/fiber';
 import { useEffect, useMemo, useRef } from 'react';
-import { BoxGeometry, BufferGeometry, Color as ThreeColor, CylinderGeometry, Group, InstancedMesh, Matrix4, MeshStandardMaterial, Object3D, Quaternion, Vector3 } from 'three';
+import { AdditiveBlending, BoxGeometry, BufferGeometry, Color as ThreeColor, CylinderGeometry, Group, InstancedMesh, Matrix4, Mesh, MeshBasicMaterial, MeshStandardMaterial, Object3D, Quaternion, SphereGeometry, Vector3 } from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { HOME_STEPS } from '../../../shared/game/types';
@@ -9,6 +9,7 @@ import type { Color } from '../../../shared/game/types';
 import { HORSE_PAD, type Assets } from './assets';
 import { CELEBRATION_SECONDS, DIE_HALF } from './director';
 import { HOME } from './layout';
+import { easeOutCubic } from './motion/curves';
 import { HORSE_COLORS } from './palette';
 import type { SceneState } from './scene-state';
 
@@ -227,4 +228,87 @@ export function Celebration({ assets, state }: { assets: Assets; state: SceneSta
   });
 
   return <instancedMesh ref={mesh} args={[geometry, assets.confettiMat, CONFETTI]} frustumCulled={false} visible={false} />;
+}
+
+/** Seconds the smoke of a kick takes to clear, and the flash to die out. */
+const IMPACT_SECONDS = 0.9;
+const FLASH_SECONDS = 0.2;
+/** Share of the smoke's life it stays at full strength; the smoke is at its thickest while the two horses overlap. */
+const SMOKE_THICK_SHARE = 0.25;
+const SMOKE_OPACITY = 0.35;
+
+/**
+ * A thick cloud of smoke and a flash where a slow-motion kick lands. The puffs swell fast, billow up and drift
+ * apart, hiding the moment the two horses overlap, then thin away; `count` of them (a share of the quality
+ * tier's particle budget), none when the budget is 0.
+ */
+export function KickImpact({ assets, state, count }: { assets: Assets; state: SceneState; count: number }) {
+  const puffs = useRef<InstancedMesh>(null);
+  const flash = useRef<Mesh>(null);
+  const scratch = useMemo(() => new Object3D(), []);
+  const seeds = useMemo(() => {
+    const out = new Float32Array(count * 3);
+    let s = 777;
+    for (let i = 0; i < out.length; i++) {
+      s = (s * 1664525 + 1013904223) >>> 0;
+      out[i] = s / 4294967296;
+    }
+    return out;
+  }, [count]);
+  const geometry = useMemo(() => assets.own(new SphereGeometry(1, 10, 8)), [assets]);
+  const dust = useMemo(() => assets.own(new MeshBasicMaterial({ color: '#c4b8a2', transparent: true, opacity: 0, depthWrite: false })), [assets]);
+  const glow = useMemo(
+    () => assets.own(new MeshBasicMaterial({ color: '#ffd98a', transparent: true, opacity: 0, depthWrite: false, blending: AdditiveBlending, toneMapped: false })),
+    [assets],
+  );
+
+  useFrame((_, dt) => {
+    const m = puffs.current;
+    const f = flash.current;
+    const hit = state.impact;
+    if (hit.t < 0) {
+      if (m) m.visible = false;
+      if (f) f.visible = false;
+      return;
+    }
+    hit.t += dt;
+    if (hit.t >= IMPACT_SECONDS) {
+      hit.t = -1;
+      return;
+    }
+    const u = hit.t / IMPACT_SECONDS;
+    if (m) {
+      m.visible = true;
+      // Swells in the first third, then keeps billowing slowly.
+      const grow = easeOutCubic(Math.min(1, u / 0.35));
+      const billow = 0.7 + 0.3 * grow + 0.4 * u;
+      const fade = u < SMOKE_THICK_SHARE ? 1 : ((1 - u) / (1 - SMOKE_THICK_SHARE)) ** 1.5;
+      dust.opacity = SMOKE_OPACITY * Math.min(1, hit.t / 0.04) * fade;
+      for (let i = 0; i < count; i++) {
+        const k = i * 3;
+        const a = seeds[k]! * Math.PI * 2;
+        const reach = (0.15 + seeds[k + 1]! * 0.65) * (0.4 + 0.6 * grow) + 0.25 * u;
+        const height = 0.2 + seeds[k + 2]! * 1.1 * grow + 0.5 * u;
+        scratch.position.set(hit.x + Math.cos(a) * reach, height, hit.z + Math.sin(a) * reach);
+        scratch.scale.setScalar((0.25 + seeds[k + 2]! * 0.25) * billow);
+        scratch.updateMatrix();
+        m.setMatrixAt(i, scratch.matrix);
+      }
+      m.instanceMatrix.needsUpdate = true;
+    }
+    if (f) {
+      const w = hit.t / FLASH_SECONDS;
+      f.visible = w < 1;
+      glow.opacity = 0.85 * (1 - w) * (1 - w);
+      f.position.set(hit.x, 0.4, hit.z);
+      f.scale.setScalar(0.25 + 1.3 * Math.min(1, w));
+    }
+  });
+
+  return (
+    <>
+      {count > 0 && <instancedMesh ref={puffs} args={[geometry, dust, count]} frustumCulled={false} visible={false} />}
+      <mesh ref={flash} geometry={geometry} material={glow} frustumCulled={false} visible={false} />
+    </>
+  );
 }
