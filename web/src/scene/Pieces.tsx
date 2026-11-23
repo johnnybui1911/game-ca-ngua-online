@@ -1,7 +1,7 @@
 import { useFrame } from '@react-three/fiber';
 import type { ThreeEvent } from '@react-three/fiber';
 import { useEffect, useMemo, useRef } from 'react';
-import { AdditiveBlending, BoxGeometry, BufferGeometry, Color as ThreeColor, CylinderGeometry, Group, InstancedMesh, Matrix4, Mesh, MeshBasicMaterial, MeshStandardMaterial, Object3D, Quaternion, SphereGeometry, Vector3 } from 'three';
+import { BoxGeometry, BufferGeometry, Color as ThreeColor, CylinderGeometry, DataTexture, DoubleSide, Group, InstancedMesh, Matrix4, Mesh, MeshBasicMaterial, MeshStandardMaterial, MeshToonMaterial, NearestFilter, Object3D, Quaternion, RGBAFormat, Shape, ShapeGeometry, SphereGeometry, TorusGeometry, Vector3 } from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { HOME_STEPS } from '../../../shared/game/types';
@@ -9,7 +9,7 @@ import type { Color } from '../../../shared/game/types';
 import { HORSE_PAD, type Assets } from './assets';
 import { CELEBRATION_SECONDS, DIE_HALF } from './director';
 import { HOME } from './layout';
-import { easeOutCubic } from './motion/curves';
+import { KICK_FX_SECONDS, ORBITS, makePuffPose, makeStarPose, orbitPop, orbitPresence, puffAt, puffSeeds, smokeOpacity, starAt } from './motion/kick-smoke';
 import { HORSE_COLORS } from './palette';
 import type { SceneState } from './scene-state';
 
@@ -230,85 +230,138 @@ export function Celebration({ assets, state }: { assets: Assets; state: SceneSta
   return <instancedMesh ref={mesh} args={[geometry, assets.confettiMat, CONFETTI]} frustumCulled={false} visible={false} />;
 }
 
-/** Seconds the smoke of a kick takes to clear, and the flash to die out. */
-const IMPACT_SECONDS = 0.9;
-const FLASH_SECONDS = 0.2;
-/** Share of the smoke's life it stays at full strength; the smoke is at its thickest while the two horses overlap. */
-const SMOKE_THICK_SHARE = 0.25;
-const SMOKE_OPACITY = 0.35;
+const SMOKE_WHITE = new ThreeColor('#ffffff');
+const SMOKE_DARK = new ThreeColor('#8c8c92');
+const FX_YELLOW = '#ffe11a';
+/** The effect is authored at the size of a piece's head; the horses are this much bigger. */
+const FX_SCALE = 1.6;
+
+/** Five-pointed star of unit outer radius, in the XY plane. */
+function starGeometry(): ShapeGeometry {
+  const shape = new Shape();
+  for (let i = 0; i < 10; i++) {
+    const r = i % 2 ? 0.42 : 1;
+    const a = Math.PI / 2 + (i * Math.PI) / 5;
+    if (i === 0) shape.moveTo(Math.cos(a) * r, Math.sin(a) * r);
+    else shape.lineTo(Math.cos(a) * r, Math.sin(a) * r);
+  }
+  shape.closePath();
+  return new ShapeGeometry(shape);
+}
+
+/** Flat-shaded three-step ramp that gives the smoke its cartoon look. */
+function toonRamp(): DataTexture {
+  const ramp = new DataTexture(new Uint8Array([150, 150, 150, 255, 205, 205, 205, 255, 255, 255, 255, 255]), 3, 1, RGBAFormat);
+  ramp.minFilter = NearestFilter;
+  ramp.magFilter = NearestFilter;
+  ramp.needsUpdate = true;
+  return ramp;
+}
 
 /**
- * A thick cloud of smoke and a flash where a slow-motion kick lands. The puffs swell fast, billow up and drift
- * apart, hiding the moment the two horses overlap, then thin away; `count` of them (a share of the quality
- * tier's particle budget), none when the budget is 0.
+ * A cartoon cloud where a slow-motion kick lands: flat-shaded white puffs burst out low and wide then billow up, a few
+ * dark puffs sit behind them, and gold stars circle on thin gold ellipses above, dizzy. All motion is in
+ * `motion/kick-smoke`. `count` puffs (a share of the quality tier's particle budget); the stars and rings do not count.
  */
 export function KickImpact({ assets, state, count }: { assets: Assets; state: SceneState; count: number }) {
+  const root = useRef<Group>(null);
   const puffs = useRef<InstancedMesh>(null);
-  const flash = useRef<Mesh>(null);
+  const rings = useRef<(Group | null)[]>([]);
+  const stars = useRef<(Mesh | null)[]>([]);
   const scratch = useMemo(() => new Object3D(), []);
-  const seeds = useMemo(() => {
-    const out = new Float32Array(count * 3);
-    let s = 777;
-    for (let i = 0; i < out.length; i++) {
-      s = (s * 1664525 + 1013904223) >>> 0;
-      out[i] = s / 4294967296;
-    }
-    return out;
-  }, [count]);
-  const geometry = useMemo(() => assets.own(new SphereGeometry(1, 10, 8)), [assets]);
-  const dust = useMemo(() => assets.own(new MeshBasicMaterial({ color: '#c4b8a2', transparent: true, opacity: 0, depthWrite: false })), [assets]);
-  const glow = useMemo(
-    () => assets.own(new MeshBasicMaterial({ color: '#ffd98a', transparent: true, opacity: 0, depthWrite: false, blending: AdditiveBlending, toneMapped: false })),
+  const pose = useMemo(() => makePuffPose(), []);
+  const starPose = useMemo(() => makeStarPose(), []);
+  const color = useMemo(() => new ThreeColor(), []);
+  const seeds = useMemo(() => puffSeeds(count), [count]);
+  const geometry = useMemo(() => assets.own(new SphereGeometry(1, 12, 9)), [assets]);
+  const starGeo = useMemo(() => assets.own(starGeometry()), [assets]);
+  const ringGeo = useMemo(() => assets.own(new TorusGeometry(1, 0.018, 6, 64)), [assets]);
+  const smoke = useMemo(
+    () => assets.own(new MeshToonMaterial({ color: '#ffffff', gradientMap: assets.own(toonRamp()), transparent: true, opacity: 0, depthWrite: false })),
     [assets],
   );
+  const overlay = (opacity: number) => ({ color: FX_YELLOW, transparent: true, opacity, depthTest: false, toneMapped: false });
+  const starMat = useMemo(() => assets.own(new MeshBasicMaterial({ ...overlay(0), side: DoubleSide })), [assets]);
+  const ringMat = useMemo(() => assets.own(new MeshBasicMaterial(overlay(0))), [assets]);
+  const outerRingMat = useMemo(() => assets.own(new MeshBasicMaterial(overlay(0))), [assets]);
 
-  useFrame((_, dt) => {
-    const m = puffs.current;
-    const f = flash.current;
+  useFrame(({ camera }, dt) => {
+    const r = root.current;
     const hit = state.impact;
+    if (!r) return;
     if (hit.t < 0) {
-      if (m) m.visible = false;
-      if (f) f.visible = false;
+      r.visible = false;
       return;
     }
     hit.t += dt;
-    if (hit.t >= IMPACT_SECONDS) {
+    if (hit.t >= KICK_FX_SECONDS) {
       hit.t = -1;
+      r.visible = false;
       return;
     }
-    const u = hit.t / IMPACT_SECONDS;
+    const t = hit.t;
+    r.visible = true;
+    r.position.set(hit.x, 0, hit.z);
+
+    const m = puffs.current;
     if (m) {
-      m.visible = true;
-      // Swells in the first third, then keeps billowing slowly.
-      const grow = easeOutCubic(Math.min(1, u / 0.35));
-      const billow = 0.7 + 0.3 * grow + 0.4 * u;
-      const fade = u < SMOKE_THICK_SHARE ? 1 : ((1 - u) / (1 - SMOKE_THICK_SHARE)) ** 1.5;
-      dust.opacity = SMOKE_OPACITY * Math.min(1, hit.t / 0.04) * fade;
+      smoke.opacity = smokeOpacity(t);
       for (let i = 0; i < count; i++) {
-        const k = i * 3;
-        const a = seeds[k]! * Math.PI * 2;
-        const reach = (0.15 + seeds[k + 1]! * 0.65) * (0.4 + 0.6 * grow) + 0.25 * u;
-        const height = 0.2 + seeds[k + 2]! * 1.1 * grow + 0.5 * u;
-        scratch.position.set(hit.x + Math.cos(a) * reach, height, hit.z + Math.sin(a) * reach);
-        scratch.scale.setScalar((0.25 + seeds[k + 2]! * 0.25) * billow);
+        puffAt(seeds, i, count, t, pose);
+        scratch.position.set(pose.x, pose.y, pose.z);
+        scratch.scale.set(pose.sx, pose.sy, pose.sz);
         scratch.updateMatrix();
         m.setMatrixAt(i, scratch.matrix);
+        m.setColorAt(i, color.copy(SMOKE_WHITE).lerp(SMOKE_DARK, pose.shade));
       }
       m.instanceMatrix.needsUpdate = true;
+      if (m.instanceColor) m.instanceColor.needsUpdate = true;
     }
-    if (f) {
-      const w = hit.t / FLASH_SECONDS;
-      f.visible = w < 1;
-      glow.opacity = 0.85 * (1 - w) * (1 - w);
-      f.position.set(hit.x, 0.4, hit.z);
-      f.scale.setScalar(0.25 + 1.3 * Math.min(1, w));
-    }
+
+    const presence = orbitPresence(t);
+    starMat.opacity = presence;
+    ringMat.opacity = presence * 0.9;
+    outerRingMat.opacity = presence * 0.5;
+    const pop = orbitPop(t);
+    let s = 0;
+    ORBITS.forEach((orbit, o) => {
+      const ring = rings.current[o];
+      if (ring) {
+        ring.position.set(orbit.cx, orbit.cy - pop.drop, 0);
+        ring.scale.setScalar(pop.scale);
+      }
+      for (let i = 0; i < orbit.stars; i++, s++) {
+        const star = stars.current[s];
+        if (!star) continue;
+        starAt(orbit, i, t, starPose);
+        star.position.set(starPose.x, starPose.y, starPose.z);
+        star.scale.setScalar(starPose.scale);
+        star.quaternion.copy(camera.quaternion);
+      }
+    });
   });
 
   return (
-    <>
-      {count > 0 && <instancedMesh ref={puffs} args={[geometry, dust, count]} frustumCulled={false} visible={false} />}
-      <mesh ref={flash} geometry={geometry} material={glow} frustumCulled={false} visible={false} />
-    </>
+    <group ref={root} visible={false} scale={FX_SCALE}>
+      {count > 0 && <instancedMesh ref={puffs} args={[geometry, smoke, count]} frustumCulled={false} />}
+      {ORBITS.map((orbit, o) => (
+        <group key={o} ref={(g) => void (rings.current[o] = g)} rotation={[0, 0, orbit.tilt]}>
+          <mesh geometry={ringGeo} material={ringMat} rotation={[Math.PI / 2, 0, 0]} scale={[orbit.rx, orbit.rz, 1]} renderOrder={10} frustumCulled={false} />
+          <mesh geometry={ringGeo} material={outerRingMat} rotation={[Math.PI / 2, 0, 0]} scale={[orbit.rx * 1.06, orbit.rz * 1.06, 1]} renderOrder={10} frustumCulled={false} />
+        </group>
+      ))}
+      {ORBITS.flatMap((orbit, o) =>
+        Array.from({ length: orbit.stars }, (_, i) => (
+          <mesh
+            key={`${o}-${i}`}
+            ref={(m) => void (stars.current[ORBITS.slice(0, o).reduce((n, b) => n + b.stars, 0) + i] = m)}
+            geometry={starGeo}
+            material={starMat}
+            renderOrder={11}
+            frustumCulled={false}
+          />
+        )),
+      )}
+    </group>
   );
 }
