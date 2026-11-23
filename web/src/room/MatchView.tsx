@@ -1,8 +1,8 @@
-import { lazy, Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { useNavigate } from 'react-router';
 import { isLocked } from '../../../shared/game/engine';
 import { longestBatchSeconds, paceTimings } from '../../../shared/game/pace';
-import { HORSES_PER_COLOR, POS_GATE, type Color } from '../../../shared/game/types';
+import { HORSES_PER_COLOR, POS_GATE, type Color, type GameState } from '../../../shared/game/types';
 import { LOCKED_LABEL, NEED_KICK_HINT, QUICK_WIN_TEXT, UNLOCKED_LABEL } from '../../../shared/rules-text';
 import { SaveAccountBlock } from '../auth/SaveAccountBlock';
 import { useSession } from '../auth/session-context';
@@ -25,8 +25,9 @@ import { HorseNamesDialog } from './HorseNamesDialog';
 import { Modal } from './Modal';
 import { MotionLevelControl } from './MotionLevelControl';
 import { RulesButton, RulesSheet } from './RulesSheet';
+import { DieFace } from './DieFace';
 import { describeMove } from './move-text';
-import { reportAfterExpiry, rollHeld, type BoardReport } from './board-wait';
+import { pendingAfterArrival, pendingAfterExpiry, pendingAfterReport, playsOnBoard, reportAfterExpiry, rollHeld, type BoardReport, type Pending } from './board-wait';
 import { useShakeToRoll } from './shake';
 import { reserveInsets, type ReservedInsets } from '../scene/camera';
 import { Icon } from '../ui/Icon';
@@ -36,14 +37,34 @@ const REMINDER_SECONDS = 10;
 /** Added to the longest batch of the room's pace for how long a roll waits for the board, for a slow device. */
 const BOARD_WAIT_MARGIN_SECONDS = 0.5;
 
-/**
- * True while the roll waits for the board: from the first frame of the match until the board reports, then
- * while it animates what the server reported, for at most `maxWaitMs` per state: a slow device must not hold
- * the player up.
- */
-function useBoardWait(seq: number, maxWaitMs: number): [boolean, (busy: boolean) => void] {
+/** The match page's view of the board: what the roll waits for, and the state the HUD may show. */
+interface BoardView {
+  /**
+   * True while the roll waits for the board: from the first frame of the match until the board reports, then
+   * while it animates what the server reported, for at most `maxWaitMs` per state: a slow device must not hold
+   * the player up.
+   */
+  held: boolean;
+  /**
+   * The newest state the board has finished showing. A roll or move the server reports plays on the board
+   * first, so the turn text, the roll button and the die read this, not the newest state, until it has played.
+   */
+  shown: { game: GameState | null; seq: number };
+  /** The board is throwing a die whose result `shown` does not have yet. */
+  rolling: boolean;
+  /** The board's report of whether it is animating. */
+  onBusyChange: (busy: boolean) => void;
+}
+
+function useBoardView(room: RoomSnapshot, batches: StateBatch[], maxWaitMs: number): BoardView {
+  const seq = room.seq;
   const [report, setReport] = useState<BoardReport>(null);
   const [expiredAt, setExpiredAt] = useState<number | null>(null);
+  const [pending, setPending] = useState<Pending | null>(null);
+  // A board that has never reported (no WebGL) has nothing to wait for.
+  const [reported, setReported] = useState(false);
+  const [arrivedSeq, setArrivedSeq] = useState(seq);
+  const [shown, setShown] = useState({ game: room.game, seq });
   const waiting = report ?? true;
   useEffect(() => {
     if (!waiting) return;
@@ -53,7 +74,33 @@ function useBoardWait(seq: number, maxWaitMs: number): [boolean, (busy: boolean)
     }, maxWaitMs);
     return () => clearTimeout(timer);
   }, [waiting, seq, maxWaitMs]);
-  return [rollHeld(report, seq, expiredAt), setReport];
+  const pendingSeq = pending?.seq;
+  useEffect(() => {
+    if (pendingSeq === undefined) return;
+    const timer = setTimeout(() => setPending((p) => pendingAfterExpiry(p, pendingSeq)), maxWaitMs);
+    return () => clearTimeout(timer);
+  }, [pendingSeq, maxWaitMs]);
+  const onBusyChange = useCallback((busy: boolean) => {
+    setReported(true);
+    setReport(busy);
+    setPending((p) => pendingAfterReport(p, busy));
+  }, []);
+
+  // Decided while rendering, not in an effect: the board's report comes a render after the state, and a
+  // frame of the new turn would show before it.
+  let hold = pending !== null;
+  if (seq !== arrivedSeq) {
+    setArrivedSeq(seq);
+    if (reported && unconsumed(batches, arrivedSeq).some((b) => playsOnBoard(b.events))) {
+      setPending((p) => pendingAfterArrival(p, seq, report));
+      hold = true;
+    }
+  }
+  if (!hold && shown.seq !== seq) setShown({ game: room.game, seq });
+
+  const rolling =
+    pending !== null && batches.some((b) => b.room.seq > shown.seq && b.room.seq <= pending.seq && b.events.some((e) => e.type === 'rolled'));
+  return { held: rollHeld(report, seq, expiredAt), shown, rolling, onBusyChange };
 }
 
 const GameScene = lazy(() => import('../scene/GameScene'));
@@ -77,30 +124,25 @@ function seatName(seat: Seat | undefined): string {
   return occ.kind === 'cpu' ? occ.name : occ.user.displayName;
 }
 
-/** Most recent die shown on screen, folded over every batch received, in order. */
+/**
+ * Most recent die shown on screen, folded over every batch received, in order. Folded while rendering, so
+ * the die changes in the same frame as the turn text beside it.
+ */
 function useLastRoll(batches: StateBatch[]): LastRoll | null {
-  const [last, setLast] = useState<LastRoll | null>(null);
-  const consumed = useRef<number | null>(null);
-  useEffect(() => {
-    const from = consumed.current;
-    if (unconsumed(batches, from).length === 0) return;
-    consumed.current = batches[batches.length - 1]?.room.seq ?? from;
-    setLast((prev) => lastRollAfter(prev, batches, from));
-  }, [batches]);
-  return last;
+  const [folded, setFolded] = useState<{ last: LastRoll | null; seq: number | null }>({ last: null, seq: null });
+  if (unconsumed(batches, folded.seq).length > 0) {
+    setFolded({ last: lastRollAfter(folded.last, batches, folded.seq), seq: batches[batches.length - 1]?.room.seq ?? folded.seq });
+  }
+  return folded.last;
 }
 
 /** Whether the local player's last roll was blocked only by their locked home column (quick match). */
 function useNeedKick(batches: StateBatch[], color: Color | null): boolean {
-  const [hint, setHint] = useState(false);
-  const consumed = useRef<number | null>(null);
-  useEffect(() => {
-    const from = consumed.current;
-    if (unconsumed(batches, from).length === 0) return;
-    consumed.current = batches[batches.length - 1]?.room.seq ?? from;
-    setHint((prev) => needKickAfter(prev, batches, from, color));
-  }, [batches, color]);
-  return hint;
+  const [folded, setFolded] = useState<{ hint: boolean; seq: number | null }>({ hint: false, seq: null });
+  if (unconsumed(batches, folded.seq).length > 0) {
+    setFolded({ hint: needKickAfter(folded.hint, batches, folded.seq, color), seq: batches[batches.length - 1]?.room.seq ?? folded.seq });
+  }
+  return folded.hint;
 }
 
 function useCountdown(deadline: number | null, offset: number): number | null {
@@ -186,8 +228,14 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
   // Decided once per visit: stays on screen as a confirmation after the guest registers.
   const [offerSave] = useState(guest);
   const [saveDismissed, setSaveDismissed] = useState(false);
-  const game = room.game;
-  const lastRoll = useLastRoll(batches);
+  // The server reports a CPU's roll and move together with the turn passing to us, and our own roll with
+  // its result: the HUD, the roll button and the chime wait until the board has shown that.
+  const { pace, quick } = room.settings;
+  const maxBoardWaitMs = useMemo(() => Math.ceil((longestBatchSeconds(paceTimings(pace, quick)) + BOARD_WAIT_MARGIN_SECONDS) * 1000), [pace, quick]);
+  const board = useBoardView(room, batches, maxBoardWaitMs);
+  const game = board.shown.game ?? room.game;
+  const shownBatches = useMemo(() => batches.filter((b) => b.room.seq <= board.shown.seq), [batches, board.shown.seq]);
+  const lastRoll = useLastRoll(shownBatches);
   // The clock of an action starts once the board has shown what led to it; until then it reads the full time.
   const left = useCountdown(room.turnDeadline, clockOffset);
   const seconds = left === null ? null : Math.min(left, room.settings.turnSeconds);
@@ -195,18 +243,13 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
 
   const mySeat = room.seats.find((s) => s.occupant?.kind === 'human' && s.occupant.user.id === myId);
   const myColor = mySeat?.color ?? null;
-  const needKick = useNeedKick(batches, myColor);
+  const needKick = useNeedKick(shownBatches, myColor);
   const finished = game?.phase === 'finished';
   const paused = room.paused;
   const myTurn = game !== null && myColor !== null && game.turn === myColor && !finished;
-  // The server reports a CPU's roll and move together with the turn passing to us; the roll button
-  // and the chime wait until the board has shown that turn.
-  const { pace, quick } = room.settings;
-  const maxBoardWaitMs = useMemo(() => Math.ceil((longestBatchSeconds(paceTimings(pace, quick)) + BOARD_WAIT_MARGIN_SECONDS) * 1000), [pace, quick]);
-  const [boardBusy, setBoardBusy] = useBoardWait(room.seq, maxBoardWaitMs);
-  const canRoll = myTurn && !paused && game?.phase === 'roll' && !boardBusy;
+  const canRoll = myTurn && !paused && game?.phase === 'roll' && !board.held;
   useMusic('game');
-  useGameSounds(batches, myTurn && !paused && !boardBusy, seconds, room.turnDeadline);
+  useGameSounds(batches, myTurn && !paused && !board.held, seconds, room.turnDeadline);
   const dialogOpen = menuOpen || renaming || rulesOpen || confirmLeave || confirmClose || (introOpen && !finished);
   // Changes with every roll the server reports, so each roll chance allows one shake-roll.
   const lastRolledSeq = [...batches].reverse().find((b) => b.events.some((e) => e.type === 'rolled'))?.room.seq ?? null;
@@ -237,12 +280,14 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
       : myTurn
         ? 'Lượt của bạn'
         : `Lượt của ${seatName(turnSeat)}`;
+  // Whoever throws the die on the board now; else whoever threw the one the HUD shows.
+  const dieColor = board.rolling ? game.turn : lastRoll?.color;
   const lowTime = seconds !== null && seconds <= REMINDER_SECONDS && myTurn && !paused;
   return (
     <div
       className="match"
       data-testid="hud"
-      data-seq={room.seq}
+      data-seq={board.shown.seq}
       data-horses={JSON.stringify(game.horses)}
       data-my-color={myColor ?? ''}
     >
@@ -253,7 +298,7 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
             batches={batches}
             myColor={myColor}
             insets={hud.insets}
-            onBusyChange={setBoardBusy}
+            onBusyChange={board.onBusyChange}
             onPickHorse={(horse) => {
               if (myTurn && !paused && game.phase === 'move' && game.legalHorses.includes(horse)) send({ t: 'move', horse });
             }}
@@ -323,14 +368,7 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
 
       <section className={`glass hud-bottom${myTurn && !paused ? ' is-my-turn' : ''}`} aria-label="Điều khiển" ref={hud.bottomRef}>
         <div className="hud-line">
-          <span
-            className="dice"
-            data-testid="dice-value"
-            aria-label="Xúc xắc"
-            style={lastRoll ? ({ '--seat-color': COLOR_VARS[lastRoll.color] } as CSSProperties) : undefined}
-          >
-            {lastRoll?.dice ?? '–'}
-          </span>
+          <DieFace value={board.rolling ? null : (lastRoll?.dice ?? null)} seatColor={dieColor === undefined ? undefined : COLOR_VARS[dieColor]} />
           <div className="turn-info">
             {room.settings.quick && (
               <span className="badge badge-quick" data-testid="quick-tag">

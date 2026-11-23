@@ -719,7 +719,7 @@ html[data-quality='low'] .hud-player {
   align-items: center;
   gap: var(--space-2);
   margin: 0;
-  font-family: var(--font-display);
+  font-family: var(--font-ui);
   font-size: var(--text-lg);
   font-weight: var(--weight-bold);
   line-height: var(--leading-tight);
@@ -761,21 +761,81 @@ html[data-quality='low'] .hud-player {
   border-color: rgb(240 122 104 / 45%);
 }
 
-/* The die face: ivory tile edged in the colour of whoever rolled it. */
+/* The die face: ivory tile edged in the colour of whoever rolled it, pips like a real die. */
 .dice {
+  position: relative;
   flex: none;
   display: grid;
   place-items: center;
   width: 52px;
   height: 52px;
-  font-size: var(--text-xl);
-  font-weight: var(--weight-extrabold);
-  font-variant-numeric: tabular-nums;
   color: var(--lim-900);
   background: linear-gradient(160deg, var(--cream-50), var(--cream-300));
   border: 3px solid var(--seat-color, var(--color-bronze));
   border-radius: var(--radius-md);
   box-shadow: inset 0 -3px 0 rgb(0 0 0 / 18%), var(--shadow-sm);
+}
+
+.dice-pips {
+  display: grid;
+  grid-template: repeat(3, 1fr) / repeat(3, 1fr);
+  width: 100%;
+  height: 100%;
+  padding: 6px;
+  animation: dice-land var(--dur-slow) var(--ease-out);
+}
+
+.dice-pip {
+  place-self: center;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--lim-900);
+  box-shadow: inset 0 1px 1px rgb(255 255 255 / 25%);
+}
+
+/* A lone pip is red, as on a Vietnamese die. */
+.dice-pips:has(.dice-pip:only-child) .dice-pip {
+  width: 12px;
+  height: 12px;
+  background: var(--lacquer-500);
+}
+
+.dice.is-loading {
+  background: linear-gradient(160deg, var(--cream-100), var(--cream-300));
+  opacity: 0.85;
+}
+
+.dice-spinner {
+  width: 22px;
+  height: 22px;
+  border: 3px solid rgb(42 28 16 / 18%);
+  border-top-color: var(--color-bronze);
+  border-radius: 50%;
+  animation: dice-spin 0.8s linear infinite;
+}
+
+/* The number stays in the page for screen readers and tests; the pips are what the eye reads. */
+.dice-text {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+@keyframes dice-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes dice-land {
+  from {
+    transform: scale(0.6) rotate(-25deg);
+    opacity: 0;
+  }
 }
 
 .hud-actions {

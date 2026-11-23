@@ -26,7 +26,7 @@ const LABEL_STYLE: CSSProperties = {
   borderRadius: 999,
   background: 'rgb(251 244 230 / 88%)',
   color: '#2a1c10',
-  font: '700 11px/1.3 system-ui, sans-serif',
+  font: '700 11px/1.3 var(--font-ui)',
   whiteSpace: 'nowrap',
   willChange: 'transform',
 };
@@ -45,7 +45,7 @@ function Unavailable() {
         padding: 24,
         textAlign: 'center',
         color: '#f4e7cf',
-        font: '500 16px/1.5 system-ui, sans-serif',
+        font: '500 16px/1.5 var(--font-ui)',
       }}
     >
       {UNAVAILABLE}
