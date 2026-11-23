@@ -342,12 +342,17 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
                 data-active={active}
               >
                 <span className="seat-dot" title={COLOR_NAMES[s.color]}>
-                  <Icon name={occ?.kind === 'cpu' ? 'bot' : 'user'} size="sm" />
+                  <Icon name={occ?.kind === 'cpu' ? 'bot' : 'knight'} size="sm" />
+                  {occ?.kind === 'human' && occ.user.id === room.hostId && (
+                    <span className="seat-crown" role="img" aria-label="Chủ phòng">
+                      <Icon name="crown" size="sm" />
+                    </span>
+                  )}
                 </span>
                 <span className="hud-player-main">
                   <span className="hud-name">{seatName(s)}</span>
                   <span className="hud-badges">
-                    {occ?.kind === 'cpu' && <span className="badge">CPU · {CPU_LEVEL_LABELS[cpuLevelOf(room)]}</span>}
+                    {occ?.kind === 'cpu' && <span className="badge">Máy · {CPU_LEVEL_LABELS[cpuLevelOf(room)]}</span>}
                     {occ?.kind === 'human' && !occ.connected && (
                       <span className="badge badge-warn">
                         <Icon name="wifi-off" size="sm" />

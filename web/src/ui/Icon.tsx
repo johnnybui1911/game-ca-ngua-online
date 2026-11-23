@@ -2,6 +2,7 @@ import {
   ArrowLeft,
   BookOpen,
   Bot,
+  ChessKnight,
   Check,
   CircleHelp,
   Copy,
@@ -61,12 +62,13 @@ import {
  * | play        | "Tiếp tục" (host)                | Play               |
  * | timer       | turn countdown                   | Timer              |
  * | bot         | CPU player badge                 | Bot                |
- * | user-plus   | "Thêm CPU"                       | UserPlus           |
- * | user-minus  | "Bỏ CPU"                         | UserMinus          |
+ * | user-plus   | "Thêm máy"                      | UserPlus           |
+ * | user-minus  | "Bỏ máy"                        | UserMinus          |
  * | pencil      | "Đặt tên quân"                   | Pencil             |
  * | wifi-off    | offline player badge             | WifiOff            |
  * | shake       | shake-to-roll                    | Vibrate            |
  * | help        | "?" rules button in a match      | CircleHelp         |
+ * | knight      | human player (non-host) in match | ChessKnight        |
  */
 const ICONS = {
   'sound-on': Volume2,
@@ -99,6 +101,7 @@ const ICONS = {
   'wifi-off': WifiOff,
   shake: Vibrate,
   help: CircleHelp,
+  knight: ChessKnight,
 } as const satisfies Record<string, LucideIcon>;
 
 export type IconName = keyof typeof ICONS;

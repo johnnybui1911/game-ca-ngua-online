@@ -5,6 +5,7 @@ import type { GameEvent, StepResult } from '../../shared/game/types';
 import { isEmoteId } from '../../shared/emotes';
 import {
   MAX_HORSE_NAME,
+  MAX_HORSE_NAME_WORDS,
   CLOSE_SIGNED_OUT,
   SEAT_COLORS,
   SIGNED_OUT_CODE,
@@ -118,7 +119,7 @@ function parseClientMessage(text: string): RoomClientMessage {
       return { t: 'move', horse: int(msg.horse) };
     case 'horseNames': {
       const names = cleanHorseNames(msg.names);
-      if (!names) throw new RoomError('bad_name', `Tên quân tối đa ${MAX_HORSE_NAME} ký tự.`);
+      if (!names) throw new RoomError('bad_name', `Tên quân tối đa ${MAX_HORSE_NAME} ký tự và ${MAX_HORSE_NAME_WORDS} từ.`);
       return { t: 'horseNames', names };
     }
     case 'cpuLevel': {

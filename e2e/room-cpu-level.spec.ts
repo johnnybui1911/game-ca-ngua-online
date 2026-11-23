@@ -75,7 +75,7 @@ test('a solo match against a Hard CPU shows the level in the HUD and the CPU pla
   await host.page.getByTestId('start-button').click();
 
   await expect(host.page.getByTestId('hud')).toBeVisible();
-  await expect(host.page.getByTestId('hud-player-2')).toContainText('CPU · Khó');
+  await expect(host.page.getByTestId('hud-player-2')).toContainText('Máy · Khó');
   await startAutoPlayer(host.page);
   // The CPU's horses move without any input from the page.
   const before = await horsesOf(host.page, 2);
@@ -92,7 +92,7 @@ test('a seat vacated mid-game is taken over by a CPU at the room level', async (
   await b.page.getByTestId('leave-room').click();
   await b.page.getByTestId('leave-confirm').click();
   await expect(b.page).toHaveURL('/');
-  await expect(a.page.getByTestId('hud-player-2')).toContainText('CPU · Khó');
+  await expect(a.page.getByTestId('hud-player-2')).toContainText('Máy · Khó');
   await a.context.close();
   await b.context.close();
 });

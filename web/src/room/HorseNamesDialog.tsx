@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { HORSES_PER_COLOR, type Color } from '../../../shared/game/types';
-import { MAX_HORSE_NAME, type RoomClientMessage } from '../../../shared/protocol';
+import { MAX_HORSE_NAME, MAX_HORSE_NAME_WORDS, countWords, type RoomClientMessage } from '../../../shared/protocol';
 import { Icon } from '../ui/Icon';
 import { COLOR_NAMES, COLOR_VARS } from './colors';
 import { Modal } from './Modal';
@@ -17,7 +17,10 @@ interface Props {
 export function HorseNamesDialog({ color, names, send, onClose }: Props) {
   const [draft, setDraft] = useState(() => Array.from({ length: HORSES_PER_COLOR }, (_, i) => names[i] ?? ''));
   // Same measure as the server: characters (code points) after NFC, so emoji and NFD input count fairly.
-  const tooLong = draft.map((n) => [...n.trim().normalize('NFC')].length > MAX_HORSE_NAME);
+  const tooLong = draft.map((n) => {
+    const name = n.trim().normalize('NFC');
+    return [...name].length > MAX_HORSE_NAME || countWords(name) > MAX_HORSE_NAME_WORDS;
+  });
   const invalid = tooLong.some(Boolean);
 
   const submit = (e: FormEvent) => {
@@ -33,7 +36,7 @@ export function HorseNamesDialog({ color, names, send, onClose }: Props) {
         Đặt tên quân
       </h2>
       <p className="ui-muted">
-        Quân {COLOR_NAMES[color]} của bạn. Để trống để dùng số. Tối đa {MAX_HORSE_NAME} ký tự.
+        Quân {COLOR_NAMES[color]} của bạn. Để trống để dùng số. Tối đa {MAX_HORSE_NAME} ký tự và {MAX_HORSE_NAME_WORDS} từ.
       </p>
       <div className="horse-name-fields">
         {draft.map((value, i) => (
@@ -55,7 +58,7 @@ export function HorseNamesDialog({ color, names, send, onClose }: Props) {
       </div>
       {invalid && (
         <p className="form-error" role="alert" data-testid="horse-names-error">
-          Tên quân tối đa {MAX_HORSE_NAME} ký tự.
+          Tên quân tối đa {MAX_HORSE_NAME} ký tự và {MAX_HORSE_NAME_WORDS} từ.
         </p>
       )}
       <div className="dialog-actions">

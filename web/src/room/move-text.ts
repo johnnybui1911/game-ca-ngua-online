@@ -18,6 +18,6 @@ export function describeMove(game: GameState, horse: number, names?: readonly st
   if (from === POS_STABLE) action = 'ra quân';
   else if (landing.to > POS_GATE) action = `lên bậc ${landing.to - POS_GATE}`;
   else action = `đi ${dice} ô`;
-  const kick = landing.kicked ? `, đá quân ${COLOR_NAMES[landing.kicked.color]}` : '';
+  const kick = landing.kicked ? `, đá ${COLOR_NAMES[landing.kicked.color]}` : '';
   return `${label}: ${action}${kick}`;
 }
