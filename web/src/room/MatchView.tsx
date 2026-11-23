@@ -436,8 +436,8 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
         <div className="hud-actions">
           {canRoll && (
             <button type="button" className="ui-btn ui-btn--hero btn-roll" data-testid="roll-button" onClick={() => send({ t: 'roll' })}>
-              <Icon name="dice" size="lg" />
-              {shake.enabled ? 'Đổ xúc xắc (hoặc lắc máy)' : 'Đổ xúc xắc'}
+              <Icon name={shake.enabled ? 'shake' : 'dice'} size="lg" />
+              {shake.enabled ? 'Lắc máy' : 'Đổ xúc xắc'}
             </button>
           )}
           {canRoll && shake.supported && !shake.enabled && (

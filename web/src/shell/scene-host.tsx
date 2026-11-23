@@ -45,6 +45,8 @@ export interface SceneHostApi {
   addMatchTransition: (transition: MatchTransition) => () => void;
   /** Called by the canvas as it loads. */
   setLoad: (load: SceneLoad) => void;
+  /** Called by the canvas as the files it cannot start without arrive: 0 to 100, never going back. */
+  setProgress: (percent: number) => void;
   /** Transitions registered now, in registration order. */
   matchTransitions: () => MatchTransition[];
 }
@@ -54,6 +56,8 @@ export interface SceneHostState {
   match: MatchSource | null;
   showcase: ShowcaseScene | null;
   load: SceneLoad;
+  /** How far the board's first picture is, 0 to 100. */
+  progress: number;
 }
 
 const DEFAULT_STAGE: SceneStage = { activity: 'dimmed', insets: { top: 0, bottom: 0 }, orbit: false };
@@ -85,6 +89,7 @@ export function SceneHostProvider({ children }: { children: ReactNode }) {
   const [match, setMatchState] = useState<MatchSource | null>(null);
   const [showcase, setShowcase] = useState<ShowcaseScene | null>(null);
   const [load, setLoad] = useState<SceneLoad>('loading');
+  const [progress, setProgressState] = useState(0);
   const transitions = useRef<MatchTransition[]>([]);
   /** The match's newest pick handler; it changes with every render of the match page. */
   const pick = useRef<GameSceneProps['onPickHorse'] | null>(null);
@@ -116,13 +121,14 @@ export function SceneHostProvider({ children }: { children: ReactNode }) {
         };
       },
       setLoad,
+      setProgress: (percent) => setProgressState((prev) => Math.max(prev, Math.min(100, Math.round(percent)))),
       matchTransitions: () => transitions.current,
     }),
     [onPickHorse],
   );
 
   const stage = stages[stages.length - 1]?.stage ?? DEFAULT_STAGE;
-  const state = useMemo<SceneHostState>(() => ({ stage, match, showcase, load }), [stage, match, showcase, load]);
+  const state = useMemo<SceneHostState>(() => ({ stage, match, showcase, load, progress }), [stage, match, showcase, load, progress]);
 
   return (
     <ApiContext value={api}>

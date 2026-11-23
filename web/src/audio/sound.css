@@ -65,7 +65,17 @@ html[data-quality='low'] .sound-toggle {
 /* "Hoạt cảnh" in the match menu: a sound-switch row whose control is two pills, not a switch. */
 .motion-switch {
   flex-wrap: wrap;
+  padding-block: var(--space-2);
   cursor: default;
+}
+
+.motion-switch > span:not(.motion-level-pills) {
+  white-space: nowrap;
+}
+
+.motion-switch .ui-pill {
+  min-height: 36px;
+  padding: 0 var(--space-2);
 }
 
 .sound-switch > .motion-level-pills {

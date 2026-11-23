@@ -503,6 +503,8 @@
 
 /* Player card: a dense glass pill that stays readable over the brightest part of the board. */
 .hud-player {
+  /* Cards of a wrapped row would otherwise paint over the emote bubble hanging from the row above. */
+  z-index: 0;
   position: relative;
   display: flex;
   align-items: center;
@@ -520,6 +522,10 @@
   transition:
     border-color var(--dur-slow) var(--ease-out),
     box-shadow var(--dur-slow) var(--ease-out);
+}
+
+.hud-player:has(.emote-bubble) {
+  z-index: 2;
 }
 
 html[data-quality='low'] .hud-player {
@@ -1137,6 +1143,7 @@ html[data-quality='low'] .hud-player {
 
 .menu-settings {
   padding: 0 var(--space-4);
+  text-align: left;
   background: rgb(245 234 210 / 4%);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);

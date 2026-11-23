@@ -29,7 +29,7 @@ class SceneBoundary extends Component<{ children: ReactNode; onFail: () => void 
 
 function SceneLayer() {
   const host = useSceneHost();
-  const { load, match } = useSceneHostState();
+  const { load, match, progress } = useSceneHostState();
   const { webgl } = useQuality();
   // A software rasteriser builds and draws the board on the CPU, which stalls the page for
   // seconds: it gets the poster until a match needs the real board. Once created the canvas stays.
@@ -51,7 +51,7 @@ function SceneLayer() {
           </SceneBoundary>
         )}
       </div>
-      <LoadingOverlay load={shown} />
+      <LoadingOverlay load={shown} progress={progress} />
     </div>
   );
 }

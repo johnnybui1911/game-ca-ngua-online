@@ -46,7 +46,9 @@
           { "@type": "Question", "name": "Một mình có chơi được không?", "acceptedAnswer": { "@type": "Answer", "text": "Được. Tạo phòng rồi thêm 1 đến 3 máy vào các chỗ trống và bấm Bắt đầu." } },
           { "@type": "Question", "name": "Chơi với bạn bè như thế nào?", "acceptedAnswer": { "@type": "Answer", "text": "Tạo phòng, bấm Sao chép link hoặc Chia sẻ rồi gửi vào nhóm chat. Bạn bè mở link, nhập tên là vào đúng phòng." } },
           { "@type": "Question", "name": "Bao nhiêu người chơi được một ván?", "acceptedAnswer": { "@type": "Answer", "text": "Từ 2 đến 4 người, có thể kết hợp người và máy." } },
-          { "@type": "Question", "name": "Rớt mạng giữa ván thì sao?", "acceptedAnswer": { "@type": "Answer", "text": "Máy sẽ chơi thay để ván không bị dừng. Mở lại link phòng là bạn trở về đúng chỗ ngồi." } }
+          { "@type": "Question", "name": "Rớt mạng giữa ván thì sao?", "acceptedAnswer": { "@type": "Answer", "text": "Máy sẽ chơi thay để ván không bị dừng. Mở lại link phòng là bạn trở về đúng chỗ ngồi." } },
+          { "@type": "Question", "name": "Chơi cùng máy có chỉnh độ khó được không?", "acceptedAnswer": { "@type": "Answer", "text": "Được. Chủ phòng chọn độ khó của máy ở phòng chờ: Dễ, Thường hoặc Khó." } },
+          { "@type": "Question", "name": "Trên điện thoại có lắc máy để đổ xúc xắc được không?", "acceptedAnswer": { "@type": "Answer", "text": "Được. Bấm Lắc máy trong lượt của bạn hoặc bật Lắc máy để đổ xúc xắc trong Menu, rồi lắc điện thoại là xúc xắc được tung." } }
         ]
       }
     </script>
@@ -71,7 +73,7 @@
       <div class="lp-hero-media">
         <picture>
           <source media="(max-width: 767.98px)" srcset="/landing/hero-mobile.jpg" width="780" height="1560" />
-          <img class="lp-hero-poster" src="/landing/hero-poster.jpg" width="1280" height="720" fetchpriority="high" alt="Bàn cờ cá ngựa 3D với ngựa đỏ, xanh dương, vàng, xanh lá và xúc xắc" />
+          <img class="lp-hero-poster" src="/landing/hero-poster.jpg" width="1920" height="1080" fetchpriority="high" alt="Bàn cờ cá ngựa 3D với ngựa đỏ, xanh dương, vàng, xanh lá và xúc xắc" />
         </picture>
         <video class="lp-hero-video" muted loop playsinline preload="none" disablepictureinpicture aria-hidden="true" tabindex="-1">
           <source src="/landing/hero.mp4" type="video/mp4" />
@@ -96,7 +98,7 @@
           <h2 id="cach-choi">Vào ván trong 3 bước</h2>
           <ol class="lp-steps">
             <li><span class="lp-step-icon" aria-hidden="true"><svg class="lp-icon"><use href="#i-user" /></svg></span><strong>Nhập tên</strong><span>Không cần email hay mật khẩu. Muốn giữ tên thì lưu tài khoản sau ván.</span></li>
-            <li><span class="lp-step-icon" aria-hidden="true"><svg class="lp-icon"><use href="#i-door" /></svg></span><strong>Tạo phòng</strong><span>Chọn 2, 3 hoặc 4 chỗ, phòng công khai hoặc riêng tư. Chỗ trống có thể thêm máy.</span></li>
+            <li><span class="lp-step-icon" aria-hidden="true"><svg class="lp-icon"><use href="#i-door" /></svg></span><strong>Tạo phòng</strong><span>Chọn 2, 3 hoặc 4 chỗ, phòng công khai hoặc riêng tư. Chỗ trống có thể thêm máy, chọn độ khó Dễ, Thường hoặc Khó.</span></li>
             <li><span class="lp-step-icon" aria-hidden="true"><svg class="lp-icon"><use href="#i-link" /></svg></span><strong>Gửi link</strong><span>Bấm Sao chép link hoặc Chia sẻ, dán vào Zalo, Messenger. Bạn bè mở link là vào đúng phòng.</span></li>
           </ol>
         </div>
@@ -128,6 +130,7 @@
               <figcaption><strong>Về đích</strong>Lên chuồng từng bậc, đủ 4 ngựa là thắng.</figcaption>
             </figure>
           </div>
+          <p class="lp-muted">Phòng còn có luật thêm, bật sẵn và chủ phòng tắt được: tung 1 hoặc 6 ba lần liên tiếp trong một lượt thì lần thứ ba bị hủy và mất lượt, các nước đã đi trước đó vẫn giữ.</p>
           <p class="lp-muted">Khác với Ludo quốc tế (chỉ ra chuồng bằng 6, có ô an toàn, được đi qua ngựa khác), đây là luật cá ngựa quen thuộc ở Việt Nam. Máy chủ tung xúc xắc và kiểm tra nước đi nên không ai gian lận được.</p>
         </div>
       </section>
@@ -148,7 +151,7 @@
               </tbody>
             </table>
           </div>
-          <p class="lp-muted">Chủ phòng bật "Ván nhanh" ở phòng chờ. Chủ phòng cũng chọn thời gian mỗi lượt từ 10 đến 60 giây.</p>
+          <p class="lp-muted">Ở phòng chờ, chủ phòng chọn Mode (Cơ Bản hoặc Ván Nhanh), thời gian mỗi lượt (10, 15, 20, 30 hoặc 60 giây) và Nhịp ván (Nhanh, Vừa, Thư thả) để biết ván kéo dài khoảng bao lâu.</p>
         </div>
       </section>
 
@@ -165,7 +168,7 @@
                 <tr><th scope="row">Rủ bạn</th><td>Một link dán vào bất kỳ nhóm chat nào</td><td>Bạn bè cũng phải cài app</td></tr>
                 <tr><th scope="row">Quảng cáo, mua vật phẩm</th><td>Không có</td><td>Thường có</td></tr>
                 <tr><th scope="row">Luật</th><td>Cá ngựa Việt Nam</td><td>Tuỳ app</td></tr>
-                <tr><th scope="row">Chat trong ván</th><td>Chưa có</td><td>Nhiều app có</td></tr>
+                <tr><th scope="row">Chat trong ván</th><td>Biểu cảm nhanh, chưa có chat chữ</td><td>Nhiều app có chat chữ</td></tr>
                 <tr><th scope="row">Số người một bàn</th><td>2 đến 4</td><td>Có app cho 5 đến 6</td></tr>
               </tbody>
             </table>
@@ -183,6 +186,8 @@
           <details><summary>Chơi với bạn bè như thế nào?<svg class="lp-icon" aria-hidden="true"><use href="#i-chevron" /></svg></summary><p>Tạo phòng, bấm Sao chép link hoặc Chia sẻ rồi gửi vào nhóm chat. Bạn bè mở link, nhập tên là vào đúng phòng.</p></details>
           <details><summary>Bao nhiêu người chơi được một ván?<svg class="lp-icon" aria-hidden="true"><use href="#i-chevron" /></svg></summary><p>Từ 2 đến 4 người, có thể kết hợp người và máy.</p></details>
           <details><summary>Rớt mạng giữa ván thì sao?<svg class="lp-icon" aria-hidden="true"><use href="#i-chevron" /></svg></summary><p>Máy sẽ chơi thay để ván không bị dừng. Mở lại link phòng là bạn trở về đúng chỗ ngồi.</p></details>
+          <details><summary>Chơi cùng máy có chỉnh độ khó được không?<svg class="lp-icon" aria-hidden="true"><use href="#i-chevron" /></svg></summary><p>Được. Chủ phòng chọn độ khó của máy ở phòng chờ: Dễ, Thường hoặc Khó.</p></details>
+          <details><summary>Trên điện thoại có lắc máy để đổ xúc xắc được không?<svg class="lp-icon" aria-hidden="true"><use href="#i-chevron" /></svg></summary><p>Được. Bấm Lắc máy trong lượt của bạn hoặc bật Lắc máy để đổ xúc xắc trong Menu, rồi lắc điện thoại là xúc xắc được tung.</p></details>
         </div>
       </section>
 
