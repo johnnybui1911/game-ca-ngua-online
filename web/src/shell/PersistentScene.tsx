@@ -1,8 +1,22 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { LACQUER_URL } from '../scene/Board';
 import { SceneCanvas } from '../scene/GameScene';
+import { HORSE_MODEL_URL } from '../scene/horse-model';
 import { useQuality } from '../scene/render/QualityProvider';
 import { MATCH_TRANSITION_LIMIT_MS, useSceneHost, useSceneHostState } from './scene-host';
 import { idleShowcase, showcaseBatches } from './showcase';
+
+/**
+ * The loading card's steps, as a share of the whole wait: the 3D code has arrived once this
+ * module runs; the board cannot draw without the knight model and the lacquer texture, whose
+ * sizes set their weights; after both come the shaders and the first picture, which end at 100.
+ */
+const CODE_ARRIVED = 20;
+const FILE_STEPS: ReadonlyMap<string, number> = new Map([
+  [HORSE_MODEL_URL, 20],
+  [LACQUER_URL, 50],
+]);
+const FILES_ARRIVED = 90;
 
 const NOTHING = () => undefined;
 
@@ -12,7 +26,7 @@ const NOTHING = () => undefined;
  */
 export default function PersistentScene() {
   const host = useSceneHost();
-  const { stage, match, showcase } = useSceneHostState();
+  const { stage, match, showcase, load } = useSceneHostState();
   const { setActivity, webgl } = useQuality();
 
   // A match takes the board once the registered transitions (demo horses going home) have run.
@@ -54,8 +68,30 @@ export default function PersistentScene() {
   }, [activity, setActivity]);
   useEffect(() => () => setActivity('full'), [setActivity]);
 
+  // The canvas can be hidden and shown again while something inside it loads (its effects then run
+  // again); a board that already drew its first picture must not go back to "building".
   useEffect(() => {
-    host?.setLoad('building');
+    if (load === 'loading') host?.setLoad('building');
+  }, [host, load]);
+
+  // Each file the first picture needs moves the card forward once the browser has it (cached or not).
+  useEffect(() => {
+    let percent = CODE_ARRIVED;
+    host?.setProgress(percent);
+    const waiting = new Map(FILE_STEPS);
+    const arrived = (entries: PerformanceEntryList) => {
+      for (const entry of entries) {
+        const path = new URL(entry.name, location.href).pathname;
+        const step = waiting.get(path);
+        if (step === undefined) continue;
+        waiting.delete(path);
+        percent += step;
+      }
+      host?.setProgress(waiting.size === 0 ? FILES_ARRIVED : percent);
+    };
+    const observer = new PerformanceObserver((list) => arrived(list.getEntries()));
+    observer.observe({ type: 'resource', buffered: true });
+    return () => observer.disconnect();
   }, [host]);
 
   const idle = useMemo(idleShowcase, []);

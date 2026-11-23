@@ -97,8 +97,8 @@ export function PanelHost({ children, wide = false }: { children: ReactNode; /**
   }, []);
 
   const right = side ? box.width : 0;
-  const bottom = side ? 0 : box.height;
-  useSceneStage({ activity: 'dimmed', orbit: true, insets: { top: 0, bottom, right }, panel: { right, bottom } });
+  // Narrow screens give the panel the whole page: nothing of the board stays in view to frame.
+  useSceneStage({ activity: 'dimmed', orbit: true, insets: { top: 0, bottom: 0, right }, panel: { right, bottom: 0 } });
 
   return (
     <div className={wide ? 'shell-panel shell-panel--wide' : 'shell-panel'} ref={ref} data-testid="panel-host" data-layout={side ? 'side' : 'sheet'}>

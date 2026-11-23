@@ -160,7 +160,7 @@ interface Props {
 }
 
 /** Lacquered wood grain (Poly Haven, CC0), shared through the loader cache. */
-const LACQUER_URL = '/models/lacquer-diff.webp';
+export const LACQUER_URL = '/models/lacquer-diff.webp';
 /** Grain repeats across the slab and across the (world-unit mapped) frame. */
 const SLAB_GRAIN_REPEAT = 2.5;
 const FRAME_GRAIN_REPEAT = 1 / 7;
