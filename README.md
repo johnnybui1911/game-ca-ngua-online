@@ -54,6 +54,12 @@ Số liệu đo nhịp ván (số thao tác, commit, phút theo nhịp máy ch�
 Ba nhịp nằm trong một bảng duy nhất ở `shared/game/pace.ts` (`nhanh`, `vua`, `thu-thai`; mỗi nhịp có bảng riêng cho ván nhanh). Phòng mới dùng nhịp Vừa; phòng cũ giữ nhịp đã chọn, không còn điều khiển đổi nhịp trong phòng chờ. Bàn cờ diễn hoạt theo nhịp của phòng, còn máy chủ chờ đúng thời lượng hoạt ảnh của lượt vừa rồi cộng một nhịp nghỉ trước khi chơi cho máy; đồng hồ lượt của người chơi cũng chỉ bắt đầu khi bàn cờ diễn xong lượt trước. Thời lượng ước tính lấy từ bảng `shared/game/pace-estimate.ts`; sửa số trong một nhịp thì `npm test` báo bảng ước tính cần cập nhật theo.
 
 
+### Ngôn ngữ (Tiếng Việt / English)
+
+Nút **VI | EN** nằm cạnh nút âm thanh ở góc trên bên phải (trang chủ, sảnh, trang tài khoản, phòng chờ) và trong menu của ván đấu. Lựa chọn được lưu trong trình duyệt (`localStorage`, khoá `ca_lang`), áp dụng ngay không cần tải lại hay ngắt kết nối phòng, và đặt `<html lang>`. Ai chưa chọn luôn thấy tiếng Việt, bất kể ngôn ngữ trình duyệt.
+
+Mọi chữ hiển thị nằm trong từ điển có kiểu ở `web/src/i18n/dict/*.ts`: mỗi khu vực là một `defineArea(vi, en)`, thiếu hoặc thừa khoá tiếng Anh là lỗi `tsc`. Thêm chữ mới: thêm khoá vào bản tiếng Việt, thêm bản tiếng Anh cùng khoá, dùng `const t = useT(); t('khu-vuc.khoa', { n })` (hàm ngoài React nhận tham số `t`, mặc định tiếng Việt). Nội dung do máy chủ gửi (thông báo lỗi, tên CPU "Máy n") vẫn là tiếng Việt trên đường truyền và được dịch ở client: thông báo lỗi khớp theo đúng câu tiếng Việt trong `dict/errors.ts` (test quét `worker/` và báo thiếu), tên CPU theo mẫu `Máy n`. Tên do người chơi đặt không bao giờ bị dịch. Trang tĩnh `gioi-thieu.html` không nằm trong phạm vi.
+
 ## Phát triển
 
 Cần Node 22.

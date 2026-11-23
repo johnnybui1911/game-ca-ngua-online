@@ -1,5 +1,9 @@
 import type { PaceName } from '../../../shared/game/pace';
 import { paceEstimate } from '../../../shared/game/pace-estimate';
+import { translatorFor, type TFunction } from '../i18n';
+
+/** A pace's name in the player's language. */
+export const paceLabel = (t: TFunction, pace: PaceName): string => t(`pace.${pace}`);
 
 export const PACE_LABELS: Record<PaceName, string> = {
   nhanh: 'Nhanh',
@@ -16,10 +20,10 @@ function shownMinutes(minutes: number): number {
  * One line on how long a match of this room lasts at `pace`: from the animations alone (people take every
  * action) to a match CPUs play. It is the board's own time; what people spend thinking is not in it.
  */
-export function paceEstimateText(pace: PaceName, seats: number, quick: boolean): string {
+export function paceEstimateText(pace: PaceName, seats: number, quick: boolean, t: TFunction = translatorFor('vi')): string {
   const estimate = paceEstimate(pace, seats, quick);
   const low = shownMinutes(estimate.people);
   const high = shownMinutes(estimate.cpus);
   const minutes = low === high ? `${low}` : `${low}–${high}`;
-  return `${PACE_LABELS[pace]} · ván ${quick ? 'nhanh ' : ''}${seats} người khoảng ${minutes} phút bàn cờ chạy, chưa kể thời gian suy nghĩ.`;
+  return t(quick ? 'pace.estimateQuick' : 'pace.estimate', { pace: paceLabel(t, pace), seats, minutes });
 }

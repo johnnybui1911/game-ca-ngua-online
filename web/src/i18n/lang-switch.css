@@ -1,0 +1,46 @@
+/* The VI / EN toggle: two pills in one glass capsule, a 48px-high touch target like the other corner controls. */
+.lang-switch {
+  display: inline-flex;
+  align-items: center;
+  height: var(--touch);
+  padding: 4px;
+  gap: 2px;
+  border-radius: var(--radius-pill);
+  color: var(--color-text);
+  background: var(--glass-fill);
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  backdrop-filter: blur(var(--glass-blur));
+  box-shadow: var(--glass-specular), var(--shadow-sm);
+  border: 1px solid var(--glass-stroke);
+}
+
+html[data-quality='low'] .lang-switch {
+  background: var(--glass-fill-solid);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+.lang-switch-btn {
+  min-width: 40px;
+  height: 100%;
+  padding: 0 var(--space-2);
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+}
+
+.lang-switch-btn[aria-pressed='true'] {
+  background: rgb(245 234 210 / 22%);
+  cursor: default;
+}
+
+.lang-switch-btn:focus-visible {
+  outline: 2px solid var(--color-border-strong);
+  outline-offset: 1px;
+}

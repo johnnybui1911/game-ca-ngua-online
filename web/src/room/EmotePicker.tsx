@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import { EMOTES, emoteLabel, type EmoteId } from '../../../shared/emotes';
+import { EMOTES, type EmoteId } from '../../../shared/emotes';
 import type { RoomClientMessage } from '../../../shared/protocol';
+import { useT } from '../i18n';
 import { Icon } from '../ui/Icon';
 import { EMOTE_LOCK_MS } from './emote-feed';
+import { emoteLabelT, emoteTextT } from './emote-text';
 import { emoteSettings, useEmotesMuted } from './emote-settings';
 
 interface Props {
@@ -12,6 +14,7 @@ interface Props {
 }
 
 export function EmotePicker({ send, offline }: Props) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const [locked, setLocked] = useState(false);
   const muted = useEmotesMuted();
@@ -47,26 +50,26 @@ export function EmotePicker({ send, offline }: Props) {
         className="ui-btn ui-btn--secondary emote-open"
         data-testid="emote-open"
         aria-expanded={open}
-        aria-label="Biểu cảm"
+        aria-label={t('emote.title')}
         disabled={disabled}
-        title={locked ? 'Chờ một chút rồi gửi tiếp nhé' : offline ? 'Đang mất kết nối' : undefined}
+        title={locked ? t('emote.wait') : offline ? t('emote.offline') : undefined}
         onClick={() => setOpen((o) => !o)}
       >
         <Icon name="emote" />
         <span className="emote-open-label" aria-hidden="true">
-          Biểu cảm
+          {t('emote.title')}
         </span>
       </button>
       {open && !disabled && (
-        <div className="glass emote-grid" role="group" aria-label="Biểu cảm nhanh">
+        <div className="glass emote-grid" role="group" aria-label={t('emote.quick')}>
           {EMOTES.map((e) => (
-            <button key={e.id} type="button" className="emote-option" data-testid={`emote-${e.id}`} aria-label={emoteLabel(e.id)} onClick={() => pick(e.id)}>
+            <button key={e.id} type="button" className="emote-option" data-testid={`emote-${e.id}`} aria-label={emoteLabelT(t, e.id)} onClick={() => pick(e.id)}>
               <span className="emote-option-emoji" aria-hidden="true">
                 {e.emoji}
               </span>
-              {e.text && (
+              {emoteTextT(t, e.id) && (
                 <span className="emote-option-text" aria-hidden="true">
-                  {e.text}
+                  {emoteTextT(t, e.id)}
                 </span>
               )}
             </button>
@@ -80,7 +83,7 @@ export function EmotePicker({ send, offline }: Props) {
               checked={muted}
               onChange={(ev) => emoteSettings.setMuted(ev.target.checked)}
             />
-            Ẩn biểu cảm
+            {t('emote.hide')}
           </label>
         </div>
       )}

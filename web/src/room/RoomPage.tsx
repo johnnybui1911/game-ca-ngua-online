@@ -1,5 +1,7 @@
 import { Link, useParams } from 'react-router';
 import { useSession } from '../auth/session-context';
+import { useT } from '../i18n';
+import { errorText } from '../i18n/error-text';
 import { GlassPanel, PanelHost, PanelStatus } from '../shell/PanelHost';
 import { JoinRequestView } from './JoinRequestView';
 import { MatchView } from './MatchView';
@@ -9,6 +11,7 @@ import './room.css';
 
 export function RoomPage() {
   const { code = '' } = useParams();
+  const t = useT();
   const { user } = useSession();
   const upper = code.toUpperCase();
   const conn = useRoomConnection(upper);
@@ -19,19 +22,19 @@ export function RoomPage() {
         <GlassPanel
           title={
             <span data-testid="room-error" data-code={conn.failure.code}>
-              {conn.failure.message}
+              {errorText(t, conn.failure.message)}
             </span>
           }
         >
           <Link className="ui-btn ui-btn--primary" to="/" data-testid="back-to-lobby">
-            Về sảnh
+            {t('room.backToLobby')}
           </Link>
         </GlassPanel>
       </PanelHost>
     );
   }
 
-  if (!conn.room || !user) return <PanelStatus>Đang vào phòng {upper}…</PanelStatus>;
+  if (!conn.room || !user) return <PanelStatus>{t('room.entering', { code: upper })}</PanelStatus>;
   // A running game let us in without a seat: we ask the host for a CPU seat first.
   const seated = conn.room.seats.some((s) => s.occupant?.kind === 'human' && s.occupant.user.id === user.id);
 
@@ -51,7 +54,7 @@ export function RoomPage() {
       )}
       {conn.status === 'reconnecting' && (
         <div className="reconnect-banner" role="status" data-testid="reconnecting">
-          Đang kết nối lại…
+          {t('room.reconnecting')}
         </div>
       )}
     </>

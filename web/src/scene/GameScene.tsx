@@ -4,6 +4,7 @@ import type { CSSProperties, ReactNode } from 'react';
 import { ACESFilmicToneMapping, PCFShadowMap, SRGBColorSpace } from 'three';
 import { HORSES_PER_COLOR } from '../../../shared/game/types';
 import { horseLabel } from '../../../shared/protocol';
+import { useT } from '../i18n';
 import { BASE_FAR } from './camera';
 import type { HudInsets } from './camera';
 import { HORSE_BADGE } from './palette';
@@ -32,9 +33,8 @@ const LABEL_STYLE: CSSProperties = {
   willChange: 'transform',
 };
 
-const UNAVAILABLE = 'Trình duyệt không hỗ trợ WebGL nên không thể hiển thị bàn cờ 3D. Hãy thử trình duyệt hoặc thiết bị khác.';
-
 function Unavailable() {
+  const t = useT();
   return (
     <div
       role="alert"
@@ -49,7 +49,7 @@ function Unavailable() {
         font: '500 16px/1.5 var(--font-ui)',
       }}
     >
-      {UNAVAILABLE}
+      {t('scene.unavailable')}
     </div>
   );
 }

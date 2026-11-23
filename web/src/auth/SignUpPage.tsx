@@ -2,6 +2,8 @@ import { useState, type FormEvent } from 'react';
 import { Link, Navigate, useSearchParams } from 'react-router';
 import type { SignUpRequest } from '../../../shared/protocol';
 import { api, ApiRequestError } from '../api';
+import { useT, type TFunction } from '../i18n';
+import { errorText } from '../i18n/error-text';
 import { AuthLayout } from './AuthLayout';
 import { ProviderButtons } from './ProviderButtons';
 import { sanitizeReturnTo } from './return-to';
@@ -9,17 +11,18 @@ import { useSession } from './session-context';
 
 type Errors = { displayName?: string; email?: string; password?: string };
 
-function validate(displayName: string, email: string, password: string): Errors {
+function validate(t: TFunction, displayName: string, email: string, password: string): Errors {
   const errors: Errors = {};
   const nameLength = [...displayName.trim()].length;
-  if (nameLength < 2 || nameLength > 24) errors.displayName = 'Tên hiển thị phải từ 2 đến 24 ký tự.';
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) errors.email = 'Vui lòng nhập email hợp lệ.';
-  if (password.length < 8) errors.password = 'Mật khẩu phải có ít nhất 8 ký tự.';
+  if (nameLength < 2 || nameLength > 24) errors.displayName = t('auth.nameRange', { min: 2, max: 24 });
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) errors.email = t('auth.emailInvalid');
+  if (password.length < 8) errors.password = t('auth.passwordShort');
   return errors;
 }
 
 /** Rendered once the session is known (the shell waits for it), so a guest's current name can prefill the form. */
 export function SignUpPage() {
+  const t = useT();
   const { user, guest, refresh } = useSession();
   const [params] = useSearchParams();
   const returnTo = sanitizeReturnTo(params.get('returnTo'));
@@ -35,7 +38,7 @@ export function SignUpPage() {
 
   async function submit(e: FormEvent) {
     e.preventDefault();
-    const errors = validate(displayName, email, password);
+    const errors = validate(t, displayName, email, password);
     setFieldErrors(errors);
     setServerError(null);
     if (Object.keys(errors).length > 0) return;
@@ -47,7 +50,7 @@ export function SignUpPage() {
       });
       await refresh();
     } catch (err) {
-      setServerError(err instanceof ApiRequestError ? err.message : 'Có lỗi xảy ra, vui lòng thử lại.');
+      setServerError(err instanceof ApiRequestError ? errorText(t, err.message) : t('auth.genericError'));
     } finally {
       setBusy(false);
     }
@@ -56,10 +59,10 @@ export function SignUpPage() {
   const signInLink = `/dang-nhap${returnTo === '/' ? '' : `?returnTo=${encodeURIComponent(returnTo)}`}`;
 
   return (
-    <AuthLayout title={guest ? 'Lưu tài khoản' : 'Đăng ký'}>
+    <AuthLayout title={guest ? t('auth.saveAccount') : t('auth.signUp')}>
       <form className="form" onSubmit={submit} noValidate>
         <div className="field">
-          <label htmlFor="signup-name">Tên hiển thị</label>
+          <label htmlFor="signup-name">{t('auth.displayName')}</label>
           <input
             id="signup-name"
             data-testid="signup-name"
@@ -95,7 +98,7 @@ export function SignUpPage() {
           )}
         </div>
         <div className="field">
-          <label htmlFor="signup-password">Mật khẩu</label>
+          <label htmlFor="signup-password">{t('auth.password')}</label>
           <input
             id="signup-password"
             data-testid="signup-password"
@@ -118,12 +121,12 @@ export function SignUpPage() {
           </p>
         )}
         <button type="submit" className="ui-btn ui-btn--primary" data-testid="signup-submit" disabled={busy}>
-          {busy ? 'Đang lưu…' : guest ? 'Lưu tài khoản' : 'Đăng ký'}
+          {busy ? t('auth.saving') : guest ? t('auth.saveAccount') : t('auth.signUp')}
         </button>
       </form>
       <ProviderButtons returnTo={returnTo} />
       <p className="switch-link">
-        Đã có tài khoản? <Link to={signInLink} data-testid="to-signin">Đăng nhập</Link>
+        {t('auth.haveAccount')} <Link to={signInLink} data-testid="to-signin">{t('auth.signIn')}</Link>
       </p>
     </AuthLayout>
   );

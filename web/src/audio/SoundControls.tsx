@@ -1,4 +1,5 @@
 import { useEffect, useState, useSyncExternalStore } from 'react';
+import { useT } from '../i18n';
 import { Icon } from '../ui/Icon';
 import { sound, type Track } from './sound';
 import './sound.css';
@@ -12,12 +13,13 @@ export function useMusic(track: Track): void {
 
 /** The two on/off switches (music, effects), stored in this browser. */
 export function SoundSwitches() {
+  const t = useT();
   const settings = useSyncExternalStore(sound.subscribe, sound.getSettings);
   return (
     <div className="sound-switches" data-testid="sound-switches">
       <label className="sound-switch">
         <Icon name="music" />
-        <span>Nhạc nền</span>
+        <span>{t('sound.music')}</span>
         <input
           type="checkbox"
           role="switch"
@@ -29,7 +31,7 @@ export function SoundSwitches() {
       </label>
       <label className="sound-switch">
         <Icon name="sound-on" />
-        <span>Hiệu ứng âm thanh</span>
+        <span>{t('sound.effects')}</span>
         <input
           type="checkbox"
           role="switch"
@@ -45,13 +47,14 @@ export function SoundSwitches() {
 
 /** Speaker button that opens the switches; the app shell docks it in its top-right corner. */
 export function SoundButton() {
+  const t = useT();
   const settings = useSyncExternalStore(sound.subscribe, sound.getSettings);
   const [open, setOpen] = useState(false);
   const muted = !settings.music && !settings.effects;
   return (
     <div className="sound-button">
       {open && (
-        <div className="glass sound-popover" role="dialog" aria-label="Âm thanh">
+        <div className="glass sound-popover" role="dialog" aria-label={t('sound.title')}>
           <SoundSwitches />
         </div>
       )}
@@ -60,7 +63,7 @@ export function SoundButton() {
         className="ui-btn ui-btn--icon sound-toggle"
         data-testid="sound-button"
         aria-expanded={open}
-        aria-label="Âm thanh"
+        aria-label={t('sound.title')}
         onClick={() => setOpen((o) => !o)}
       >
         <Icon name={muted ? 'sound-off' : 'sound-on'} />

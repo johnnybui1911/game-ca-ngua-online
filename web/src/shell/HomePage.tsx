@@ -8,6 +8,7 @@ import { Icon } from '../ui/Icon';
 import { entered, useEntered } from './entered';
 import { focusScreen, panelWasShown } from './PanelHost';
 import { useSceneStage } from './scene-host';
+import { useT } from '../i18n';
 
 /** Up to this width the title lies across the top of the board, so the board is framed below it. */
 const NARROW_PX = 720;
@@ -40,6 +41,7 @@ function useHeroInsets() {
 }
 
 function Hero() {
+  const t = useT();
   const navigate = useNavigate();
   const { user } = useSession();
   const [joining, setJoining] = useState(false);
@@ -63,7 +65,7 @@ function Hero() {
   return (
     <main className="home" data-testid="home" ref={homeRef}>
       <header className="home-title" ref={titleRef}>
-        <p className="ui-eyebrow">3D Online · Chơi cùng bạn bè</p>
+        <p className="ui-eyebrow">{t('home.eyebrow')}</p>
         <h1 className="ui-title">Cờ Cá Ngựa</h1>
       </header>
       <div className="home-band" ref={bandRef}>
@@ -72,21 +74,21 @@ function Hero() {
             <JoinByCodeForm autoFocus />
             <button type="button" className="ui-btn ui-btn--ghost" data-testid="home-join-cancel" onClick={() => setJoining(false)}>
               <Icon name="close" size="sm" />
-              Đóng
+              {t('home.close')}
             </button>
           </div>
         ) : (
           <>
             <button type="button" className="ui-btn ui-btn--hero" data-testid="play-now" onClick={play}>
-              Chơi ngay
+              {t('home.play')}
             </button>
-            <nav className="home-links" aria-label="Lối tắt">
+            <nav className="home-links" aria-label={t('home.shortcuts')}>
               <a className="ui-btn ui-btn--ghost home-link" href="/gioi-thieu" data-testid="home-rules">
                 <Icon name="rules" size="sm" />
-                Luật chơi
+                {t('home.rules')}
               </a>
               <button type="button" className="ui-btn ui-btn--ghost home-link" data-testid="home-join-open" onClick={() => setJoining(true)}>
-                Nhập mã phòng
+                {t('home.joinOpen')}
               </button>
             </nav>
           </>

@@ -1,6 +1,7 @@
 import { CreatorBadge } from '../chrome/CreatorBadge';
 import { FeedbackButton } from '../chrome/FeedbackButton';
 import { SoundButton } from '../audio/SoundControls';
+import { LangSwitch } from '../i18n/LangSwitch';
 
 /*
  * The three corner controls of the app shell. The shell positions them (and moves them out of
@@ -17,7 +18,12 @@ export function FeedbackSlot() {
   return <FeedbackButton />;
 }
 
-/** Bottom left: the sound toggle. */
+/** Top right: the language switch beside the sound toggle. */
 export function SoundSlot() {
-  return <SoundButton />;
+  return (
+    <>
+      <LangSwitch />
+      <SoundButton />
+    </>
+  );
 }

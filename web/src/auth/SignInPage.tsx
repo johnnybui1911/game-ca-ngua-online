@@ -2,21 +2,25 @@ import { useState, type FormEvent } from 'react';
 import { Link, Navigate, useSearchParams } from 'react-router';
 import type { SignInRequest } from '../../../shared/protocol';
 import { api, ApiRequestError } from '../api';
+import { useT } from '../i18n';
+import { errorText } from '../i18n/error-text';
 import { AuthLayout } from './AuthLayout';
 import { ProviderButtons } from './ProviderButtons';
 import { sanitizeReturnTo } from './return-to';
 import { useSession } from './session-context';
 
-const QUERY_ERRORS: Record<string, string> = {
-  provider_not_configured: 'Phương thức đăng nhập này chưa được cấu hình.',
-  oauth_failed: 'Đăng nhập không thành công. Vui lòng thử lại.',
+const QUERY_ERRORS: Record<string, 'auth.oauthNotConfigured' | 'auth.oauthFailed'> = {
+  provider_not_configured: 'auth.oauthNotConfigured',
+  oauth_failed: 'auth.oauthFailed',
 };
 
 export function SignInPage() {
+  const t = useT();
   const { user, guest, refresh } = useSession();
   const [params] = useSearchParams();
   const returnTo = sanitizeReturnTo(params.get('returnTo'));
-  const queryError = QUERY_ERRORS[params.get('error') ?? ''] ?? null;
+  const queryErrorKey = QUERY_ERRORS[params.get('error') ?? ''];
+  const queryError = queryErrorKey ? t(queryErrorKey) : null;
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -29,8 +33,8 @@ export function SignInPage() {
   async function submit(e: FormEvent) {
     e.preventDefault();
     const errors: typeof fieldErrors = {};
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) errors.email = 'Vui lòng nhập email hợp lệ.';
-    if (!password) errors.password = 'Vui lòng nhập mật khẩu.';
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) errors.email = t('auth.emailInvalid');
+    if (!password) errors.password = t('auth.passwordRequired');
     setFieldErrors(errors);
     setServerError(null);
     if (Object.keys(errors).length > 0) return;
@@ -39,7 +43,7 @@ export function SignInPage() {
       await api('/api/auth/signin', { method: 'POST', body: { email, password } satisfies SignInRequest });
       await refresh();
     } catch (err) {
-      setServerError(err instanceof ApiRequestError ? err.message : 'Có lỗi xảy ra, vui lòng thử lại.');
+      setServerError(err instanceof ApiRequestError ? errorText(t, err.message) : t('auth.genericError'));
     } finally {
       setBusy(false);
     }
@@ -49,7 +53,7 @@ export function SignInPage() {
   const shownError = serverError ?? queryError;
 
   return (
-    <AuthLayout title="Đăng nhập">
+    <AuthLayout title={t('auth.signIn')}>
       <form className="form" onSubmit={submit} noValidate>
         <div className="field">
           <label htmlFor="signin-email">Email</label>
@@ -70,7 +74,7 @@ export function SignInPage() {
           )}
         </div>
         <div className="field">
-          <label htmlFor="signin-password">Mật khẩu</label>
+          <label htmlFor="signin-password">{t('auth.password')}</label>
           <input
             id="signin-password"
             data-testid="signin-password"
@@ -93,12 +97,12 @@ export function SignInPage() {
           </p>
         )}
         <button type="submit" className="ui-btn ui-btn--primary" data-testid="signin-submit" disabled={busy}>
-          {busy ? 'Đang đăng nhập…' : 'Đăng nhập'}
+          {busy ? t('auth.signingIn') : t('auth.signIn')}
         </button>
       </form>
       <ProviderButtons returnTo={returnTo} />
       <p className="switch-link">
-        Chưa có tài khoản? <Link to={signUpLink} data-testid="to-signup">Đăng ký</Link>
+        {t('auth.noAccount')} <Link to={signUpLink} data-testid="to-signup">{t('auth.signUp')}</Link>
       </p>
     </AuthLayout>
   );
