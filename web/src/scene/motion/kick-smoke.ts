@@ -19,7 +19,7 @@ const DRAG = 3.4;
 /** Seconds the puffs take to swell to full size. */
 const SWELL_SECONDS = 0.28;
 /** Share of the life the smoke stays at full strength. */
-const THICK_SHARE = 0.2;
+const THICK_SHARE = 0.12;
 const SMOKE_OPACITY = 0.96;
 
 export interface PuffPose {
@@ -63,7 +63,7 @@ export function puffAt(seeds: Float32Array, i: number, count: number, t: number,
   const k = i * SEED_STRIDE;
   const angle = seeds[k]! * Math.PI * 2;
   const speed = 1.3 + seeds[k + 1]! * 1.5;
-  const size = 0.14 + seeds[k + 2]! * 0.2;
+  const size = 0.1 + seeds[k + 2]! * 0.13;
   const rise = 0.3 + seeds[k + 3]! * 0.9;
   const jitter = seeds[k + 4]!;
   const u = clamp01(t / KICK_FX_SECONDS);

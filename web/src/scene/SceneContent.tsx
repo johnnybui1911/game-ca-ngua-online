@@ -440,7 +440,7 @@ export default function SceneContent({
         )),
       )}
       <Celebration assets={assets} state={state} />
-      {settings.cinematicKick && <KickImpact assets={assets} state={state} count={Math.min(32, Math.floor(settings.particleBudget / 10))} />}
+      {settings.cinematicKick && <KickImpact assets={assets} state={state} count={Math.min(16, Math.floor(settings.particleBudget / 10))} />}
       <Rig
         seat={view === 'seat' ? (myColor ?? 0) : null}
         sourceKey={sourceKey}
