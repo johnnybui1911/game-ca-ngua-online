@@ -29,6 +29,7 @@ import {
 import type { CameraPose, HudInsets } from './camera';
 import { paceTimings } from '../../../shared/game/pace';
 import { Director } from './director';
+import { useHorseModel } from './horse-model';
 import type { SceneView } from './director';
 import LockMarkers from './LockMarkers';
 import { Celebration, Die, Horse } from './Pieces';
@@ -287,7 +288,8 @@ export default function SceneContent({
   orbit = false,
 }: GameSceneProps & SceneStaging & { insets?: HudInsets; labels?: HorseLabelElements }) {
   const game = room.game;
-  const assets = useMemo(() => new Assets(), []);
+  const horseModel = useHorseModel();
+  const assets = useMemo(() => new Assets(horseModel), [horseModel]);
   const state = useMemo(createSceneState, []);
   const [busy, setBusy] = useState(false);
   // The settings cannot change while a match is on screen.

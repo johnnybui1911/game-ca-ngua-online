@@ -1,15 +1,20 @@
+import { useTexture } from '@react-three/drei';
 import { useFrame } from '@react-three/fiber';
 import { useMemo, useRef } from 'react';
 import {
+  BoxGeometry,
   CircleGeometry,
   Color as ThreeColor,
   DoubleSide,
   ExtrudeGeometry,
+  Group,
   Mesh,
   MeshBasicMaterial,
+  MeshPhysicalMaterial,
   MeshStandardMaterial,
   Path,
   RepeatWrapping,
+  SRGBColorSpace,
   Shape,
   ShapeGeometry,
   Texture,
@@ -24,16 +29,22 @@ import {
   STABLE,
   STABLE_CENTERS,
   STABLE_TRAY_SIZE,
+  STAIR_RISE,
   TRACK,
   armDirection,
   yawBetween,
 } from './layout';
-import { BOARD, HORSE_COLORS } from './palette';
+import { HORSE_COLORS } from './palette';
 import type { SceneState } from './scene-state';
 
 const INLAY_TOP = 0.04;
-const CELL_Y = 0.055;
 const DECAL_Y = 0.0725;
+/** Width of a stair tread: the home cell with a little ledge on both sides. */
+const TREAD_WIDTH = 1.12;
+/** Where the centre medallion floats, above the dais at the top of the stairs, and how far it bobs. */
+const HUB_REST = INLAY_TOP + (HOME_STEPS + 1) * STAIR_RISE - DECAL_Y + 0.03;
+const HUB_BOB = 0.012;
+const CELL_Y = 0.055;
 
 function crossShape(halfWidth: number, halfLength: number): Shape {
   const w = halfWidth;
@@ -87,6 +98,8 @@ interface CellSpec {
   x: number;
   z: number;
   spin: number;
+  /** Height of the ground the cell stands on: zero on the track, higher with every home step. */
+  y: number;
   mat: MeshStandardMaterial;
 }
 
@@ -105,13 +118,14 @@ function buildCells(assets: Assets): CellSpec[] {
         x: at.x,
         z: at.z,
         spin: Math.atan2(-(next.x - at.x), -(next.z - at.z)),
+        y: 0,
         mat: decalMaterial(assets, assets.kit.entryCell(color)),
       });
     } else if (k === CELLS_PER_COLOR - 1) {
       const color = ((Math.floor(i / CELLS_PER_COLOR) + 1) % COLORS.length) as Color;
-      out.push({ key: `t${i}`, x: at.x, z: at.z, spin: 0, mat: decalMaterial(assets, assets.kit.gateCell(color)) });
+      out.push({ key: `t${i}`, x: at.x, z: at.z, spin: 0, y: 0, mat: decalMaterial(assets, assets.kit.gateCell(color)) });
     } else {
-      out.push({ key: `t${i}`, x: at.x, z: at.z, spin: 0, mat: plain });
+      out.push({ key: `t${i}`, x: at.x, z: at.z, spin: 0, y: 0, mat: plain });
     }
   }
   for (const color of COLORS) {
@@ -126,6 +140,7 @@ function buildCells(assets: Assets): CellSpec[] {
         x: at.x,
         z: at.z,
         spin,
+        y: step * STAIR_RISE,
         mat: decalMaterial(assets, assets.kit.homeCell(color, step)),
       });
     }
@@ -144,20 +159,41 @@ interface Props {
   colors: readonly Color[];
 }
 
+/** Lacquered wood grain (Poly Haven, CC0), shared through the loader cache. */
+const LACQUER_URL = '/models/lacquer-diff.webp';
+/** Grain repeats across the slab and across the (world-unit mapped) frame. */
+const SLAB_GRAIN_REPEAT = 2.5;
+const FRAME_GRAIN_REPEAT = 1 / 7;
+
+/** A private copy of the cached grain, so each surface sets its own tiling without touching the other. */
+function grain(source: Texture, repeat: number, assets: Assets): Texture {
+  const tex = assets.own(source.clone());
+  tex.colorSpace = SRGBColorSpace;
+  tex.wrapS = tex.wrapT = RepeatWrapping;
+  tex.repeat.set(repeat, repeat);
+  tex.anisotropy = 8;
+  tex.needsUpdate = true;
+  return tex;
+}
+
 export default function Board({ assets, state, colors }: Props) {
+  const lacquer = useTexture(LACQUER_URL);
   const parts = useMemo(() => {
-    const wood = assets.kit.wood();
+    const wood = grain(lacquer, SLAB_GRAIN_REPEAT, assets);
+    const frameWood = grain(lacquer, FRAME_GRAIN_REPEAT, assets);
     const felt = assets.kit.felt();
     felt.repeat.set(0.18, 0.18);
     felt.wrapS = felt.wrapT = RepeatWrapping;
 
     const slab = assets.own(new RoundedBoxGeometry(SLAB_HALF * 2, 0.7, SLAB_HALF * 2, 4, 0.16));
-    const slabMat = assets.own(new MeshStandardMaterial({ map: wood, roughness: 0.62, metalness: 0.02 }));
+    const lacquered = (map: Texture, color: string) =>
+      assets.own(new MeshPhysicalMaterial({ map, color, roughness: 0.55, clearcoat: 1, clearcoatRoughness: 0.08 }));
+    const slabMat = lacquered(wood, '#ffffff');
 
     const extrude = (half: number, length: number, depth: number) =>
       assets.own(new ExtrudeGeometry(crossShape(half, length), { depth, bevelEnabled: false }));
     const frame = extrude(1.95, 8.12, 0.03);
-    const frameMat = assets.own(new MeshStandardMaterial({ color: BOARD.woodDark, roughness: 0.55 }));
+    const frameMat = lacquered(frameWood, '#e8d4c0');
     const inlay = extrude(1.74, 7.92, INLAY_TOP);
     const inlayMat = assets.own(new MeshStandardMaterial({ map: felt, roughness: 0.92 }));
 
@@ -194,16 +230,37 @@ export default function Board({ assets, state, colors }: Props) {
       const mat = assets.own(new MeshStandardMaterial({ color: HORSE_COLORS[c], roughness: 0.5 }));
       return { c, geo, mat };
     });
+    // The home column is a staircase of lacquered treads; the centre is a dais one step higher still.
+    const treads = Array.from({ length: HOME_STEPS }, (_, i) => {
+      const h = INLAY_TOP + (i + 1) * STAIR_RISE;
+      return assets.own(new BoxGeometry(TREAD_WIDTH, h, 1).translate(0, h / 2, 0));
+    });
+    const creamSide = assets.own(new MeshStandardMaterial({ color: '#f1e6c8', roughness: 0.8 }));
+    const treadMats = {} as Record<Color, MeshStandardMaterial[]>;
+    for (const c of COLORS) {
+      const top = assets.own(new MeshStandardMaterial({ color: trayColor(c, '#fff2d8', 0.62), roughness: 0.8 }));
+      treadMats[c] = [creamSide, creamSide, top, creamSide, creamSide, creamSide];
+    }
+    const daisHeight = INLAY_TOP + (HOME_STEPS + 1) * STAIR_RISE;
+    const dais = assets.own(new BoxGeometry(TREAD_WIDTH, daisHeight, TREAD_WIDTH).translate(0, daisHeight / 2, 0));
+    const daisMat = assets.own(new MeshStandardMaterial({ color: '#f1e6c8', roughness: 0.8 }));
     const ringMat = assets.own(new MeshStandardMaterial({ color: '#d8b25a', roughness: 0.35, metalness: 0.5 }));
 
     const slots = COLORS.map((c) => decalMaterial(assets, assets.kit.slot(c)));
 
-    return { slab, slabMat, frame, frameMat, inlay, inlayMat, trayGeo, floorGeo, glowGeo, tray, medallion, ringMat, slots, cells: buildCells(assets) };
-  }, [assets, colors]);
+    return { daisMat, treads, treadMats, dais, slab, slabMat, frame, frameMat, inlay, inlayMat, trayGeo, floorGeo, glowGeo, tray, medallion, ringMat, slots, cells: buildCells(assets) };
+  }, [assets, colors, lacquer]);
 
   const glowRefs = useRef<(Mesh | null)[]>([null, null, null, null]);
+  const hub = useRef<Group>(null);
 
   useFrame(() => {
+    const h = hub.current;
+    if (h) {
+      // The centre medallion hovers over the top of the stairs and turns slowly.
+      h.position.y = HUB_REST + Math.sin(state.time * 1.4) * HUB_BOB;
+      h.rotation.y = state.time * 0.35;
+    }
     const t = state.pulse;
     for (const c of COLORS) {
       const entry = parts.tray[c];
@@ -234,8 +291,27 @@ export default function Board({ assets, state, colors }: Props) {
         );
       })}
 
+      {COLORS.flatMap((c) => {
+        const dir = armDirection(c);
+        return parts.treads.map((geo, i) => {
+          const at = HOME[c]?.[i];
+          if (!at) return null;
+          return (
+            <mesh
+              key={`tread${c}${i}`}
+              geometry={geo}
+              material={parts.treadMats[c]}
+              position={[at.x, 0, at.z]}
+              rotation={[0, yawBetween({ x: 0, z: 0 }, dir), 0]}
+              receiveShadow
+            />
+          );
+        });
+      })}
+      <mesh geometry={parts.dais} material={parts.daisMat} receiveShadow />
+
       {parts.cells.map((cell) => (
-        <group key={cell.key} position={[cell.x, 0, cell.z]}>
+        <group key={cell.key} position={[cell.x, cell.y, cell.z]}>
           <mesh geometry={assets.cellBase} material={assets.cellRimMat} position={[0, CELL_Y, 0]} receiveShadow />
           <mesh
             geometry={assets.decalGeometry}
@@ -247,9 +323,14 @@ export default function Board({ assets, state, colors }: Props) {
         </group>
       ))}
 
-      {parts.medallion.map(({ c, geo, mat }) => {
-        return <mesh key={`med${c}`} geometry={geo} material={mat} position={[0, DECAL_Y, 0]} rotation={[-Math.PI / 2, 0, 0]} />;
-      })}
+      <group ref={hub} position={[0, HUB_REST, 0]}>
+        {parts.medallion.map(({ c, geo, mat }) => {
+          return <mesh key={`med${c}`} geometry={geo} material={mat} position={[0, DECAL_Y, 0]} rotation={[-Math.PI / 2, 0, 0]} />;
+        })}
+        <mesh position={[0, DECAL_Y + 0.002, 0]} rotation={[-Math.PI / 2, 0, 0]} material={parts.ringMat}>
+          <ringGeometry args={[0.48, 0.55, 32]} />
+        </mesh>
+      </group>
 
       {COLORS.map((c) => {
         const centre = STABLE_CENTERS[c];
@@ -282,9 +363,6 @@ export default function Board({ assets, state, colors }: Props) {
         );
       })}
 
-      <mesh position={[0, DECAL_Y + 0.002, 0]} rotation={[-Math.PI / 2, 0, 0]} material={parts.ringMat}>
-        <ringGeometry args={[0.48, 0.55, 32]} />
-      </mesh>
     </group>
   );
 }

@@ -7,7 +7,7 @@ import type { PaceTimings } from '../../../shared/game/pace';
 import type { Color, DiceValue, GameEvent, GameState, HorsePos } from '../../../shared/game/types';
 import { CELEBRATION_SECONDS, DIE_HALF, Director, HORSE_Y, MAX_WAITING } from './director';
 import type { DirectorOptions, SceneView } from './director';
-import { TRACK, horseGround } from './layout';
+import { TRACK, groundHeight, horseGround } from './layout';
 
 interface HorsePose {
   x: number;
@@ -72,7 +72,7 @@ class FakeView implements SceneView {
         expect(got, `horse ${color}:${horse}`).toBeDefined();
         expect(got!.x).toBeCloseTo(want.x, 6);
         expect(got!.z).toBeCloseTo(want.z, 6);
-        expect(got!.y).toBeCloseTo(HORSE_Y, 6);
+        expect(got!.y).toBeCloseTo(HORSE_Y + groundHeight(pos), 6);
         expect(got!.pitch).toBe(0);
         expect(got!.stretch).toBe(1);
       });

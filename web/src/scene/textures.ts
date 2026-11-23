@@ -1,14 +1,11 @@
 /**
- * Every texture is painted here with the 2D canvas API: wood, felt, and the
+ * Every texture is painted here with the 2D canvas API: felt and the
  * decals on cells and stable slots. A `TextureKit` caches and owns them so a
  * scene can dispose everything it created in one call.
  */
 import { CanvasTexture, RepeatWrapping, SRGBColorSpace } from 'three';
 import type { Color } from '../../../shared/game/types';
 import { BOARD, HORSE_COLORS } from './palette';
-
-/** Number of polygon sides per colour: the base shape that tells colours apart without hue. */
-export const COLOR_SIDES: Record<Color, number> = { 0: 32, 1: 4, 2: 6, 3: 3 };
 
 function canvas(size: number): [HTMLCanvasElement, CanvasRenderingContext2D] {
   const c = document.createElement('canvas');
@@ -45,24 +42,6 @@ function smoothNoise(x: number, y: number): number {
   return top * (1 - v) + bottom * v;
 }
 
-function polygonPath(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number, sides: number): void {
-  ctx.beginPath();
-  if (sides >= 16) {
-    ctx.arc(cx, cy, r, 0, Math.PI * 2);
-    return;
-  }
-  // Squares stand on a side, triangles and hexagons point up.
-  const start = sides === 4 ? Math.PI / 4 : -Math.PI / 2;
-  for (let i = 0; i < sides; i++) {
-    const a = start + (i / sides) * Math.PI * 2;
-    const x = cx + Math.cos(a) * r;
-    const y = cy + Math.sin(a) * r;
-    if (i === 0) ctx.moveTo(x, y);
-    else ctx.lineTo(x, y);
-  }
-  ctx.closePath();
-}
-
 export class TextureKit {
   private readonly cache = new Map<string, CanvasTexture>();
 
@@ -75,31 +54,6 @@ export class TextureKit {
     tex.colorSpace = SRGBColorSpace;
     tex.anisotropy = 8;
     this.cache.set(key, tex);
-    return tex;
-  }
-
-  wood(): CanvasTexture {
-    const tex = this.make('wood', 1024, (ctx, size) => {
-      const img = ctx.createImageData(size, size);
-      const base = [138, 90, 53];
-      const dark = [88, 52, 28];
-      for (let y = 0; y < size; y++) {
-        for (let x = 0; x < size; x++) {
-          const warp = smoothNoise(x * 0.004, y * 0.03) * 38 + smoothNoise(x * 0.012, y * 0.08) * 7;
-          const ring = 0.5 + 0.5 * Math.sin((y + warp) * 0.19);
-          const fine = smoothNoise(x * 0.5, y * 0.05);
-          const t = Math.min(1, Math.max(0, ring * ring * 0.55 + fine * 0.22));
-          const i = (y * size + x) * 4;
-          img.data[i] = base[0]! * (1 - t) + dark[0]! * t;
-          img.data[i + 1] = base[1]! * (1 - t) + dark[1]! * t;
-          img.data[i + 2] = base[2]! * (1 - t) + dark[2]! * t;
-          img.data[i + 3] = 255;
-        }
-      }
-      ctx.putImageData(img, 0, 0);
-    });
-    tex.wrapS = RepeatWrapping;
-    tex.wrapT = RepeatWrapping;
     return tex;
   }
 
@@ -166,7 +120,7 @@ export class TextureKit {
     });
   }
 
-  /** Gate cell: ivory disc inside a thick colour ring with the colour's base shape in the middle. */
+  /** Gate cell: ivory disc inside a thick colour ring with a solid dot of the colour in the middle. */
   gateCell(color: Color): CanvasTexture {
     return this.make(`cell:gate:${color}`, 128, (ctx, s) => {
       const hex = HORSE_COLORS[color];
@@ -180,7 +134,8 @@ export class TextureKit {
       ctx.arc(s / 2, s / 2, s * 0.39, 0, Math.PI * 2);
       ctx.stroke();
       ctx.fillStyle = hex;
-      polygonPath(ctx, s / 2, s / 2, s * 0.2, COLOR_SIDES[color]);
+      ctx.beginPath();
+      ctx.arc(s / 2, s / 2, s * 0.2, 0, Math.PI * 2);
       ctx.fill();
     });
   }
@@ -204,7 +159,7 @@ export class TextureKit {
     });
   }
 
-  /** Stable parking slot: a sunken ring holding the colour's base shape outline. */
+  /** Stable parking slot: a sunken disc with a ring the size of a horse's base. */
   slot(color: Color): CanvasTexture {
     return this.make(`slot:${color}`, 128, (ctx, s) => {
       const hex = HORSE_COLORS[color];
@@ -214,7 +169,8 @@ export class TextureKit {
       ctx.fill();
       ctx.lineWidth = 5;
       ctx.strokeStyle = mix(hex, '#ffffff', 0.35);
-      polygonPath(ctx, s / 2, s / 2, s * 0.3, COLOR_SIDES[color]);
+      ctx.beginPath();
+      ctx.arc(s / 2, s / 2, s * 0.3, 0, Math.PI * 2);
       ctx.stroke();
     });
   }
