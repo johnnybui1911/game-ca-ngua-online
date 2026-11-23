@@ -11,10 +11,11 @@ import { useNearCalmZone } from './calm-zone';
 import { DemoDriver, stepSeconds } from './demo-driver';
 
 /**
- * Seed of the first demo game of a visit; every game after it uses the next seed. Picked for its
- * opening: the first kick comes within ten seconds and the game is over in about a minute and a half.
+ * Seed of the first demo game of a visit; every game after it uses the next seed. The demo plays
+ * the basic game (no locks on the home columns), at the quick pace. Picked for its opening: a
+ * horse leaves its stable within a second and the first kick comes in about thirteen seconds.
  */
-export const DEMO_SEED = 28;
+export const DEMO_SEED = 228;
 /** Seconds the board only turns before the first move, and again after a match gives it back. */
 export const OPENING_SECONDS = 3;
 /** Pause between the horses of a finished game landing in their stables and the next game. */
@@ -49,8 +50,9 @@ export function DemoMatch() {
 function DemoGame() {
   const { stage, match, load } = useSceneHostState();
   const { activity, tier } = useQuality();
-  const [driver] = useState(() => new DemoDriver({ seed: DEMO_SEED, variant: 'quick', parked: true }));
+  const [driver] = useState(() => new DemoDriver({ seed: DEMO_SEED, parked: true }));
   const steps = useSyncExternalStore(driver.subscribe, driver.getSteps);
+  // The basic game, drawn with the quick pace's animation timings.
   const showcase = useMemo<ShowcaseScene>(() => ({ key: 'demo', steps, quick: true }), [steps]);
   useShowcase(showcase);
 
