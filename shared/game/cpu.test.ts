@@ -119,6 +119,12 @@ describe('Easy', () => {
     const forced = moveState([0, 1], { 0: [11, S, S, S], 1: [0, S, S, S] }, 3);
     expect(chooseCpuMove(forced, 'easy', scripted(0.9, 0.5))).toBe(0);
   });
+  it('does not kick even when it plays like Normal, while another move kicks nobody', () => {
+    // Normal kicks the yellow horse near its home with horse 0; Easy moves horse 1 instead.
+    const far = moveState([0, 2], { 0: [11, 20, S, S], 2: [yellowAt(14), S, S, S] }, 3);
+    expect(chooseCpuMove(far, 'normal')).toBe(0);
+    expect(chooseCpuMove(far, 'easy', scripted(0.1, 0))).toBe(1);
+  });
   it('only picks legal horses', () => {
     walkGames(20, [0, 2], (s) => {
       const rand = mulberry32(s.horses.flat().reduce((a, b) => a + b, 7));

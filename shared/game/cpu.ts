@@ -35,16 +35,20 @@ export function chooseCpuMove(
 
 /**
  * Easy: with probability EASY_SMART_RATE the Normal move, otherwise a uniformly random legal horse. In a classic
- * game the draw is among the moves that kick nobody when there are any; a quick game is won by kicking (a column
- * opens only after a kick), so there every legal horse is drawn from.
+ * game Easy never kicks by choice: the draw is among the moves that kick nobody, and a Normal move that kicks is
+ * swapped for such a draw, whenever there is a move that kicks nobody. A quick game is won by kicking (a column
+ * opens only after a kick), so there the Normal move stands and every legal horse is drawn from.
  */
 function chooseEasy(state: GameState, rand: () => number): number {
-  if (rand() < EASY_SMART_RATE) return chooseNormal(state);
   const color = state.turn;
   const dice = state.dice;
   if (dice === null) throw new Error('CPU can only choose in the move phase');
   const legal = [...state.legalHorses].sort((a, b) => a - b);
   const calm = state.variant === 'quick' ? [] : legal.filter((horse) => !landingFor(state.horses, color, horse, dice)?.kicked);
+  if (rand() < EASY_SMART_RATE) {
+    const normal = chooseNormal(state);
+    if (calm.length === 0 || calm.includes(normal)) return normal;
+  }
   const pool = calm.length > 0 ? calm : legal;
   const pick = pool[Math.min(Math.floor(rand() * pool.length), pool.length - 1)];
   if (pick === undefined) throw new Error('No legal horse to choose');
