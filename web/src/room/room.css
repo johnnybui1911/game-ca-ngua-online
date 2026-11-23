@@ -497,7 +497,7 @@
   align-items: center;
   gap: var(--space-2);
   min-height: 52px;
-  padding: var(--space-1) var(--space-3) var(--space-1) var(--space-1);
+  padding: var(--space-1) var(--space-4) var(--space-1) var(--space-2);
   font-size: var(--text-sm);
   color: var(--color-text);
   background: color-mix(in srgb, var(--glass-fill-solid) 86%, transparent);
@@ -619,7 +619,7 @@ html[data-quality='low'] .hud-player {
       'badges badges home';
     align-items: center;
     gap: 2px var(--space-2);
-    padding: var(--space-1) var(--space-2) 6px var(--space-1);
+    padding: var(--space-1) var(--space-3) 6px var(--space-2);
     border-radius: var(--radius-md);
   }
 
@@ -691,6 +691,46 @@ html[data-quality='low'] .hud-player {
 .hud-bottom.is-my-turn {
   border-color: var(--color-border-strong);
   box-shadow: var(--glass-specular), var(--shadow-glow-gold), var(--glass-shadow);
+}
+
+/* Announces the player's own lost turn: rides on the bar's top edge, then fades out. The timer in the page removes it. */
+.forfeit-toast {
+  position: absolute;
+  z-index: 6;
+  left: 50%;
+  bottom: calc(100% + var(--space-2));
+  width: max-content;
+  max-width: calc(100% - 2 * (40px + var(--space-2)));
+  margin: 0;
+  padding: var(--space-2) var(--space-4);
+  text-align: center;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-bold);
+  color: var(--color-danger);
+  background: color-mix(in srgb, var(--glass-fill-solid) 92%, transparent);
+  border: 1px solid rgb(240 122 104 / 45%);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  pointer-events: none;
+  transform: translateX(-50%);
+  animation: forfeit-toast 2s var(--ease-out) forwards;
+}
+
+@keyframes forfeit-toast {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(8px);
+  }
+  12% {
+    opacity: 1;
+    transform: translateX(-50%);
+  }
+  72% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
 }
 
 .hud-line {

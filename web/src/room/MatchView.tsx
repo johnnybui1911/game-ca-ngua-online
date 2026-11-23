@@ -15,7 +15,7 @@ import { unconsumed, type StateBatch } from './batches';
 import { secondsLeft } from './countdown';
 import { lastRollAfter, type LastRoll } from './last-roll';
 import { needKickAfter } from './need-kick';
-import { forfeitAfter } from './forfeit-notice';
+import { FORFEIT_TOAST_MS, FORFEIT_TOAST_TEXT, forfeitsAfter } from './forfeit-toast';
 import { QuickIntroCard } from './QuickIntroCard';
 import { quickIntro } from './quick-intro';
 import { COLOR_NAMES, COLOR_VARS } from './colors';
@@ -147,13 +147,20 @@ function useNeedKick(batches: StateBatch[], color: Color | null): boolean {
   return folded.hint;
 }
 
-/** Colour that just lost its turn to a third 1 or 6 in a row, while the notice lasts. */
-function useForfeit(batches: StateBatch[]): Color | null {
-  const [folded, setFolded] = useState<{ color: Color | null; seq: number | null }>({ color: null, seq: null });
+/** Count of the local player's lost turns (three 1s or 6s in a row) while the toast announcing the newest one is up; null otherwise. */
+function useForfeitToast(batches: StateBatch[], color: Color | null): number | null {
+  const [folded, setFolded] = useState<{ count: number; seq: number | null }>({ count: 0, seq: null });
   if (unconsumed(batches, folded.seq).length > 0) {
-    setFolded({ color: forfeitAfter(folded.color, batches, folded.seq), seq: batches[batches.length - 1]?.room.seq ?? folded.seq });
+    setFolded({ count: folded.count + forfeitsAfter(batches, folded.seq, color), seq: batches[batches.length - 1]?.room.seq ?? folded.seq });
   }
-  return folded.color;
+  const [shown, setShown] = useState<number | null>(null);
+  useEffect(() => {
+    if (folded.count === 0) return;
+    setShown(folded.count);
+    const timer = window.setTimeout(() => setShown(null), FORFEIT_TOAST_MS);
+    return () => window.clearTimeout(timer);
+  }, [folded.count]);
+  return shown;
 }
 
 function useCountdown(deadline: number | null, offset: number): number | null {
@@ -255,7 +262,7 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
   const mySeat = room.seats.find((s) => s.occupant?.kind === 'human' && s.occupant.user.id === myId);
   const myColor = mySeat?.color ?? null;
   const needKick = useNeedKick(shownBatches, myColor);
-  const forfeitColor = useForfeit(shownBatches);
+  const forfeitToast = useForfeitToast(shownBatches, myColor);
   const finished = game?.phase === 'finished';
   const paused = room.paused;
   const myTurn = game !== null && myColor !== null && game.turn === myColor && !finished;
@@ -335,7 +342,7 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
                 data-active={active}
               >
                 <span className="seat-dot" title={COLOR_NAMES[s.color]}>
-                  {occ?.kind === 'cpu' && <Icon name="bot" size="sm" />}
+                  <Icon name={occ?.kind === 'cpu' ? 'bot' : 'user'} size="sm" />
                 </span>
                 <span className="hud-player-main">
                   <span className="hud-name">{seatName(s)}</span>
@@ -380,6 +387,11 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
 
       <section className={`glass hud-bottom${myTurn && !paused ? ' is-my-turn' : ''}`} aria-label="Điều khiển" ref={hud.bottomRef}>
         <CreatorBadge />
+        {forfeitToast !== null && !finished && (
+          <p key={forfeitToast} className="forfeit-toast" role="status" data-testid="forfeit-toast">
+            {FORFEIT_TOAST_TEXT}
+          </p>
+        )}
         <div className="hud-line">
           <DieFace value={board.rolling ? null : (lastRoll?.dice ?? null)} seatColor={dieColor === undefined ? undefined : COLOR_VARS[dieColor]} />
           <div className="turn-info">
@@ -410,13 +422,6 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
           <p className="need-kick" role="status" data-testid="need-kick-hint">
             <Icon name="lock" size="sm" />
             {NEED_KICK_HINT}
-          </p>
-        )}
-
-        {forfeitColor !== null && !finished && (
-          <p className="need-kick" role="status" data-testid="forfeit-notice">
-            {forfeitColor === myColor ? 'Bạn' : seatName(room.seats.find((s) => s.color === forfeitColor))} tung 1 hoặc 6 ba lần
-            liên tiếp: mất lượt
           </p>
         )}
 
