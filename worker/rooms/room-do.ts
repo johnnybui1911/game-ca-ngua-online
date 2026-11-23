@@ -62,6 +62,7 @@ import {
   resumeGame,
   seatIndexOfUser,
   setOccupant,
+  takeOverCpuSeat,
   toSnapshot,
   toSummary,
   type RoomState,
@@ -254,10 +255,17 @@ export class RoomDO extends DurableObject<Env> {
     }
   }
 
-  /** Seats a connecting user or says why not. Mutates only when it admits. */
+  /**
+   * Seats a connecting user or says why not. Mutates only when it admits. Synchronous, so two upgrades racing for
+   * the last seat (or CPU seat) cannot both get it, and an alarm in flight re-reads the seat after its own await.
+   */
   private admit(room: RoomState, user: PublicUser): RoomError | null {
     if (seatIndexOfUser(room, user.id) >= 0) return null;
-    if (room.status !== 'waiting') return new RoomError('game_in_progress', 'Ván đấu đang diễn ra, bạn không thể vào phòng này.');
+    if (room.status !== 'waiting') {
+      // During a game a person can take a CPU's place; a finished room has no CPU seat to take.
+      if (takeOverCpuSeat(room, user, this.connectedUsers(), Date.now(), this.roomTimings(room)) >= 0) return null;
+      return new RoomError('game_in_progress', 'Ván đấu đang diễn ra và không còn chỗ máy để vào thay.');
+    }
     const seat = firstEmptySeat(room);
     if (seat < 0) return new RoomError('room_full', 'Phòng đã đầy.');
     const target = room.seats[seat];
@@ -562,6 +570,7 @@ export class RoomDO extends DurableObject<Env> {
     const seat = room.seats[i];
     if (!seat) return;
     setOccupant(seat, room.status === 'playing' ? { kind: 'cpu', name: nextCpuName(room) } : null);
+    if (room.status === 'playing') seat.leftBy = userId;
     delete room.disconnectedSince[userId];
     for (const ws of this.ctx.getWebSockets()) {
       const u = ws.deserializeAttachment() as SocketUser | null;

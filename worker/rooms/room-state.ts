@@ -34,6 +34,8 @@ export interface StoredSeat {
   horseNames?: string[];
   /** Turns in a row this seat's connected human let run out; absent means 0. Reaching `IDLE_AUTOPLAY_AFTER` puts the seat on autopilot. */
   misses?: number;
+  /** During a game, the user whose `leave` turned this seat into a CPU; they get it back first if they return. */
+  leftBy?: string;
 }
 
 /** Everything a room needs to survive eviction. Deadlines are absolute epoch ms. */
@@ -75,6 +77,7 @@ export function setOccupant(seat: StoredSeat, occupant: StoredOccupant | null): 
   seat.occupant = occupant;
   delete seat.horseNames;
   delete seat.misses;
+  delete seat.leftBy;
 }
 
 /**
@@ -149,9 +152,12 @@ export function isAutopilot(seat: StoredSeat | undefined): boolean {
   return seat?.occupant?.kind === 'human' && (seat.misses ?? 0) >= IDLE_AUTOPLAY_AFTER;
 }
 
-/** Forgets every seat's missed turns (a new game starts clean). */
+/** Forgets every seat's missed turns and who left it (a new game starts clean). */
 export function clearMisses(state: RoomState): void {
-  for (const seat of state.seats) delete seat.misses;
+  for (const seat of state.seats) {
+    delete seat.misses;
+    delete seat.leftBy;
+  }
 }
 
 /**
@@ -393,6 +399,51 @@ export function reconcileConnections(
 }
 
 /**
+ * The CPU seat a person who holds no seat would take over in the running game, or -1 when there is none.
+ * Someone who left this game gets their own seat back while a CPU still plays it; otherwise the first CPU seat
+ * in turn order after the colour on turn, the seat on turn last, so a newcomer rarely lands mid-turn.
+ */
+export function takeoverSeatIndex(state: RoomState, userId: string): number {
+  const game = state.game;
+  if (state.status !== 'playing' || game === null) return -1;
+  const cpu = (seat: StoredSeat | undefined) => seat?.occupant?.kind === 'cpu' && game.colors.includes(seat.color);
+  const own = state.seats.findIndex((s) => s.leftBy === userId && cpu(s));
+  if (own >= 0) return own;
+  const at = game.colors.indexOf(game.turn);
+  for (let step = 1; step <= game.colors.length; step++) {
+    const color = game.colors[(at + step) % game.colors.length];
+    const i = state.seats.findIndex((s) => s.color === color);
+    if (cpu(state.seats[i])) return i;
+  }
+  return -1;
+}
+
+/**
+ * Seats `user` in place of a CPU in the running game (see `takeoverSeatIndex`): the colour, its horses and the
+ * game carry on unchanged. A seat on turn gets a person's full turn from now; `connected` excludes `user`, whose
+ * socket opens right after. A pending CPU alarm then finds nothing due, as `dueAt` has moved past it. While the
+ * clocks stand still (host pause, or nobody connected) the turn is planned from the moment they stopped, so
+ * resuming or reconnecting moves it on to a full turn. Returns the seat, or -1 when no CPU seat is free.
+ */
+export function takeOverCpuSeat(
+  state: RoomState,
+  user: PublicUser,
+  connected: ReadonlySet<string>,
+  now: number,
+  timings: RoomTimings,
+): number {
+  const i = takeoverSeatIndex(state, user.id);
+  const seat = state.seats[i];
+  if (!seat) return -1;
+  setOccupant(seat, { kind: 'human', user });
+  if (currentSeatIndex(state) === i) {
+    const from = isPaused(state) ? (state.pausedAt ?? now) : (state.noHumanConnectedSince ?? now);
+    planTurn(state, new Set([...connected, user.id]), from, timings);
+  }
+  return i;
+}
+
+/**
  * Continues a paused game. Its clocks stood still since `pausedAt`, so they move on by the pause
  * length: the player on turn finds the time their action had left. A human on turn who is not
  * connected gets the short takeover delay, as on any disconnect.
@@ -481,6 +532,7 @@ export function toSummary(state: RoomState): RoomSummary {
     status: state.status,
     seatsTaken: occupiedCount(state),
     seatsTotal: state.seats.length,
+    takeoverSeats: state.status === 'playing' ? state.seats.filter((s) => s.occupant?.kind === 'cpu').length : 0,
   };
 }
 

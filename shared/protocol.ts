@@ -170,6 +170,8 @@ export interface RoomSummary {
   status: RoomStatus;
   seatsTaken: number;
   seatsTotal: number;
+  /** CPU seats a person can take over right now (playing rooms only). Absent in entries listed before it existed: 0. */
+  takeoverSeats?: number;
 }
 
 /** POST /api/rooms -> 201 CreateRoomResponse | 4xx ApiError. Requires a session. */
