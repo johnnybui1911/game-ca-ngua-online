@@ -238,6 +238,7 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
   const navigate = useNavigate();
   const [confirmLeave, setConfirmLeave] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [statsOpen, setStatsOpen] = useState(false);
   const [renaming, setRenaming] = useState(false);
   const [rulesOpen, setRulesOpen] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
@@ -285,7 +286,7 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
   const canRoll = myTurn && !paused && game?.phase === 'roll' && !board.held;
   useMusic('game');
   useGameSounds(batches, myTurn && !paused && !board.held, seconds, room.turnDeadline);
-  const dialogOpen = menuOpen || renaming || rulesOpen || confirmLeave || confirmClose || (introOpen && !finished);
+  const dialogOpen = menuOpen || statsOpen || renaming || rulesOpen || confirmLeave || confirmClose || (introOpen && !finished);
   // Changes with every roll the server reports, so each roll chance allows one shake-roll.
   const lastRolledSeq = [...batches].reverse().find((b) => b.events.some((e) => e.type === 'rolled'))?.room.seq ?? null;
   const shake = useShakeToRoll(canRoll && !dialogOpen, lastRolledSeq, () => send({ t: 'roll' }));
@@ -535,6 +536,15 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
             <button
               type="button"
               className="ui-btn ui-btn--secondary"
+              data-testid="menu-kick-stats"
+              onClick={() => setStatsOpen(true)}
+            >
+              <Icon name="win" />
+              Bảng đá ngựa
+            </button>
+            <button
+              type="button"
+              className="ui-btn ui-btn--secondary"
               data-testid="menu-rules"
               onClick={() => {
                 setMenuOpen(false);
@@ -602,6 +612,38 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
               Đóng
             </button>
           </div>
+        </Modal>
+      )}
+
+      {statsOpen && room.game && (
+        <Modal labelledBy="kick-stats-title" testId="kick-stats" className="kick-stats" onClose={() => setStatsOpen(false)} closeOnBackdrop>
+          <div className="kick-stats-head">
+            <h2 id="kick-stats-title" className="ui-title dialog-title">Bảng đá ngựa</h2>
+            <button type="button" className="ui-btn ui-btn--icon" aria-label="Đóng" data-testid="kick-stats-close" data-autofocus onClick={() => setStatsOpen(false)}>
+              <Icon name="close" />
+            </button>
+          </div>
+          <table className="kick-stats-table">
+            <thead><tr><th scope="col">Người chơi</th><th scope="col">Đã đá</th></tr></thead>
+            <tbody>
+              {[...room.game.colors]
+                .sort((a, b) => (room.game?.kicks?.[b] ?? 0) - (room.game?.kicks?.[a] ?? 0) || a - b)
+                .map((color) => {
+                  const seat = room.seats.find((s) => s.color === color);
+                  return (
+                    <tr key={color} data-testid={`kick-stats-${color}`}>
+                      <td>
+                        <span className="kick-stats-player">
+                          <span className="kick-stats-swatch" style={{ '--seat-color': COLOR_VARS[color] } as CSSProperties} />
+                          <span className="kick-stats-name">{seatName(seat) || 'Máy'} <span className="ui-muted">({COLOR_NAMES[color]})</span></span>
+                        </span>
+                      </td>
+                      <td>{room.game?.kicks?.[color] ?? 0}</td>
+                    </tr>
+                  );
+                })}
+            </tbody>
+          </table>
         </Modal>
       )}
 

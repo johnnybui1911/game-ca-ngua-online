@@ -1,6 +1,6 @@
 ---
 title: In-game kick statistics
-status: accepted
+status: completed
 ---
 
 # In-game kick statistics
@@ -38,7 +38,7 @@ Time-limit winners, victim counts, retrospective reconstruction of legacy kicks,
 
 | Phase | Scope | Status |
 |---|---|---|
-| 1 | [Counter and compatibility](phase-01-counter.md) | Pending |
-| 2 | [Scoreboard, documentation and checks](phase-02-scoreboard.md) | Pending |
+| 1 | [Counter and compatibility](phase-01-counter.md) | Complete |
+| 2 | [Scoreboard, documentation and checks](phase-02-scoreboard.md) | Complete |
 
 Phase 1 precedes phase 2.
