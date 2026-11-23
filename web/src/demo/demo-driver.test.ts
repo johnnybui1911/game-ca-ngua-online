@@ -181,6 +181,7 @@ describe('DemoDriver', () => {
       moveStarted() {},
       kickStarted() {},
       kickLanded() {},
+      kickFollow() {},
     };
     const director = new Director(view, undefined, { pace: PACES[DEFAULT_PACE].quick });
     const driver = new DemoDriver({ seed: 11, variant: 'quick', parked: true });

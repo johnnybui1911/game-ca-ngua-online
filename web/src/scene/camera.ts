@@ -219,7 +219,7 @@ export const SHAKE_AMPLITUDE = 0.09;
 /**
  * Camera framing for a close-up on ground point (`focusX`, `focusZ`), blended by `weight` (0 = the framing given
  * by `position` looking at the board centre, 1 = full close-up). Writes the camera position to `out[0..2]` and
- * the point to look at to `out[3..5]`.
+ * the point to look at to `out[3..5]`. `focusY` raises the point looked at, to follow a horse in the air.
  */
 export function closeUpFraming(
   out: number[],
@@ -229,6 +229,7 @@ export function closeUpFraming(
   focusX: number,
   focusZ: number,
   weight: number,
+  focusY = 0,
 ): number[] {
   const dolly = CLOSE_UP_DOLLY * weight;
   const aim = CLOSE_UP_AIM * weight;
@@ -236,7 +237,7 @@ export function closeUpFraming(
   out[1] = positionY + (CLOSE_UP_HEIGHT - positionY) * dolly;
   out[2] = positionZ + (focusZ - positionZ) * dolly;
   out[3] = focusX * aim;
-  out[4] = CLOSE_UP_HEIGHT * aim;
+  out[4] = (CLOSE_UP_HEIGHT + focusY) * aim;
   out[5] = focusZ * aim;
   return out;
 }

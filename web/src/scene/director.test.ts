@@ -1,8 +1,10 @@
 import { Euler, Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
+import { BASE_GAP, HEAD_HEIGHT, ROLL_THROUGH } from './motion/kick-swing';
+import { obstacleHeight } from './layout';
 import { applyMove, applyRoll, createGame } from '../../../shared/game/engine';
 import { chooseCpuMove } from '../../../shared/game/cpu';
-import { DEFAULT_PACE, PACES, PACE_NAMES, animationSeconds, pauseSeconds } from '../../../shared/game/pace';
+import { DEFAULT_PACE, PACES, PACE_NAMES, animationSeconds, moveSeconds, moveTiming, pauseSeconds } from '../../../shared/game/pace';
 import type { PaceTimings } from '../../../shared/game/pace';
 import type { Color, DiceValue, GameEvent, GameState, HorsePos } from '../../../shared/game/types';
 import { CELEBRATION_SECONDS, DIE_HALF, Director, HORSE_Y, MAX_WAITING } from './director';
@@ -30,8 +32,10 @@ class FakeView implements SceneView {
   maxDieY = 0;
   minDieY = Infinity;
 
-  setHorse(color: Color, horse: number, x: number, y: number, z: number, yaw: number, pitch: number, stretch: number) {
+  rolls = new Map<string, number>();
+  setHorse(color: Color, horse: number, x: number, y: number, z: number, yaw: number, pitch: number, stretch: number, roll = 0) {
     this.horses.set(`${color}:${horse}`, { x, y, z, yaw, pitch, stretch });
+    this.rolls.set(`${color}:${horse}`, roll);
     this.maxY = Math.max(this.maxY, y);
     this.minStretch = Math.min(this.minStretch, stretch);
     this.maxStretch = Math.max(this.maxStretch, stretch);
@@ -50,17 +54,21 @@ class FakeView implements SceneView {
   setCelebration(color: Color | null) {
     this.celebration = color;
   }
-  moves: { hops: number; hopSeconds: number; kickAt: number | null }[] = [];
-  moveStarted(hops: number, hopSeconds: number, kickAt: number | null) {
-    this.moves.push({ hops, hopSeconds, kickAt });
+  moves: { hops: number; hopSeconds: number; kickAt: number | null; flight: { after: number; seconds: number } | null }[] = [];
+  moveStarted(hops: number, hopSeconds: number, kickAt: number | null, flight: { after: number; seconds: number } | null) {
+    this.moves.push({ hops, hopSeconds, kickAt, flight });
   }
-  kicks: { x: number; z: number; contactIn: number }[] = [];
+  kicks: { x: number; z: number; contactIn: number; holdSeconds: number }[] = [];
   contacts = 0;
-  kickStarted(x: number, z: number, contactIn: number) {
-    this.kicks.push({ x, z, contactIn });
+  kickStarted(x: number, z: number, contactIn: number, holdSeconds: number) {
+    this.kicks.push({ x, z, contactIn, holdSeconds });
   }
   kickLanded() {
     this.contacts++;
+  }
+  follows: { x: number; z: number; y: number; flung: boolean }[] = [];
+  kickFollow(x: number, z: number, y: number, flung: boolean) {
+    this.follows.push({ x, z, y, flung });
   }
 
   /** Every horse of the colours in play stands exactly where `game` says, upright and at its own size. */
@@ -75,18 +83,19 @@ class FakeView implements SceneView {
         expect(got!.y).toBeCloseTo(HORSE_Y + groundHeight(pos), 6);
         expect(got!.pitch).toBe(0);
         expect(got!.stretch).toBe(1);
+        expect(this.rolls.get(`${color}:${horse}`)).toBe(0);
       });
     }
   }
 }
 
-/** A two-player position where red's horse 0 kicks blue's horse 0 by moving `hops` cells. */
-function kickSetup(hops: DiceValue, variant: 'classic' | 'quick' = 'classic') {
+/** A two-player position where red's horse 0, on its progress `from`, kicks blue's horse 0 by moving `hops` cells. */
+function kickSetup(hops: DiceValue, variant: 'classic' | 'quick' = 'classic', from = 1) {
   const base = createGame([0, 2], variant);
   const horses = base.horses.map((row) => row.slice());
-  horses[0] = [1, -1, -1, -1];
+  horses[0] = [from, -1, -1, -1];
   // Blue's track positions are red's shifted by half the loop.
-  horses[2] = [29 + hops, -1, -1, -1];
+  horses[2] = [(from + hops + 28) % 56, -1, -1, -1];
   const before: GameState = { ...base, horses, turn: 0, phase: 'move', dice: hops, legalHorses: [0] };
   const moved = applyMove(before, 0);
   const event = moved.events.find((e) => e.type === 'moved');
@@ -453,12 +462,15 @@ describe('Director', () => {
       expect(combined).toBeGreaterThan(0);
     });
 
-    it('Nhanh keeps the flat budgets from before the table: 0.6 s per roll and move, 0.35 s in a quick match', () => {
+    it('Nhanh keeps the flat budgets from before the table for everything but a kick: 0.6 s per roll and move, 0.35 s in a quick match', () => {
       for (const [pace, perSegment, pause] of [
         [PACES.nhanh.normal, 0.6, 0.7],
         [PACES.nhanh.quick, 0.35, 0.4],
       ] as const) {
+        let plain = 0;
         for (const { game, events } of batchesOfGame(300)) {
+          if (events.some((e) => e.type === 'moved' && e.kicked)) continue;
+          plain++;
           const segments = events.filter((e) => e.type === 'rolled' || e.type === 'moved').length;
           const d = new Director(new FakeView(), undefined, { pace });
           d.reset(createGame(game.colors));
@@ -466,6 +478,7 @@ describe('Director', () => {
           expect(drain(d)).toBeLessThanOrEqual(perSegment * segments + 2 * FRAME);
           expect(pauseSeconds(events, pace)).toBeCloseTo(pause * Math.max(1, segments), 9);
         }
+        expect(plain).toBeGreaterThan(0);
       }
     });
 
@@ -530,10 +543,9 @@ describe('Director', () => {
         if (contactAt < 0 && view.contacts === 1) {
           contactAt = t;
           frozen = { ...mover };
-          // The kicker is down on the victim's cell.
-          expect(mover.x).toBeCloseTo(victimCell.x, 6);
-          expect(mover.z).toBeCloseTo(victimCell.z, 6);
-          expect(mover.y).toBeCloseTo(HORSE_Y, 6);
+          // The kicker's base is against the victim's rear, one base gap from its centre and just off the board.
+          expect(Math.hypot(mover.x - victimCell.x, mover.z - victimCell.z)).toBeCloseTo(BASE_GAP, 6);
+          expect(mover.y).toBeCloseTo(HORSE_Y + HEAD_HEIGHT * (1 - Math.cos(ROLL_THROUGH)), 6);
         } else if (contactAt >= 0 && liftOffAt < 0) {
           if (victim.y > HORSE_Y + 1e-6) liftOffAt = t;
           else expect(mover).toEqual(frozen);
@@ -554,13 +566,16 @@ describe('Director', () => {
       view.expectShows(after);
     });
 
-    it('keeps the hit-stop at full length when the batch is compressed', () => {
-      const { before, after, events } = kickSetup(6, 'quick');
+    it('never squeezes a kick, only the roll before it, when the pace caps its segments', () => {
+      const { before } = kickSetup(5, 'quick');
+      const rolled = applyRoll({ ...before, phase: 'roll', dice: null, legalHorses: [] }, 5);
+      const moved = applyMove(rolled.state, 0);
+      const all = [...rolled.events, ...moved.events];
       const view = new FakeView();
       const pace = PACES.nhanh.quick;
       const d = new Director(view, undefined, { pace });
       d.reset(before);
-      d.push(after, events);
+      d.push(moved.state, all);
       const dt = 1 / 240;
       let t = 0;
       let contactAt = -1;
@@ -569,10 +584,197 @@ describe('Director', () => {
         d.update(dt);
         t += dt;
         if (contactAt < 0 && view.contacts === 1) contactAt = t;
-        if (liftOffAt < 0 && view.horses.get('2:0')!.y > HORSE_Y + 1e-6) liftOffAt = t;
+        if (liftOffAt < 0 && contactAt >= 0 && view.horses.get('2:0')!.y > HORSE_Y + 1e-6) liftOffAt = t;
       }
-      expect(t).toBeLessThan(0.5);
+      const kick = moveSeconds(moveTiming(moved.events.find((e) => e.type === 'moved') as Extract<GameEvent, { type: 'moved' }>, pace), 5, true);
+      // The roll took the squeeze: the batch is the cap for the roll plus the whole kick.
+      expect(t).toBeCloseTo(pace.segmentCap! + kick, 1);
       expect(liftOffAt - contactAt).toBeGreaterThanOrEqual(pace.hitStop - 0.01);
+      view.expectShows(moved.state);
+    });
+
+    it('plays a kick in slow motion: the victim floats up before it is flung, and the camera follows it', () => {
+      const { before, after, events } = kickSetup(3);
+      const kick = events.find((e) => e.type === 'moved') as Extract<GameEvent, { type: 'moved' }>;
+      const m = moveTiming(kick, NORMAL);
+      const view = new FakeView();
+      const d = new Director(view, undefined, { pace: NORMAL });
+      d.reset(before);
+      d.push(after, events);
+      const dt = 1 / 240;
+      let t = 0;
+      let contactAt = -1;
+      let peak = 0;
+      let peakAt = 0;
+      let midRise = -1;
+      let last = 0;
+      while (d.isBusy) {
+        d.update(dt);
+        t += dt;
+        if (contactAt < 0 && view.contacts === 1) contactAt = t;
+        const y = view.horses.get('2:0')!.y - HORSE_Y;
+        if (contactAt >= 0) {
+          if (y > peak) {
+            peak = y;
+            peakAt = t;
+          }
+          if (midRise < 0 && t - contactAt >= m.hitStop + m.rise / 2) midRise = y;
+        }
+        last = y;
+      }
+      expect(last).toBeCloseTo(0, 6);
+      // The whole kick lasts the cinematic time.
+      expect(t).toBeCloseTo(moveSeconds(m, 3, true), 1);
+      // Half way through the rise the victim is only part of the way up; the fling then takes it much higher.
+      expect(midRise).toBeGreaterThan(0.1);
+      expect(midRise).toBeLessThan(1);
+      expect(peak).toBeGreaterThan(3);
+      expect(peakAt - contactAt).toBeGreaterThan(m.hitStop + m.rise);
+      // The camera is asked to stay with the victim through the rise and the flight, and follows it up.
+      expect(view.kicks[0]!.holdSeconds).toBeGreaterThan(m.rise + m.knockback * 0.5);
+      expect(view.follows.length).toBeGreaterThan(50);
+      expect(Math.max(...view.follows.map((f) => f.y))).toBeGreaterThan(2.5);
+      // The whoosh starts when the fling does.
+      const started = view.moves[0]!;
+      expect(started.flight!.after).toBeCloseTo(started.kickAt! + m.hitStop + m.rise, 1);
+      expect(started.flight!.seconds).toBeGreaterThan(0.5);
+    });
+
+    it('the kicker leaps high, throws its rear out and whips it in until its base touches the victim, never passing through it', () => {
+      const { before, after, events } = kickSetup(3);
+      const kick = events.find((e) => e.type === 'moved') as Extract<GameEvent, { type: 'moved' }>;
+      const m = moveTiming(kick, NORMAL);
+      const target = horseGround(kick.kicked!.color, kick.kicked!.horse, kick.kicked!.from);
+      const view = new FakeView();
+      const d = new Director(view, undefined, { pace: NORMAL });
+      d.reset(before);
+      d.push(after, events);
+      const dt = 1 / 240;
+      let t = 0;
+      let contactAt = -1;
+      let leapTop = 0;
+      let cocked = 0;
+      let rollAtContact = 0;
+      let nearest = Infinity;
+      let victimRoll = 0;
+      while (d.isBusy) {
+        d.update(dt);
+        t += dt;
+        if (contactAt < 0 && view.contacts === 1) contactAt = t;
+        const kicker = view.horses.get('0:0')!;
+        const roll = view.rolls.get('0:0')!;
+        if (contactAt < 0 && roll !== 0) {
+          leapTop = Math.max(leapTop, kicker.y - HORSE_Y);
+          if (Math.abs(roll) > Math.abs(cocked)) cocked = roll;
+          rollAtContact = roll;
+          // The kicker's base comes in from outside and stops one base gap from the victim's centre: it never passes through it.
+          nearest = Math.min(nearest, Math.hypot(kicker.x - target.x, kicker.z - target.z));
+        }
+        if (contactAt >= 0 && t - contactAt < m.hitStop) victimRoll = view.rolls.get('2:0')!;
+      }
+      // A high leap, cocked over to one side, then thrown through to the other at contact.
+      expect(leapTop).toBeGreaterThan(1.5);
+      expect(Math.abs(cocked)).toBeGreaterThan(0.8);
+      expect(Math.sign(rollAtContact)).toBe(-Math.sign(cocked));
+      expect(nearest).toBeGreaterThanOrEqual(BASE_GAP - 0.01);
+      // Sampled a frame before the contact is announced, so a little short of it.
+      expect(nearest).toBeLessThanOrEqual(BASE_GAP + 0.05);
+      // The victim is shoved aside and tips while it is held in the hit.
+      expect(Math.abs(victimRoll)).toBeGreaterThan(0.02);
+      view.expectShows(after);
+    });
+
+    it('keeps the kicker off the stairs wherever on the board the kick lands', () => {
+      let worstSunk = 0;
+      const propped: number[] = [];
+      for (let from = 0; from <= 51; from++) {
+        const { before, after, events } = kickSetup(3, 'classic', from);
+        const view = new FakeView();
+        const d = new Director(view, undefined, { pace: NORMAL });
+        d.reset(before);
+        d.push(after, events);
+        let atContact: { y: number; roll: number } | null = null;
+        let whenFlying: { y: number; roll: number } | null = null;
+        while (d.isBusy) {
+          d.update(1 / 120);
+          if (view.contacts === 1 && !atContact) atContact = { y: view.horses.get('0:0')!.y, roll: view.rolls.get('0:0')! };
+          if (view.horses.get('2:0')!.y > HORSE_Y + 1.5 && !whenFlying) whenFlying = { y: view.horses.get('0:0')!.y, roll: view.rolls.get('0:0')! };
+          const kicker = view.horses.get('0:0')!;
+          if (view.rolls.get('0:0') === 0) continue;
+          // The base is never inside a tread: it is on top of one or beside it.
+          worstSunk = Math.max(worstSunk, obstacleHeight(kicker.x, kicker.z, 0.4) - kicker.y);
+        }
+        // It gets round the stairs by swinging in from the clear side: at contact the head is exactly the head height
+        // above the ground, the base was not propped up on a tread to clear it.
+        if (Math.abs(atContact!.y + HEAD_HEIGHT * Math.cos(atContact!.roll) - (HORSE_Y + HEAD_HEIGHT)) > 1e-6) propped.push(from);
+        // And once the victim is in the air the kicker stands on the ground again, upright, not propped on a tread.
+        expect(whenFlying!.y, `from ${from}`).toBeCloseTo(HORSE_Y, 6);
+        expect(whenFlying!.roll, `from ${from}`).toBeCloseTo(0, 9);
+      }
+      expect(worstSunk).toBeLessThanOrEqual(0.03);
+      // The swing always finds a side that is clear of the stairs, so the base never has to be propped up on a tread.
+      expect(propped).toEqual([]);
+    });
+
+    it('swings clear of the horses standing around the kick, on whichever side is free', () => {
+      // Red leaps onto blue on the left lane of the top arm, at (-1, -5), moving up the board. Its right is the side with the
+      // other lane and the stairs; the cells are named by red's own progress, which is the cell's place on the loop.
+      const cases: { name: string; around: [Color, number][]; side: 'left' | 'right' }[] = [
+        { name: 'a horse right beside the victim', around: [[3, 30]], side: 'left' },
+        { name: 'a horse beside and behind the victim', around: [[3, 31]], side: 'left' },
+        { name: 'a horse above and one to the right', around: [[3, 25], [1, 30]], side: 'left' },
+      ];
+      for (const c of cases) {
+        const base = createGame([0, 1, 2, 3]);
+        const horses = base.horses.map((row) => row.slice());
+        horses[0] = [21, -1, -1, -1];
+        horses[2] = [52, -1, -1, -1];
+        // Each bystander is another colour's horse 0 on the loop cell `cell`.
+        for (const [color, cell] of c.around) horses[color]![0] = (((cell - 14 * color) % 56) + 56) % 56;
+        const before: GameState = { ...base, horses, turn: 0, phase: 'move', dice: 3, legalHorses: [0] };
+        const moved = applyMove(before, 0);
+        const view = new FakeView();
+        const d = new Director(view, undefined, { pace: NORMAL });
+        d.reset(before);
+        d.push(moved.state, moved.events);
+        const bystanders = c.around.map(([color]) => horseGround(color, 0, horses[color]![0]!));
+        let closestBase = Infinity;
+        let closestHead = Infinity;
+        let baseX = 0;
+        while (d.isBusy) {
+          d.update(1 / 120);
+          const kicker = view.horses.get('0:0')!;
+          const roll = view.rolls.get('0:0')!;
+          if (roll === 0 || view.contacts > 0) continue;
+          const reach = HEAD_HEIGHT * Math.sin(roll);
+          const head = { x: kicker.x - Math.cos(kicker.yaw) * reach, z: kicker.z + Math.sin(kicker.yaw) * reach };
+          for (const b of bystanders) {
+            closestBase = Math.min(closestBase, Math.hypot(kicker.x - b.x, kicker.z - b.z));
+            closestHead = Math.min(closestHead, Math.hypot(head.x - b.x, head.z - b.z));
+          }
+          baseX = kicker.x;
+        }
+        // It keeps clear of every horse by a base width and a bit, and comes in from the free side.
+        expect(closestBase, c.name).toBeGreaterThan(0.8);
+        expect(closestHead, c.name).toBeGreaterThan(0.7);
+        expect(c.side === 'left' ? baseX < -1 : baseX > -1, c.name).toBe(true);
+        view.expectShows(moved.state);
+      }
+    });
+
+    it('plays a plain kick when the cinematic one is off: shorter than the planned time, no follow, no hold', () => {
+      const { before, after, events } = kickSetup(3);
+      const view = new FakeView();
+      const d = new Director(view, undefined, { pace: NORMAL, cinematicKick: () => false });
+      d.reset(before);
+      d.push(after, events);
+      const took = drain(d);
+      const kick = events.find((e) => e.type === 'moved') as Extract<GameEvent, { type: 'moved' }>;
+      expect(took).toBeCloseTo(moveSeconds(moveTiming(kick, NORMAL, false), 3, true), 1);
+      expect(took).toBeLessThan(moveSeconds(moveTiming(kick, NORMAL), 3, true) - 1);
+      expect(view.follows).toHaveLength(0);
+      expect(view.kicks[0]!.holdSeconds).toBe(0);
+      expect(view.moves[0]!.flight).toBeNull();
       view.expectShows(after);
     });
 

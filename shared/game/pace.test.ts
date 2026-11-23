@@ -6,8 +6,10 @@ import {
   PACES,
   PACE_NAMES,
   animationSeconds,
+  hopsOf,
   isPaceName,
   longestBatchSeconds,
+  moveSeconds,
   moveTiming,
   paceTimings,
   pauseSeconds,
@@ -68,6 +70,38 @@ describe('pace', () => {
     expect(moveTiming(move(6), t).hop).toBeLessThan(moveTiming(move(1), t).hop);
     expect(6 * moveTiming(move(6), t).hop).toBeGreaterThan(moveTiming(move(1), t).hop);
     expect(moveTiming(move(6), t).hop).toBeGreaterThanOrEqual(0.1);
+  });
+
+  it('a kick takes about 1.5 s in a quick match and at Nhanh, and 2.5 to 3 s otherwise, whatever the distance', () => {
+    const kickSeconds = (t: (typeof modes)[number], from: number, to: number) => {
+      const e = { from, to, kicked: { color: 1 as const, horse: 0, from: to } };
+      return moveSeconds(moveTiming(e, t), hopsOf(e), true);
+    };
+    const slow = [PACES.vua.normal, PACES['thu-thai'].normal];
+    const short = [PACES.nhanh.normal, PACES.nhanh.quick, PACES.vua.quick, PACES['thu-thai'].quick];
+    for (const t of slow) {
+      for (const [from, to] of [[-1, 0], [0, 1], [0, 3], [0, 6]] as const) {
+        expect(kickSeconds(t, from, to)).toBeGreaterThanOrEqual(2.35);
+        expect(kickSeconds(t, from, to)).toBeLessThanOrEqual(3.15);
+      }
+    }
+    for (const t of short) {
+      for (const [from, to] of [[-1, 0], [0, 1], [0, 3], [0, 6]] as const) {
+        expect(kickSeconds(t, from, to)).toBeGreaterThanOrEqual(1.3);
+        expect(kickSeconds(t, from, to)).toBeLessThanOrEqual(1.8);
+      }
+    }
+  });
+
+  it('a kick is never cut by the segment cap, and the plain kick is never longer than the cinematic one', () => {
+    const roll: GameEvent = { type: 'rolled', color: 0, dice: 6, legalHorses: [0] };
+    const kick: GameEvent = { type: 'moved', color: 0, horse: 0, from: 0, to: 6, kicked: { color: 1, horse: 0, from: 6 } };
+    for (const t of modes) {
+      const kickAlone = moveSeconds(moveTiming(kick as never, t), 6, true);
+      expect(animationSeconds([kick], t)).toBeCloseTo(kickAlone, 9);
+      expect(animationSeconds([roll, kick], t)).toBeGreaterThanOrEqual(kickAlone);
+      expect(moveSeconds(moveTiming(kick as never, t, false), 6, true)).toBeLessThan(kickAlone);
+    }
   });
 
   it('rests the die before its move and before the turn passes on, not before a pick', () => {

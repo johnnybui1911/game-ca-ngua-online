@@ -30,8 +30,19 @@ export interface PaceTimings {
   pounce: number;
   /** Freeze at contact. Never compressed: a shorter one is not seen at all. */
   hitStop: number;
+  /** The kicked horse lifting off slowly after the hit-stop, before it is flung. Part of the cinematic kick. */
+  kickRise: number;
   /** The kicked horse's flight home and its landing. */
   knockback: number;
+  /**
+   * The same two phases of a kick played without the cinematic slow-motion (a device too weak for it): no rise,
+   * and a short hit-stop and flight. Never longer than the cinematic kick, so a client that plays it still
+   * finishes inside the server's pause.
+   */
+  plainHitStop: number;
+  plainKnockback: number;
+  /** The last hop onto the victim in a plain kick: low and short. The cinematic kick's `pounce` is a high leap. */
+  plainPounce: number;
   /** Reduced motion: the die slides into place; a horse slides along its path, a kicked one slides home. */
   reducedRoll: number;
   slidePerCell: number;
@@ -56,7 +67,7 @@ export interface PaceProfile {
 export const PACE_NAMES = ['nhanh', 'vua', 'thu-thai'] as const;
 export type PaceName = (typeof PACE_NAMES)[number];
 
-/** "Nhanh", the pace before this table existed: a flat pause per segment and every move squeezed into 0.6 s (0.35 s quick). */
+/** "Nhanh", the pace before this table existed: a flat pause per segment and every plain move squeezed into 0.6 s (0.35 s quick). A kick keeps its own, longer time. */
 const NHANH_NORMAL: PaceTimings = {
   roll: 0.55,
   rollHold: 0.2,
@@ -69,14 +80,18 @@ const NHANH_NORMAL: PaceTimings = {
   kickCrouch: 0.06,
   kickRun: 0.18,
   maxRunHop: 0.12,
-  pounce: 0.13,
+  pounce: 0.3,
   hitStop: 0.05,
-  knockback: 0.18,
+  kickRise: 0.08,
+  knockback: 1.1,
+  plainHitStop: 0.05,
+  plainKnockback: 0.18,
+  plainPounce: 0.13,
   reducedRoll: 0.2,
   slidePerCell: 0.08,
   maxSlide: 0.3,
   slideHome: 0.2,
-  beat: 0,
+  beat: 0.05,
   minSegmentPause: 0.7,
   segmentCap: 0.6,
 };
@@ -100,9 +115,13 @@ export const PACES: Record<PaceName, PaceProfile> = {
       kickCrouch: 0.09,
       kickRun: 0.45,
       maxRunHop: 0.15,
-      pounce: 0.22,
-      hitStop: 0.08,
-      knockback: 0.36,
+      pounce: 0.5,
+      hitStop: 0.06,
+      kickRise: 0.12,
+      knockback: 1.75,
+      plainHitStop: 0.08,
+      plainKnockback: 0.36,
+      plainPounce: 0.22,
       reducedRoll: 0.3,
       slidePerCell: 0.1,
       maxSlide: 0.5,
@@ -122,9 +141,13 @@ export const PACES: Record<PaceName, PaceProfile> = {
       kickCrouch: 0.06,
       kickRun: 0.3,
       maxRunHop: 0.11,
-      pounce: 0.15,
-      hitStop: 0.06,
-      knockback: 0.22,
+      pounce: 0.33,
+      hitStop: 0.05,
+      kickRise: 0.08,
+      knockback: 0.9,
+      plainHitStop: 0.06,
+      plainKnockback: 0.22,
+      plainPounce: 0.15,
       reducedRoll: 0.2,
       slidePerCell: 0.08,
       maxSlide: 0.3,
@@ -147,9 +170,13 @@ export const PACES: Record<PaceName, PaceProfile> = {
       kickCrouch: 0.12,
       kickRun: 0.6,
       maxRunHop: 0.2,
-      pounce: 0.28,
-      hitStop: 0.1,
-      knockback: 0.5,
+      pounce: 0.55,
+      hitStop: 0.08,
+      kickRise: 0.12,
+      knockback: 1.65,
+      plainHitStop: 0.1,
+      plainKnockback: 0.5,
+      plainPounce: 0.28,
       reducedRoll: 0.35,
       slidePerCell: 0.12,
       maxSlide: 0.6,
@@ -169,9 +196,13 @@ export const PACES: Record<PaceName, PaceProfile> = {
       kickCrouch: 0.08,
       kickRun: 0.32,
       maxRunHop: 0.13,
-      pounce: 0.18,
-      hitStop: 0.07,
-      knockback: 0.28,
+      pounce: 0.35,
+      hitStop: 0.05,
+      kickRise: 0.08,
+      knockback: 0.85,
+      plainHitStop: 0.07,
+      plainKnockback: 0.28,
+      plainPounce: 0.18,
       reducedRoll: 0.25,
       slidePerCell: 0.09,
       maxSlide: 0.4,
@@ -211,30 +242,37 @@ export interface MoveTiming {
   settle: number;
   /** 0 without a kick. */
   hitStop: number;
+  /** The kicked horse's slow lift-off before it is flung; 0 without a kick or without the cinematic kick. */
+  rise: number;
   knockback: number;
 }
 
-export function moveTiming(e: Pick<Moved, 'from' | 'to' | 'kicked'>, t: PaceTimings): MoveTiming {
+/**
+ * Phase durations of the move `e`. A kick is the cinematic one (slow rise, then a flung flight) unless `cinematic`
+ * is false: then it is the plain hit-stop and flight a weak device plays. The server always plans the cinematic kick.
+ */
+export function moveTiming(e: Pick<Moved, 'from' | 'to' | 'kicked'>, t: PaceTimings, cinematic = true): MoveTiming {
   const hops = hopsOf(e);
   const fromStable = e.from < 0;
   if (e.kicked) {
     return {
       crouch: t.kickCrouch,
       hop: hops > 1 ? Math.min(t.maxRunHop, t.kickRun / (hops - 1)) : 0,
-      lastHop: fromStable ? t.stableExit : t.pounce,
+      lastHop: fromStable ? t.stableExit : cinematic ? t.pounce : t.plainPounce,
       settle: t.settle,
-      hitStop: t.hitStop,
-      knockback: t.knockback,
+      hitStop: cinematic ? t.hitStop : t.plainHitStop,
+      rise: cinematic ? t.kickRise : 0,
+      knockback: cinematic ? t.knockback : t.plainKnockback,
     };
   }
   const hop = fromStable ? t.stableExit : Math.min(t.maxHop, t.hopsTotal / hops);
-  return { crouch: t.crouch, hop, lastHop: hop, settle: t.settle, hitStop: 0, knockback: 0 };
+  return { crouch: t.crouch, hop, lastHop: hop, settle: t.settle, hitStop: 0, rise: 0, knockback: 0 };
 }
 
 /** Seconds a move with these phases lasts. */
 export function moveSeconds(m: MoveTiming, hops: number, kicked: boolean): number {
   const landed = m.crouch + (hops - 1) * m.hop + m.lastHop;
-  return landed + (kicked ? m.hitStop + Math.max(m.knockback, m.settle) : m.settle);
+  return landed + (kicked ? m.hitStop + Math.max(m.rise + m.knockback, m.settle) : m.settle);
 }
 
 /**
@@ -255,27 +293,41 @@ function segments(events: readonly GameEvent[]): number {
   return n;
 }
 
+/** Seconds the board animates `events` in full motion, before any compression: the kicking moves, and everything else. */
+function plannedParts(events: readonly GameEvent[], t: PaceTimings): { kick: number; rest: number; restSegments: number } {
+  let kick = 0;
+  let rest = 0;
+  let restSegments = 0;
+  events.forEach((e, i) => {
+    if (e.type === 'rolled') {
+      rest += t.roll + restAfterRoll(events, i, t);
+      restSegments++;
+    } else if (e.type === 'moved') {
+      const seconds = moveSeconds(moveTiming(e, t), hopsOf(e), e.kicked !== null);
+      if (e.kicked) kick += seconds;
+      else {
+        rest += seconds;
+        restSegments++;
+      }
+    }
+  });
+  return { kick, rest, restSegments };
+}
+
 /** Seconds the board animates `events` in full motion, before any compression. */
 export function plannedSeconds(events: readonly GameEvent[], t: PaceTimings): number {
-  let total = 0;
-  events.forEach((e, i) => {
-    if (e.type === 'rolled') total += t.roll + restAfterRoll(events, i, t);
-    else if (e.type === 'moved') total += moveSeconds(moveTiming(e, t), hopsOf(e), e.kicked !== null);
-  });
-  return total;
+  const p = plannedParts(events, t);
+  return p.kick + p.rest;
 }
 
-/** Seconds of hit-stop in `events`: the part of a batch that compression leaves alone. */
-export function hitStopSeconds(events: readonly GameEvent[], t: PaceTimings): number {
-  let total = 0;
-  for (const e of events) if (e.type === 'moved' && e.kicked) total += t.hitStop;
-  return total;
-}
-
-/** Seconds the board takes to animate `events`: the planned time, compressed to `segmentCap` per segment where a profile has one. */
+/**
+ * Seconds the board takes to animate `events`: the planned time, with everything but a kicking move compressed to
+ * `segmentCap` per segment where a profile has one. A kick is the show of the game and is never cut short by the cap.
+ */
 export function animationSeconds(events: readonly GameEvent[], t: PaceTimings): number {
-  const planned = plannedSeconds(events, t);
-  return t.segmentCap === undefined ? planned : Math.min(planned, t.segmentCap * Math.max(1, segments(events)));
+  const p = plannedParts(events, t);
+  const rest = t.segmentCap === undefined ? p.rest : Math.min(p.rest, t.segmentCap * Math.max(1, p.restSegments));
+  return p.kick + rest;
 }
 
 /** Seconds the server waits after committing `events` before it plays the next automated action. */
