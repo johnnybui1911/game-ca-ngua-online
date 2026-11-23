@@ -1,6 +1,6 @@
 import { DurableObject } from 'cloudflare:workers';
 import { NO_SOURCE, type ServerEvent } from '../../shared/analytics';
-import { applyMove, createGame, rollAndSettle } from '../../shared/game/engine';
+import { applyMove, createGame } from '../../shared/game/engine';
 import type { GameEvent, StepResult } from '../../shared/game/types';
 import { isEmoteId } from '../../shared/emotes';
 import {
@@ -48,7 +48,7 @@ import {
   parseRoomSettings,
   settingsOf,
   timingsOf,
-  drawDie,
+  rollFor,
   firstEmptySeat,
   humanUsers,
   isPaused,
@@ -401,6 +401,7 @@ export class RoomDO extends DurableObject<Env> {
         const colors = room.seats.filter((s) => s.occupant !== null).map((s) => s.color);
         const settings = settingsOf(room);
         room.game = createGame(colors, settings.quick ? 'quick' : 'classic', settings.rules);
+        delete room.diceMemory;
         room.status = 'playing';
         room.pausedAt = null;
         clearMisses(room);
@@ -414,7 +415,7 @@ export class RoomDO extends DurableObject<Env> {
       case 'roll': {
         const game = this.playableGame(user, 'roll');
         this.clearMissesOf(user.userId);
-        await this.apply(rollAndSettle(game, drawDie(), settingsOf(room).quick));
+        await this.apply(rollFor(room, game, settingsOf(room).quick));
         return;
       }
       case 'move': {
@@ -429,6 +430,7 @@ export class RoomDO extends DurableObject<Env> {
         if (room.status !== 'finished') throw new RoomError('bad_state', 'Ván đấu chưa kết thúc.');
         room.status = 'waiting';
         room.game = null;
+        delete room.diceMemory;
         room.dueAt = null;
         room.actionDueAt = null;
         clearMisses(room);

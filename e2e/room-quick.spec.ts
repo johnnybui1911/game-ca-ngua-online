@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { CLASSIC_RULES, CLASSIC_MODE_SUMMARY, QUICK_DIFFERENCES, QUICK_MODE_SUMMARY, QUICK_WIN_TEXT } from '../shared/rules-text';
+import { DEFAULT_ROOM_SETTINGS } from '../shared/protocol';
 import {
   GAME_TIMEOUT,
   VIEWPORT,
@@ -11,6 +12,9 @@ import {
   startAutoPlayer,
   startTwoPlayerGame,
 } from './helpers/rooms';
+
+/** Lines the rules sheet adds for the house rules a new room has on. */
+const HOUSE_LINES = DEFAULT_ROOM_SETTINGS.rules.tripleBonusForfeit ? 1 : 0;
 
 test.setTimeout(GAME_TIMEOUT + 60_000);
 
@@ -78,17 +82,17 @@ test('the rules sheet lists the quick differences first in a quick room, from th
   await host.page.goto(`/r/${code}`);
   const sheet = host.page.getByTestId('rules-sheet');
 
-  // Classic room: the classic rules, then the house rule a new room has on.
+  // Classic room: the classic rules, then the house rule when a new room has it on.
   await host.page.getByTestId('mode-rules').click();
-  await expect(sheet.locator('h3')).toHaveText(['Luật cá ngựa', 'Luật thêm của phòng']);
-  await expect(sheet.locator('li')).toHaveCount(CLASSIC_RULES.length + 1);
+  await expect(sheet.locator('h3')).toHaveText(HOUSE_LINES ? ['Luật cá ngựa', 'Luật thêm của phòng'] : ['Luật cá ngựa']);
+  await expect(sheet.locator('li')).toHaveCount(CLASSIC_RULES.length + HOUSE_LINES);
   await host.page.keyboard.press('Escape');
 
   await host.page.getByTestId('mode-quick').click();
   await expect(host.page.getByTestId('mode-quick')).toHaveAttribute('aria-checked', 'true');
   await host.page.getByTestId('mode-rules').click();
   await expect(sheet.locator('h3').first()).toHaveText('Ván nhanh khác ván thường');
-  await expect(sheet.locator('li')).toHaveCount(QUICK_DIFFERENCES.length + CLASSIC_RULES.length + 1);
+  await expect(sheet.locator('li')).toHaveCount(QUICK_DIFFERENCES.length + CLASSIC_RULES.length + HOUSE_LINES);
   await expect(sheet.locator('li').first()).toHaveText(QUICK_DIFFERENCES[0]!);
   await host.page.keyboard.press('Escape');
   await host.page.getByTestId('waiting-rules').click();
