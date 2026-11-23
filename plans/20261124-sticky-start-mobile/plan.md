@@ -1,6 +1,6 @@
 ---
 title: Sticky mobile waiting-room start
-status: accepted
+status: complete
 ---
 
 # Sticky mobile waiting-room start
@@ -27,10 +27,11 @@ Changes to room rules, host permissions, drawer behavior on other pages, or depl
 
 - Use CSS sticky and flatten the mobile host room grid so the row's containing block extends through the room panel. The actual scroll container is `.shell-panel-body > .room-page`.
 - Place the row visually first on mobile, keep its DOM and desktop placement unchanged, and use the existing solid glass token.
+- Leave space above the row for the fixed sound control; keyboard and screen-reader order follows the unchanged DOM.
 - Add a browser regression spec but do not run it, per Johnny's instruction.
 
 ## Phases
 
 | Phase | Status | Detail |
 |---|---|---|
-| 1 | Accepted | [Implement and verify](phase-01-mobile-sticky.md) |
+| 1 | Complete | [Implement and verify](phase-01-mobile-sticky.md) |
