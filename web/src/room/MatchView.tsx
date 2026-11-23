@@ -358,12 +358,7 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
                 data-active={active}
               >
                 <span className="seat-dot" title={COLOR_NAMES[s.color]}>
-                  <Icon name={occ?.kind === 'cpu' ? 'bot' : 'knight'} size="sm" />
-                  {occ?.kind === 'human' && occ.user.id === room.hostId && (
-                    <span className="seat-crown" role="img" aria-label="Chủ phòng">
-                      <Icon name="crown" size="sm" />
-                    </span>
-                  )}
+                  <Icon name={occ?.kind === 'cpu' ? 'bot' : occ?.kind === 'human' && occ.user.id === room.hostId ? 'crown' : 'knight'} size="sm" />
                 </span>
                 <span className="hud-player-main">
                   <span className="hud-name">{seatName(s)}</span>
