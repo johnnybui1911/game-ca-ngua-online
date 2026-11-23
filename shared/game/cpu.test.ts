@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { chooseCpuMove } from './cpu';
+import { NORMAL_KICK_MIN_PROGRESS, chooseCpuMove } from './cpu';
 import { HARD_WEIGHTS, chooseHard } from './cpu-hard';
 import { CPU_LEVELS, DEFAULT_CPU_LEVEL, isCpuLevel, type CpuLevel } from './cpu-level';
 import { playMatch } from './cpu-sim';
@@ -39,35 +39,6 @@ function only(terms: Partial<typeof HARD_WEIGHTS>): typeof HARD_WEIGHTS {
 /** Yellow (colour 2) enters on track cell 28: yellow progress p sits on cell (28 + p) % 56. */
 const yellowAt = (cell: number): number => (cell - 28 + 56) % 56;
 
-/** The Normal policy as it was before levels existed. */
-function oldChoose(state: GameState): number {
-  const color = state.turn;
-  const dice = state.dice as DiceValue;
-  let kick = -1;
-  let home = -1;
-  let homeStep = 0;
-  let leave = -1;
-  let advance = -1;
-  let advancePos = -2;
-  for (const horse of [...state.legalHorses].sort((a, b) => a - b)) {
-    const landing = landingFor(state.horses, color, horse, dice);
-    if (landing === null) continue;
-    const pos = state.horses[color]?.[horse] ?? S;
-    if (landing.kicked && kick < 0) kick = horse;
-    if (landing.to > POS_GATE && landing.to - POS_GATE > homeStep) {
-      home = horse;
-      homeStep = landing.to - POS_GATE;
-    }
-    if (pos === S && leave < 0) leave = horse;
-    if (pos > advancePos) {
-      advance = horse;
-      advancePos = pos;
-    }
-  }
-  for (const pick of [kick, home, leave, advance]) if (pick >= 0) return pick;
-  throw new Error('none');
-}
-
 /** Plays random legal moves and hands every move-phase state to `visit`. */
 function walkGames(games: number, colors: Color[], visit: (state: GameState) => void): void {
   for (let g = 0; g < games; g++) {
@@ -95,16 +66,28 @@ describe('cpu levels', () => {
 });
 
 describe('Normal', () => {
-  it('is the unchanged default and matches the original policy on 500 mid-game states', () => {
-    let seen = 0;
-    walkGames(60, [0, 1, 2, 3], (state) => {
-      if (seen >= 500) return;
-      seen++;
-      const expected = oldChoose(state);
-      expect(chooseCpuMove(state)).toBe(expected);
-      expect(chooseCpuMove(state, 'normal')).toBe(expected);
-    });
-    expect(seen).toBe(500);
+  // Blue (colour 1) enters on track cell 14; red horse 11 reaches it with a 3.
+  const nearVictim = { 1: [0, S, S, S] };
+  const farVictim = { 2: [yellowAt(14), S, S, S] };
+
+  it('climbs the home column rather than kick, even a victim near its home', () => {
+    expect(chooseCpuMove(moveState([0, 2], { 0: [POS_GATE, 11, S, S], ...farVictim }, 3), 'normal')).toBe(0);
+  });
+  it('kicks a victim in the last quarter of its lap', () => {
+    expect(yellowAt(14)).toBeGreaterThanOrEqual(NORMAL_KICK_MIN_PROGRESS);
+    expect(chooseCpuMove(moveState([0, 2], { 0: [11, 20, S, S], ...farVictim }, 3), 'normal')).toBe(0);
+  });
+  it('leaves a victim that has not got far alone when another move kicks nobody', () => {
+    expect(chooseCpuMove(moveState([0, 1], { 0: [11, 20, S, S], ...nearVictim }, 3), 'normal')).toBe(1);
+    // With a 6, leaving the stable comes first too.
+    expect(chooseCpuMove(moveState([0, 1], { 0: [8, S, S, S], ...nearVictim }, 6), 'normal')).toBe(1);
+  });
+  it('kicks when every legal move kicks', () => {
+    expect(chooseCpuMove(moveState([0, 1], { 0: [11, S, S, S], ...nearVictim }, 3), 'normal')).toBe(0);
+  });
+  it('is the default level', () => {
+    const state = moveState([0, 1], { 0: [11, 20, S, S], ...nearVictim }, 3);
+    expect(chooseCpuMove(state)).toBe(chooseCpuMove(state, 'normal'));
   });
 });
 
@@ -126,6 +109,12 @@ describe('Easy', () => {
   });
   it('stays in range when rand returns 1', () => {
     expect(chooseCpuMove(state, 'easy', () => 1)).toBe(3);
+  });
+  it('draws among the moves that kick nobody, and kicks only when every move does', () => {
+    const choice = moveState([0, 1], { 0: [11, 20, S, S], 1: [0, S, S, S] }, 3);
+    for (const second of [0, 0.5, 0.999]) expect(chooseCpuMove(choice, 'easy', scripted(0.9, second))).toBe(1);
+    const forced = moveState([0, 1], { 0: [11, S, S, S], 1: [0, S, S, S] }, 3);
+    expect(chooseCpuMove(forced, 'easy', scripted(0.9, 0.5))).toBe(0);
   });
   it('only picks legal horses', () => {
     walkGames(20, [0, 2], (s) => {

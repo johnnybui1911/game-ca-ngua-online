@@ -327,11 +327,11 @@ describe('immutability', () => {
 
 describe('chooseCpuMove', () => {
   const pick = (g: GameState, d: DiceValue) => chooseCpuMove(applyRoll(g, d).state);
-  it('prefers a kick over everything', () => {
+  it('climbs the home column before kicking', () => {
     const g = make([0, 1], { 0: [POS_GATE, 10, S, S], 1: [S, S, S, S] });
     setPos(g, 1, 0, 55); // cell (14+55)%56 = 13
     expect(trackCell(1, 55)).toBe(13);
-    expect(pick(g, 3)).toBe(1);
+    expect(pick(g, 3)).toBe(0);
   });
   it('prefers home climbing, highest resulting step first', () => {
     const g = make([0, 1], { 0: [POS_GATE - 2, POS_GATE, POS_GATE + 2, 20] });
