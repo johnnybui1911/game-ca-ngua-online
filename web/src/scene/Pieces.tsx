@@ -6,7 +6,7 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { HOME_STEPS } from '../../../shared/game/types';
 import type { Color } from '../../../shared/game/types';
-import type { Assets } from './assets';
+import { HORSE_PAD, type Assets } from './assets';
 import { CELEBRATION_SECONDS, DIE_HALF } from './director';
 import { HOME } from './layout';
 import { HORSE_COLORS } from './palette';
@@ -63,9 +63,8 @@ export function Horse({ assets, state, color, index, pickable, onPick }: HorsePr
       visible={false}
     >
       <group ref={bob}>
-        <mesh geometry={assets.horseBase[color]} material={assets.horseBaseMat[color]} castShadow />
-        <mesh geometry={assets.horseBody} material={assets.horseBodyMat[color]} castShadow />
-        <mesh geometry={assets.horseDetails} material={assets.horseDarkMat} castShadow />
+        <mesh geometry={assets.horsePadGeometry} material={assets.horsePadMat[color]} castShadow receiveShadow />
+        <mesh geometry={assets.horseGeometry} material={assets.horseMat[color]} position={[0, HORSE_PAD, 0]} castShadow receiveShadow />
       </group>
       {pickable && (
         <>

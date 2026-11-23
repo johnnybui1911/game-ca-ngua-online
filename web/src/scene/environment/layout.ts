@@ -36,7 +36,7 @@ export interface SetPiece {
   height: number;
 }
 
-const OFFERING_DEPTH = 13.4;
+const OFFERING_DEPTH = 14.6;
 const LANTERN_ACROSS = 4.4;
 const LANTERN_DEPTH = 16.2;
 const COUPLET_ACROSS = 8.2;
@@ -65,7 +65,7 @@ function buildPieces(): SetPiece[] {
   const out: SetPiece[] = [];
   for (const side of COLORS) {
     const yaw = sideYaw(side);
-    out.push({ kind: 'offering', side, variant: side, ...sidePoint(side, 0, OFFERING_DEPTH), yaw, radius: 2.5, height: 2.5 });
+    out.push({ kind: 'offering', side, variant: side, ...sidePoint(side, 0, OFFERING_DEPTH), yaw, radius: 2.21, height: 3.96 });
     for (const hand of [-1, 1]) {
       out.push({ kind: 'lantern', side, variant: 0, ...sidePoint(side, hand * LANTERN_ACROSS, LANTERN_DEPTH), yaw, radius: 0.9, height: LANTERN_HEIGHT + 2.2 });
       // The first line of a couplet hangs on the reader's right.

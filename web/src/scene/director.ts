@@ -8,7 +8,7 @@ import { COLORS, HORSES_PER_COLOR, POS_STABLE } from '../../../shared/game/types
 import { DEFAULT_PACE, PACES, hitStopSeconds, hopsOf, moveTiming, pauseSeconds, restAfterRoll } from '../../../shared/game/pace';
 import type { PaceTimings } from '../../../shared/game/pace';
 import type { Color, DiceValue, GameEvent, GameState, HorsePos } from '../../../shared/game/types';
-import { DIE_REST, horseGround, restYaw, stableSlot, yawBetween } from './layout';
+import { DIE_REST, groundHeight, horseGround, restYaw, stableSlot, yawBetween } from './layout';
 import type { Vec2 } from './layout';
 import { angleDelta, arc, dampedSpring, easeOutCubic, lerp, lerpAngle, smoothstep } from './motion/curves';
 import { createDieTumble, dieTumble, tiltedRise } from './motion/dice';
@@ -452,13 +452,18 @@ export class Director {
 
   private place(color: Color, horse: number, pos: HorsePos): void {
     const g = horseGround(color, horse, pos);
-    this.view.setHorse(color, horse, g.x, HORSE_Y, g.z, restYaw(color, horse, pos), 0, 1);
+    this.view.setHorse(color, horse, g.x, HORSE_Y + groundHeight(pos), g.z, restYaw(color, horse, pos), 0, 1);
   }
 
   /** Ground point the mover stands on after `step` of its hops (0 = where it starts). */
   private stepGround(seg: MoveSeg, step: number): Vec2 {
-    if (seg.from < 0) return horseGround(seg.color, seg.horse, step === 0 ? POS_STABLE : 0);
-    return horseGround(seg.color, seg.horse, seg.from + step);
+    return horseGround(seg.color, seg.horse, this.stepPos(seg, step));
+  }
+
+  /** Model position the mover has after `step` of its hops (0 = where it starts). */
+  private stepPos(seg: MoveSeg, step: number): HorsePos {
+    if (seg.from < 0) return step === 0 ? POS_STABLE : 0;
+    return seg.from + step;
   }
 
   /** Full motion: crouch, hop cell by cell, settle; a kick freezes at contact, then the victim flies home. */
@@ -470,7 +475,7 @@ export class Director {
       const a = this.stepGround(seg, 0);
       const energy = hops > 1 ? hopEnergy(seg.hopDur) : lastEnergy;
       const yaw = lerpAngle(restYaw(color, horse, seg.from), yawBetween(a, this.stepGround(seg, 1)), smoothstep(u));
-      this.view.setHorse(color, horse, a.x, HORSE_Y, a.z, yaw, crouchLean(u, energy), crouchStretch(u, energy));
+      this.view.setHorse(color, horse, a.x, HORSE_Y + groundHeight(this.stepPos(seg, 0)), a.z, yaw, crouchLean(u, energy), crouchStretch(u, energy));
       return;
     }
     if (t < seg.contactAt) {
@@ -491,7 +496,7 @@ export class Director {
         color,
         horse,
         lerp(a.x, b.x, u),
-        HORSE_Y + lift * arc(u),
+        HORSE_Y + lerp(groundHeight(this.stepPos(seg, h)), groundHeight(this.stepPos(seg, h + 1)), u) + lift * arc(u),
         lerp(a.z, b.z, u),
         yaw,
         hopLean(u, energy) + (pounce ? POUNCE_LEAN * u * u * u : 0),
@@ -505,7 +510,7 @@ export class Director {
     const g = this.stepGround(seg, hops);
     const yaw = lerpAngle(yawBetween(this.stepGround(seg, hops - 1), g), restYaw(color, horse, seg.to), smoothstep(u));
     const lean = seg.kicked ? POUNCE_LEAN * dampedSpring(u, 1, 3) : 0;
-    this.view.setHorse(color, horse, g.x, HORSE_Y, g.z, yaw, lean, settleStretch(u, lastEnergy));
+    this.view.setHorse(color, horse, g.x, HORSE_Y + groundHeight(this.stepPos(seg, hops)), g.z, yaw, lean, settleStretch(u, lastEnergy));
     if (seg.kicked) this.poseKnockback(seg.kicked, since, seg.kickDur);
   }
 
@@ -552,7 +557,8 @@ export class Director {
       const h = Math.min(hops - 1, Math.floor(p));
       const a = this.stepGround(seg, h);
       const b = this.stepGround(seg, h + 1);
-      this.view.setHorse(color, horse, lerp(a.x, b.x, p - h), HORSE_Y, lerp(a.z, b.z, p - h), yawBetween(a, b), 0, 1);
+      const height = lerp(groundHeight(this.stepPos(seg, h)), groundHeight(this.stepPos(seg, h + 1)), p - h);
+      this.view.setHorse(color, horse, lerp(a.x, b.x, p - h), HORSE_Y + height, lerp(a.z, b.z, p - h), yawBetween(a, b), 0, 1);
       return;
     }
     this.place(color, horse, seg.to);

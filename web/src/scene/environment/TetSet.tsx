@@ -7,6 +7,7 @@ import type { Object3D, PointLight } from 'three';
 import { SLAB_HALF } from '../layout';
 import { useQuality } from '../render/QualityProvider';
 import type { QualityTier } from '../render/quality';
+import { bakedGeometry } from '../baked-geometry';
 import { VASE_HEIGHT, createFlowerGeometry, growSpray } from './blossom';
 import { createDust, createLanterns } from './glow';
 import { FLOOR_Y, LANTERN_CENTRES, SIDE_LIGHTS, TABLE_HALF, TABLE_TOP_Y, piecesOf } from './layout';
@@ -20,10 +21,11 @@ import {
   SCROLL_CENTRE_Y,
   SCROLL_HEIGHT,
   SCROLL_WIDTH,
+  STATUE_BASE,
+  STATUE_TURN,
   TEA_TRAY_TOP,
   coupletStand,
   createLanternBody,
-  createStatueBody,
   goldenHorse,
   lanternStand,
   platform,
@@ -38,6 +40,7 @@ import { useMotionScale } from './use-motion-scale';
 
 const VASE_URL = '/models/ceramic-vase.glb';
 const TEA_SET_URL = '/models/tea-set.glb';
+const STATUE_URL = '/models/statue.glb';
 /** Scale that brings the vase model (metres) to `VASE_HEIGHT` and the tea service to the width of its tray. */
 const VASE_SCALE = VASE_HEIGHT / 0.4394;
 const TEA_SET_SCALE = 4.5;
@@ -118,6 +121,14 @@ class ModelBoundary extends Component<{ children: ReactNode }, { failed: boolean
   }
 }
 
+/** The gilt horse on its base, turned a little towards the board. */
+function Statue({ material }: { material: MeshStandardMaterial }) {
+  const { scene } = useGLTF(STATUE_URL, false, true);
+  const geometry = useMemo(() => bakedGeometry(scene, ['position', 'normal']).geometry, [scene]);
+  useEffect(() => () => geometry.dispose(), [geometry]);
+  return <mesh geometry={geometry} material={material} position={[0, STATUE_BASE, 0]} rotation={[0, STATUE_TURN, 0]} />;
+}
+
 /** Copies of a compressed model, one per transform, sharing geometry and one faded-in material each. */
 function Model({ url, kit, transforms }: { url: string; kit: SetKit; transforms: readonly Matrix4[] }) {
   const { scene } = useGLTF(url, false, true);
@@ -163,7 +174,6 @@ export default function TetSet() {
       scrollMaterials: [kit.scroll(0), kit.scroll(1)],
       plaque: kit.own(new PlaneGeometry(PLAQUE_WIDTH, PLAQUE_HEIGHT)),
       plaqueMaterial: kit.plaque(),
-      statue: kit.own(createStatueBody()),
       statueMaterial: kit.gilt(),
       lanterns: kit.own(createLanterns(createLanternBody(), LANTERN_CENTRES, 6.4)),
       vases: piecesOf('blossom').map((piece) => place(standing(piece), [0, 0, 0], [0, 0, 0], VASE_SCALE)),
@@ -240,7 +250,11 @@ export default function TetSet() {
         .map((piece, i) => (
           <group key={i} position={[piece.x, TABLE_TOP_Y, piece.z]} rotation={[0, piece.yaw, 0]}>
             <mesh geometry={base.plaque} material={base.plaqueMaterial} position={PLAQUE_FACE} rotation={[PLAQUE_TILT, 0, 0]} />
-            <mesh geometry={base.statue} material={base.statueMaterial} />
+            <ModelBoundary>
+              <Suspense fallback={null}>
+                <Statue material={base.statueMaterial} />
+              </Suspense>
+            </ModelBoundary>
           </group>
         ))}
       <primitive object={flowers} />

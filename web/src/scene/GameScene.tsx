@@ -6,7 +6,7 @@ import { HORSES_PER_COLOR } from '../../../shared/game/types';
 import { horseLabel } from '../../../shared/protocol';
 import { BASE_FAR } from './camera';
 import type { HudInsets } from './camera';
-import { HORSE_COLORS } from './palette';
+import { HORSE_BADGE } from './palette';
 import { useSceneHost } from '../shell/scene-host';
 import type { SceneHostApi } from '../shell/scene-host';
 import type { GameSceneProps, HorseLabelElements, SceneStaging } from './props';
@@ -21,11 +21,12 @@ const LABEL_STYLE: CSSProperties = {
   left: 0,
   top: 0,
   display: 'none',
-  padding: '1px 6px',
-  border: '2px solid',
+  padding: '1px 7px',
+  border: '2px solid #f3dca2',
   borderRadius: 999,
-  background: 'rgb(251 244 230 / 88%)',
-  color: '#2a1c10',
+  color: '#ffffff',
+  textShadow: '0 1px 1px rgb(0 0 0 / 45%)',
+  boxShadow: '0 1px 3px rgb(0 0 0 / 45%)',
   font: '700 11px/1.3 var(--font-ui)',
   whiteSpace: 'nowrap',
   willChange: 'transform',
@@ -194,7 +195,7 @@ export function SceneCanvas({ eventSource, labelled = true, onReady, onFail, tes
                   labels.current[color]![horse] = el;
                 }}
                 data-testid={`horse-label-${color}-${horse}`}
-                style={{ ...LABEL_STYLE, borderColor: HORSE_COLORS[color] }}
+                style={{ ...LABEL_STYLE, background: HORSE_BADGE[color] }}
               >
                 {horseLabel(names, horse)}
               </div>

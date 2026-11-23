@@ -15,7 +15,6 @@ import {
   TubeGeometry,
   Vector2,
 } from 'three';
-import { createHorseBody, createHorseDetails } from '../horse-geometry';
 import type { Spray } from './blossom';
 import { FLOOR_Y, LANTERN_HEIGHT, LANTERN_REACH, TABLE_HALF, TABLE_TOP_Y } from './layout';
 import { place } from './set-builder';
@@ -117,25 +116,25 @@ export function sprayBranches(b: SetBuilder, m: Matrix4, spray: Spray): void {
 }
 
 /** Lower and upper tier of the lacquer base under the golden horse: width, height, depth. */
-const BASE_FOOT = [3.9, 0.3, 1.8] as const;
-const BASE_STEP = [2.6, 0.14, 1.4] as const;
+const BASE_FOOT = [3.62, 0.33, 2.26] as const;
+const BASE_STEP = [2.94, 0.14, 1.92] as const;
 const BASE_TOP = BASE_FOOT[1] + BASE_STEP[1];
-/** Size of the statue horse against a horse on the board, and how far it turns its flank to the player opposite. */
-const STATUE_SCALE = 1.49;
-const STATUE_TURN = 0.7;
-/** Height at which the body of a horse from `horse-geometry` starts: the room its playing base takes. */
-const HORSE_FOOT = 0.14;
-const STATUE_PLACE = place(new Matrix4(), [0, BASE_TOP - HORSE_FOOT * STATUE_SCALE, 0], [0, STATUE_TURN, 0], STATUE_SCALE);
-
-const BRONZE = '#3d2610';
+/**
+ * The rearing horse (public/models/statue.glb, made by scripts/blender/prepare-statue.py): its
+ * size as the script reports it, where it stands on the base and how far it turns towards the board.
+ */
+export const STATUE_HEIGHT = 3.40;
+export const STATUE_RADIUS = 1.34;
+export const STATUE_BASE = BASE_TOP;
+export const STATUE_TURN = 0.35;
 
 /** Lettered face of the nameplate that leans against the front of the base, top edge back. */
-export const PLAQUE_WIDTH = 3.7;
-export const PLAQUE_HEIGHT = 0.62;
+export const PLAQUE_WIDTH = 2.94;
+export const PLAQUE_HEIGHT = 0.49;
 export const PLAQUE_TILT = -0.6;
 const PLAQUE_THICKNESS = 0.04;
 /** The plate stands on the platform and its back touches the top edge of the lower tier. */
-const PLAQUE_CENTRE = [0, 0.32, BASE_FOOT[2] / 2 + 0.03] as const;
+const PLAQUE_CENTRE = [0, 0.31, BASE_FOOT[2] / 2 + 0.04] as const;
 /** Where the lettered sheet lies, a hair above the plate. */
 export const PLAQUE_FACE: readonly [number, number, number] = [
   PLAQUE_CENTRE[0],
@@ -144,11 +143,9 @@ export const PLAQUE_FACE: readonly [number, number, number] = [
 ];
 
 /**
- * "Mã đáo thành công": the base, the dark mane, eyes and tail and the nameplate of a gilt horse,
- * the horse of the board at a larger size. The base is two tiers of red lacquer with gilt
- * edges; the horse shows its flank to the player opposite, its head still towards the board,
- * and the nameplate leans against the front of the base. The body of the horse and the
- * lettered face of the plate are separate.
+ * "Mã đáo thành công": the base and the nameplate of the gilt horse. The base is two tiers of
+ * red lacquer with gilt edges, and the nameplate leans against the front of the base. The horse
+ * itself is a model, drawn in the gilt material by `TetSet`.
  */
 export function goldenHorse(b: SetBuilder, m: Matrix4): void {
   const [footW, footH, footD] = BASE_FOOT;
@@ -159,17 +156,8 @@ export function goldenHorse(b: SetBuilder, m: Matrix4): void {
   b.add('gloss', new BoxGeometry(stepW, stepH, stepD), RED, place(m, [0, footH + stepH / 2, 0]));
   b.add('metal', new BoxGeometry(stepW + 0.04, 0.035, stepD + 0.04), GOLD, place(m, [0, BASE_TOP - 0.025, 0]));
 
-  b.add('metal', createHorseDetails(), BRONZE, m.clone().multiply(STATUE_PLACE));
-  // A gilt collar where the body meets the base.
-  b.add('metal', new TorusGeometry(0.35 * STATUE_SCALE, 0.04, 6, 28), GOLD, place(m, [0, BASE_TOP + 0.03, 0], [QUARTER, 0, 0]));
-
   const plate = place(m, PLAQUE_CENTRE, [PLAQUE_TILT, 0, 0]);
   b.add('metal', new BoxGeometry(PLAQUE_WIDTH + 0.12, PLAQUE_HEIGHT + 0.1, PLAQUE_THICKNESS), GOLD, plate);
-}
-
-/** The body of the golden horse, standing on its base in the frame of `goldenHorse`; it is polished apart from the rest of the set. */
-export function createStatueBody(): BufferGeometry {
-  return createHorseBody().applyMatrix4(STATUE_PLACE);
 }
 
 /** Height of the tray floor the tea service model stands on. */

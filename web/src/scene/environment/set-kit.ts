@@ -13,7 +13,7 @@ import { coupletScroll, floorFade, floorTile, lacquerTop, plaqueFace, platformSh
 export const FADE_SECONDS = 1.6;
 
 /** How much of a mirror the gold of the statue is, and the share it keeps where no environment is drawn to reflect. */
-export const GILT_METALNESS = 0.95;
+export const GILT_METALNESS = 1;
 export const GILT_METALNESS_UNLIT = 0.55;
 
 interface Disposable {
@@ -129,7 +129,7 @@ export class SetKit {
    */
   gilt(): MeshStandardMaterial {
     return this.lit(
-      new MeshStandardMaterial({ color: '#ffd15c', roughness: 0.24, metalness: GILT_METALNESS, envMapIntensity: 2.2, emissive: new Color('#80600e'), emissiveIntensity: 0.6 }),
+      new MeshStandardMaterial({ color: '#ffb81f', roughness: 0.1, metalness: GILT_METALNESS, envMapIntensity: 4.2, emissive: new Color('#6b4204'), emissiveIntensity: 0.35 }),
     );
   }
 

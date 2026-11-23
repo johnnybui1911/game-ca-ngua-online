@@ -9,27 +9,44 @@ import {
   CylinderGeometry,
   DoubleSide,
   MeshBasicMaterial,
+  MeshPhysicalMaterial,
   MeshStandardMaterial,
   PlaneGeometry,
   RingGeometry,
 } from 'three';
 import type { Color } from '../../../shared/game/types';
-import { createHorseBase, createHorseBody, createHorseDetails } from './horse-geometry';
-import { BOARD, HORSE_COLORS } from './palette';
+import type { HorseModel } from './horse-model';
+import { BOARD, HORSE_COLORS, HORSE_STAIN } from './palette';
 import { TextureKit } from './textures';
 
 interface Disposable {
   dispose(): void;
 }
 
-function shade(hex: string, factor: number): string {
-  const n = parseInt(hex.slice(1), 16);
-  const ch = (shift: number) => Math.min(255, Math.round(((n >> shift) & 255) * factor));
-  return `rgb(${ch(16)},${ch(8)},${ch(0)})`;
-}
+/** Height of the felt pad a horse stands on. */
+export const HORSE_PAD = 0.04;
 
 export class Assets {
   private readonly owned: Disposable[] = [];
+
+  constructor(model: HorseModel) {
+    this.horseGeometry = model.geometry;
+    const padRadius = model.baseRadius + 0.07;
+    this.horsePadGeometry = this.own(new CylinderGeometry(padRadius, padRadius, HORSE_PAD, 40).translate(0, HORSE_PAD / 2, 0));
+    this.horseMat = this.perColor((c) => {
+      // A polished finish over the stained grain.
+      const wood = new MeshPhysicalMaterial({
+        map: model.material.map,
+        normalMap: model.material.normalMap,
+        color: HORSE_STAIN[c],
+        roughness: 0.42,
+        clearcoat: 0.6,
+        clearcoatRoughness: 0.2,
+      });
+      return this.own(wood);
+    });
+    this.horsePadMat = this.perColor((c) => this.own(new MeshStandardMaterial({ color: HORSE_COLORS[c], roughness: 0.9 })));
+  }
 
   /** Register something to dispose with the scene and return it. */
   own<T extends Disposable>(x: T): T {
@@ -39,22 +56,12 @@ export class Assets {
 
   readonly kit = this.own(new TextureKit());
 
-  readonly horseBody = this.own(createHorseBody());
-  readonly horseDetails = this.own(createHorseDetails());
-  readonly horseBase: Record<Color, BufferGeometry> = {
-    0: this.own(createHorseBase(0)),
-    1: this.own(createHorseBase(1)),
-    2: this.own(createHorseBase(2)),
-    3: this.own(createHorseBase(3)),
-  };
-
-  readonly horseBodyMat = this.perColor((c) =>
-    this.own(new MeshStandardMaterial({ color: HORSE_COLORS[c], roughness: 0.36, metalness: 0.04 })),
-  );
-  readonly horseBaseMat = this.perColor((c) =>
-    this.own(new MeshStandardMaterial({ color: shade(HORSE_COLORS[c], 0.78), roughness: 0.5, metalness: 0.05 })),
-  );
-  readonly horseDarkMat = this.own(new MeshStandardMaterial({ color: '#2a1a10', roughness: 0.55 }));
+  /** The piece geometry belongs to the model loader's cache, so it is shared and never disposed here. */
+  readonly horseGeometry: BufferGeometry;
+  /** Flat coloured felt under the turned base. */
+  readonly horsePadGeometry: BufferGeometry;
+  readonly horseMat: Record<Color, MeshPhysicalMaterial>;
+  readonly horsePadMat: Record<Color, MeshStandardMaterial>;
 
   /** Glow under a horse that can be picked. */
   readonly haloGeometry = this.own(new RingGeometry(0.52, 0.82, 40));

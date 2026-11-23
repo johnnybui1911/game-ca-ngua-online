@@ -1,9 +1,8 @@
 import { Matrix4, Vector3 } from 'three';
 import type { BufferGeometry } from 'three';
 import { describe, expect, it } from 'vitest';
-import { createHorseBody } from '../horse-geometry';
 import { piecesOf } from './layout';
-import { PLAQUE_FACE, PLAQUE_HEIGHT, PLAQUE_TILT, PLAQUE_WIDTH, createStatueBody, goldenHorse } from './pieces';
+import { PLAQUE_FACE, PLAQUE_HEIGHT, PLAQUE_TILT, PLAQUE_WIDTH, STATUE_BASE, STATUE_HEIGHT, STATUE_RADIUS, goldenHorse } from './pieces';
 import { SURFACES, SetBuilder } from './set-builder';
 
 function vertices(geometry: BufferGeometry): Vector3[] {
@@ -16,8 +15,7 @@ describe('golden horse', () => {
   const b = new SetBuilder();
   goldenHorse(b, new Matrix4());
   const built = b.build();
-  const body = createStatueBody();
-  const points = [...SURFACES.flatMap((surface) => (built[surface] ? vertices(built[surface]) : [])), ...vertices(body)];
+  const points = SURFACES.flatMap((surface) => (built[surface] ? vertices(built[surface]) : []));
 
   it('stands on the platform inside the space reserved for an offering', () => {
     for (const p of points) {
@@ -27,10 +25,9 @@ describe('golden horse', () => {
     }
   });
 
-  it('is too big to be taken for a horse in play', () => {
-    const playing = Math.max(...vertices(createHorseBody()).map((p) => p.y));
-    const top = Math.max(...points.map((p) => p.y));
-    expect(top / playing).toBeGreaterThan(1.5);
+  it('leaves room for the horse on its base', () => {
+    expect(STATUE_BASE + STATUE_HEIGHT).toBeLessThanOrEqual(slot.height);
+    expect(STATUE_RADIUS).toBeLessThan(slot.radius);
   });
 
   it('keeps the lettered sheet in front of its plate and inside the slot', () => {

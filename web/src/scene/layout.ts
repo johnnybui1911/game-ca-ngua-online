@@ -101,6 +101,14 @@ export function horseGround(color: Color, horse: number, pos: HorsePos): Vec2 {
   return homePosition(color, pos - POS_GATE);
 }
 
+/** How much each home step rises above the one before it: the home column is a staircase up to the centre. */
+export const STAIR_RISE = 0.12;
+
+/** Height of the ground a horse at model position `pos` stands on, above the board top. */
+export function groundHeight(pos: HorsePos): number {
+  return pos > POS_GATE ? (pos - POS_GATE) * STAIR_RISE : 0;
+}
+
 export function trackPosition(cell: number): Vec2 {
   const v = TRACK[cell];
   if (!v) throw new RangeError(`Track cell out of range: ${cell}`);
