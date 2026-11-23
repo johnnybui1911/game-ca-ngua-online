@@ -1,6 +1,6 @@
 /*
- * Corner chrome: the creator's badge (bottom left; top right in a match) and the feedback pill (bottom right), plus the
- * feedback dialog. The app shell positions the slots; these rules size what goes in them.
+ * Corner chrome: the creator's badge (bottom left; in a match it sits above the control bar) and the feedback pill
+ * (bottom right), plus the feedback dialog. The app shell positions the slots; these rules size what goes in them.
  */
 
 /* Creator badge */
@@ -33,12 +33,15 @@
     width: 44px;
     height: 44px;
   }
+}
 
-  /* In a match the top row belongs to the player cards: the badge is smaller, and the HUD leaves it room. */
-  .shell-slot[data-match] .creator-badge {
-    width: 36px;
-    height: 36px;
-  }
+/* In a match the badge belongs to the control bar: it rides on the bar's top right edge, whatever the bar's height. */
+.hud-bottom .creator-badge {
+  position: absolute;
+  right: var(--space-1);
+  bottom: calc(100% + var(--space-2));
+  width: 40px;
+  height: 40px;
 }
 
 /* Feedback pill */

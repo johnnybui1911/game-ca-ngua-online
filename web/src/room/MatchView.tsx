@@ -8,6 +8,7 @@ import { SaveAccountBlock } from '../auth/SaveAccountBlock';
 import { useSession } from '../auth/session-context';
 import type { RoomClientMessage, RoomSnapshot, Seat } from '../../../shared/protocol';
 import { sound } from '../audio/sound';
+import { CreatorBadge } from '../chrome/CreatorBadge';
 import { FeedbackModal } from '../chrome/FeedbackModal';
 import { SoundSwitches, useMusic } from '../audio/SoundControls';
 import { unconsumed, type StateBatch } from './batches';
@@ -378,6 +379,7 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
       <EmoteLive emotes={emotes} mySeat={mySeat ? room.seats.indexOf(mySeat) : -1} nameOf={(i) => seatName(room.seats[i])} />
 
       <section className={`glass hud-bottom${myTurn && !paused ? ' is-my-turn' : ''}`} aria-label="Điều khiển" ref={hud.bottomRef}>
+        <CreatorBadge />
         <div className="hud-line">
           <DieFace value={board.rolling ? null : (lastRoll?.dice ?? null)} seatColor={dieColor === undefined ? undefined : COLOR_VARS[dieColor]} />
           <div className="turn-info">
