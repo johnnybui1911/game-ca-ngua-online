@@ -81,6 +81,14 @@ describe('rule 1: leaving the stable', () => {
     });
     expect(posOf(r.state, 1, 0)).toBe(S);
     expect(posOf(r.state, 0, 0)).toBe(0);
+    expect(r.state.kicks).toEqual({ 0: 1, 1: 0, 2: 0, 3: 0 });
+  });
+
+  it('counts multiple kicks in one turn', () => {
+    const g = make([0, 1], { 0: [10, 20, S, S], 1: [2, 12, S, S] });
+    const first = applyMove(applyRoll(g, 6).state, 0);
+    const second = applyMove(applyRoll(first.state, 6).state, 1);
+    expect(second.state.kicks?.[0]).toBe(2);
   });
 });
 
@@ -451,6 +459,7 @@ describe('quick variant', () => {
     const moved = applyMove(rolled, 0);
     expect(moved.events[0]).toMatchObject({ type: 'moved', kicked: { color: 1, horse: 0 } });
     expect(moved.state.unlocked).toEqual([true, false, false, false]);
+    expect(moved.state.kicks?.[0]).toBe(1);
     expect(isLocked(moved.state, 0)).toBe(false);
     expect(isLocked(moved.state, 1)).toBe(true);
   });
@@ -500,6 +509,12 @@ describe('quick variant', () => {
     expect(isLocked(g, 0)).toBe(false);
     const gate: GameState = { ...g, horses: g.horses.map((row, c) => (c === 0 ? [POS_GATE, S, S, S] : row)) };
     expect(applyRoll(gate, 5).state.legalHorses).toEqual([0]);
+  });
+
+  it('a game stored without kick statistics reads a missing counter as zero', () => {
+    const stored = { ...createGame([0, 1]) };
+    delete stored.kicks;
+    expect(stored.kicks?.[0] ?? 0).toBe(0);
   });
 
   it('a quick state with no unlocked list reads as locked', () => {

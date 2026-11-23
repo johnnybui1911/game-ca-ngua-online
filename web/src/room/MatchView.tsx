@@ -238,6 +238,7 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
   const navigate = useNavigate();
   const [confirmLeave, setConfirmLeave] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [kickStatsOpen, setKickStatsOpen] = useState(false);
   const [renaming, setRenaming] = useState(false);
   const [rulesOpen, setRulesOpen] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
@@ -285,7 +286,7 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
   const canRoll = myTurn && !paused && game?.phase === 'roll' && !board.held;
   useMusic('game');
   useGameSounds(batches, myTurn && !paused && !board.held, seconds, room.turnDeadline);
-  const dialogOpen = menuOpen || renaming || rulesOpen || confirmLeave || confirmClose || (introOpen && !finished);
+  const dialogOpen = menuOpen || kickStatsOpen || renaming || rulesOpen || confirmLeave || confirmClose || (introOpen && !finished);
   // Changes with every roll the server reports, so each roll chance allows one shake-roll.
   const lastRolledSeq = [...batches].reverse().find((b) => b.events.some((e) => e.type === 'rolled'))?.room.seq ?? null;
   const shake = useShakeToRoll(canRoll && !dialogOpen, lastRolledSeq, () => send({ t: 'roll' }));
@@ -490,6 +491,9 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
             ))}
           <span className="hud-tools">
             <EmotePicker send={send} offline={offline} />
+            <button type="button" className="ui-btn ui-btn--icon kick-stats-button" aria-label="Thống kê đá" data-testid="kick-stats-button" onClick={() => setKickStatsOpen(true)}>
+              <Icon name="win" />
+            </button>
             <button type="button" className="ui-btn ui-btn--icon" aria-label="Menu" data-testid="match-menu-button" onClick={() => setMenuOpen(true)}>
               <Icon name="menu" />
             </button>
@@ -548,6 +552,18 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
             >
               <Icon name="rules" />
               Luật chơi
+            </button>
+            <button
+              type="button"
+              className="ui-btn ui-btn--secondary"
+              data-testid="menu-kick-stats"
+              onClick={() => {
+                setMenuOpen(false);
+                setKickStatsOpen(true);
+              }}
+            >
+              <Icon name="win" />
+              Thống kê đá
             </button>
             <button
               type="button"
@@ -611,6 +627,33 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
       )}
 
       {rulesOpen && <RulesSheet settings={room.settings} secondsLeft={myTurn && !finished ? seconds : null} onClose={() => setRulesOpen(false)} />}
+
+      {kickStatsOpen && game && (
+        <Modal labelledBy="kick-stats-title" testId="kick-stats" className="kick-stats-dialog" onClose={() => setKickStatsOpen(false)}>
+          <div className="kick-stats-heading">
+            <h2 id="kick-stats-title" className="ui-title dialog-title">
+              Thống kê đá
+            </h2>
+            <button type="button" className="ui-btn ui-btn--icon" aria-label="Đóng thống kê đá" data-testid="kick-stats-close" onClick={() => setKickStatsOpen(false)}>
+              <Icon name="close" />
+            </button>
+          </div>
+          <p className="ui-muted kick-stats-caption">Số quân đối thủ mỗi màu đã đá về chuồng.</p>
+          <ol className="kick-stats-list">
+            {game.colors
+              .map((color, order) => ({ color, order, count: game.kicks?.[color] ?? 0 }))
+              .sort((a, b) => b.count - a.count || a.order - b.order)
+              .map(({ color, count }) => (
+                <li key={color} className="kick-stats-row" data-testid={`kick-stats-row-${color}`}>
+                  <span className="seat-dot kick-stats-swatch" style={{ '--seat-color': COLOR_VARS[color] } as CSSProperties} aria-hidden="true" />
+                  <span className="kick-stats-name">{seatName(room.seats.find((seat) => seat.color === color))}</span>
+                  <strong className="kick-stats-count">{count}</strong>
+                  <span className="kick-stats-label">đá</span>
+                </li>
+              ))}
+          </ol>
+        </Modal>
+      )}
 
       {feedbackOpen && <FeedbackModal onClose={() => setFeedbackOpen(false)} />}
 
