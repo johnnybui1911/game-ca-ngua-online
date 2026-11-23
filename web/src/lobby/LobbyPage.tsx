@@ -179,21 +179,23 @@ function RoomList() {
       ) : (
         <ul className="room-list" data-testid="room-list">
           {rooms.map((r) => {
-            const full = r.seatsTaken >= r.seatsTotal;
             const playing = r.status === 'playing';
+            // A game in progress lets a person take a CPU's place: such a room is open although every seat is taken.
+            const takeover = playing && (r.takeoverSeats ?? 0) > 0;
+            const full = r.seatsTaken >= r.seatsTotal;
             return (
               <li className="room-item" key={r.code} data-testid={`room-item-${r.code}`}>
                 <div className="room-item-info">
                   <strong>{r.name}</strong>
                   <span className="muted">
-                    {r.hostName} · {r.seatsTaken}/{r.seatsTotal} chỗ · {playing ? 'Đang chơi' : 'Đang chờ'}
+                    {r.hostName} · {r.seatsTaken}/{r.seatsTotal} chỗ · {takeover ? 'Đang chơi · còn chỗ máy' : playing ? 'Đang chơi' : 'Đang chờ'}
                   </span>
                 </div>
                 <button
                   type="button"
                   className="ui-btn ui-btn--primary"
                   data-testid={`room-join-${r.code}`}
-                  disabled={full || playing}
+                  disabled={!takeover && (full || playing)}
                   onClick={() => void navigate(`/r/${r.code}`)}
                 >
                   Vào

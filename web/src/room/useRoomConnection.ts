@@ -54,7 +54,7 @@ const EMOTE_SOUND_GAP_MS = 400;
 
 const FAILURE_TEXT: Record<string, string> = {
   room_full: 'Phòng đã đầy.',
-  game_in_progress: 'Ván đấu đang diễn ra, bạn không thể vào phòng này.',
+  game_in_progress: 'Ván đấu đang diễn ra và không còn chỗ máy để vào thay.',
   room_closed: 'Phòng đã đóng.',
   closed_by_host: 'Chủ phòng đã đóng phòng.',
   left: 'Bạn đã rời phòng.',

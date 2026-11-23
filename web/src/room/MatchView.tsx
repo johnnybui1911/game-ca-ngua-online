@@ -4,6 +4,7 @@ import { isLocked } from '../../../shared/game/engine';
 import { longestBatchSeconds, paceTimings } from '../../../shared/game/pace';
 import { HORSES_PER_COLOR, POS_GATE, type Color, type GameState } from '../../../shared/game/types';
 import { LOCKED_LABEL, NEED_KICK_HINT, QUICK_WIN_TEXT, UNLOCKED_LABEL } from '../../../shared/rules-text';
+import { inviteLink, reportInviteShared } from '../analytics';
 import { SaveAccountBlock } from '../auth/SaveAccountBlock';
 import { useSession } from '../auth/session-context';
 import type { RoomClientMessage, RoomSnapshot, Seat } from '../../../shared/protocol';
@@ -11,11 +12,13 @@ import { sound } from '../audio/sound';
 import { CreatorBadge } from '../chrome/CreatorBadge';
 import { FeedbackModal } from '../chrome/FeedbackModal';
 import { SoundSwitches, useMusic } from '../audio/SoundControls';
+import { useLobby } from '../lobby/LobbyProvider';
 import { unconsumed, type StateBatch } from './batches';
 import { secondsLeft } from './countdown';
 import { lastRollAfter, type LastRoll } from './last-roll';
 import { needKickAfter } from './need-kick';
 import { FORFEIT_TOAST_MS, FORFEIT_TOAST_TEXT, forfeitsAfter } from './forfeit-toast';
+import { takeoversAfter } from './takeover-notice';
 import { QuickIntroCard } from './QuickIntroCard';
 import { quickIntro } from './quick-intro';
 import { COLOR_NAMES, COLOR_VARS } from './colors';
@@ -167,6 +170,16 @@ function useForfeitToast(batches: StateBatch[], color: Color | null): number | n
   return shown;
 }
 
+/** A notice for every person who takes a CPU's seat while this page is open (not for the local player's own). */
+function useTakeoverNotices(batches: StateBatch[], myId: string, notify: (text: string) => void) {
+  const consumed = useRef<number | null>(null);
+  useEffect(() => {
+    const from = consumed.current;
+    consumed.current = batches[batches.length - 1]?.room.seq ?? from;
+    for (const text of takeoversAfter(batches, from, myId)) notify(text);
+  }, [batches, myId, notify]);
+}
+
 function useCountdown(deadline: number | null, offset: number): number | null {
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
@@ -247,6 +260,8 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
     () => room.settings.quick && room.game !== null && room.game.phase !== 'finished' && quickIntro.shouldShow(),
   );
   const { guest } = useSession();
+  const { notify } = useLobby();
+  useTakeoverNotices(batches, myId, notify);
   // Decided once per visit: stays on screen as a confirmation after the guest registers.
   const [offerSave] = useState(guest);
   const [saveDismissed, setSaveDismissed] = useState(false);
@@ -293,6 +308,17 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
 
   const turnSeat = room.seats.find((s) => s.color === game.turn);
   const isHost = room.hostId === myId;
+  // A person who opens the link takes a CPU's seat (see the server's takeover rule).
+  const canInvite = !finished && room.seats.some((s) => s.occupant?.kind === 'cpu');
+  const copyInvite = async () => {
+    try {
+      await navigator.clipboard.writeText(inviteLink(room.code));
+      notify('Đã sao chép link mời. Người vào sẽ chơi thay máy.');
+      reportInviteShared();
+    } catch {
+      notify('Không sao chép được link mời.');
+    }
+  };
   const winnerSeat = game.winner === null ? undefined : room.seats.find((s) => s.color === game.winner);
   const turnNames = turnSeat?.horseNames;
   const quickGame = game.variant === 'quick';
@@ -573,6 +599,20 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
               >
                 <Icon name="pencil" />
                 Đặt tên quân
+              </button>
+            )}
+            {canInvite && (
+              <button
+                type="button"
+                className="ui-btn ui-btn--secondary"
+                data-testid="menu-invite"
+                onClick={() => {
+                  setMenuOpen(false);
+                  void copyInvite();
+                }}
+              >
+                <Icon name="share" />
+                Mời người vào thay máy
               </button>
             )}
             {isHost && !finished && (
