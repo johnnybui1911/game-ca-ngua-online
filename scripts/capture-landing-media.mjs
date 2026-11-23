@@ -27,7 +27,7 @@ const ROOT = resolve(import.meta.dirname, '..');
 const OUT = join(ROOT, 'public/landing');
 const PORT = 5190;
 
-const HERO_SIZE = { width: 1280, height: 720 };
+const HERO_SIZE = { width: 1920, height: 1080 };
 const HERO_SECONDS = 7.5;
 /** Seconds of the clip's tail cross-faded into its head so the loop has no visible cut. */
 const LOOP_FADE = 0.6;
@@ -144,10 +144,10 @@ async function captureHero(browser, work) {
 
   const webm = join(OUT, 'hero.webm');
   const mp4 = join(OUT, 'hero.mp4');
-  ffmpeg('-i', loop, '-an', '-c:v', 'libvpx-vp9', '-b:v', '0', '-crf', '33', '-row-mt', '1', '-deadline', 'good', '-cpu-used', '2', '-pix_fmt', 'yuv420p', webm);
-  ffmpeg('-i', loop, '-an', '-c:v', 'libx264', '-crf', '25', '-preset', 'slow', '-profile:v', 'high', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', mp4);
+  ffmpeg('-i', loop, '-an', '-c:v', 'libvpx-vp9', '-b:v', '0', '-crf', '28', '-row-mt', '1', '-deadline', 'good', '-cpu-used', '2', '-pix_fmt', 'yuv420p', webm);
+  ffmpeg('-i', loop, '-an', '-c:v', 'libx264', '-crf', '21', '-preset', 'slow', '-profile:v', 'high', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', mp4);
   const poster = join(OUT, 'hero-poster.jpg');
-  ffmpeg('-i', loop, '-frames:v', '1', '-q:v', '4', poster);
+  ffmpeg('-i', loop, '-frames:v', '1', '-q:v', '2', poster);
   console.log(`hero.webm ${kb(webm)}, hero.mp4 ${kb(mp4)}, hero-poster.jpg ${kb(poster)}`);
 }
 
