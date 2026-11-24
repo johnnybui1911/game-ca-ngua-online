@@ -1,7 +1,7 @@
 import { OrbitControls } from '@react-three/drei';
 import { useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import type { ElementRef } from 'react';
+import type { ElementRef, RefObject } from 'react';
 import { Quaternion, Vector3, type PerspectiveCamera } from 'three';
 import { isLocked } from '../../../shared/game/engine';
 import { HORSES_PER_COLOR } from '../../../shared/game/types';
@@ -23,6 +23,7 @@ import {
   homePose,
   poseOf,
   posePosition,
+  resetFlight,
   seatPose,
   shakeOffset,
 } from './camera';
@@ -108,10 +109,6 @@ const UP = new Vector3(0, 1, 0);
 /** How far past the fitted distance the player may zoom out. */
 const MAX_ZOOM_OUT = 1.25;
 
-function prefersReducedMotion(): boolean {
-  return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-}
-
 function easeInOut(t: number): number {
   return t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2;
 }
@@ -124,6 +121,7 @@ interface RigProps {
   insets: HudInsets;
   orbit: boolean;
   kickCamera: KickCamera;
+  cameraReset?: RefObject<(() => void) | null>;
 }
 
 /**
@@ -132,7 +130,7 @@ interface RigProps {
  * panel opens. Taking a seat flies the camera there from wherever it was. A kick's close-up and
  * shake move the camera for single pictures only, on top of that framing.
  */
-function Rig({ seat, sourceKey, insets, orbit, kickCamera }: RigProps) {
+function Rig({ seat, sourceKey, insets, orbit, kickCamera, cameraReset }: RigProps) {
   const camera = useThree((s) => s.camera) as PerspectiveCamera;
   const size = useThree((s) => s.size);
   const { activity } = useQuality();
@@ -157,12 +155,12 @@ function Rig({ seat, sourceKey, insets, orbit, kickCamera }: RigProps) {
   // A seat looks along an arm; a free camera may be anywhere around the board, so it backs off for the corners.
   const fit = (seat === null ? fitOrbitDistance : fitCameraDistance)(aspect, camera.fov, polar, band.fraction, bandX.fraction);
   // A paused canvas only draws single frames on request, so nothing can be eased there.
-  const instant = activity === 'paused' || prefersReducedMotion();
+  const instant = activity === 'paused' || motionSetting.isReduced();
 
   /** Framing as currently drawn; follows `fit` and the band shifts. */
   const frame = useRef<{ fit: number; x: number; y: number; width: number; height: number } | null>(null);
   const placed = useRef<string | null>(null);
-  const flight = useRef<{ from: CameraPose; to: CameraPose; t: number } | null>(null);
+  const flight = useRef<{ from: CameraPose; to: CameraPose; t: number; duration: number; reset?: boolean } | null>(null);
   const dragging = useRef(false);
 
   useLayoutEffect(() => () => camera.clearViewOffset(), [camera]);
@@ -184,7 +182,7 @@ function Rig({ seat, sourceKey, insets, orbit, kickCamera }: RigProps) {
         camera.position.set(...posePosition(to, frame.current.fit));
         camera.lookAt(0, 0, 0);
       } else {
-        flight.current = { from: poseOf(camera.position.toArray(), frame.current.fit), to, t: 0 };
+        flight.current = { from: poseOf(camera.position.toArray(), frame.current.fit), to, t: 0, duration: SEAT_FLIGHT_SECONDS };
       }
     }
     placed.current = key;
@@ -197,6 +195,35 @@ function Rig({ seat, sourceKey, insets, orbit, kickCamera }: RigProps) {
     // Only a new seat or game places the camera; the framing is followed in the frame loop below.
   }, [camera, seat, sourceKey]);
 
+  useLayoutEffect(() => {
+    if (!cameraReset || seat === null) return;
+    const reset = () => {
+      const f = frame.current;
+      const c = controls.current;
+      if (!f || !c || kickCamera.active || dragging.current) return;
+      restoreFraming();
+      // Consume any remaining orbit damping before recording the flight's start.
+      c.enableDamping = false;
+      c.update();
+      c.enableDamping = true;
+      const next = resetFlight(camera.position.toArray(), f.fit, seat, aspect, kickCamera.active);
+      if (!next) return;
+      if (activity === 'paused' || motionSetting.isReduced()) {
+        flight.current = null;
+        camera.position.set(...posePosition(next.to, f.fit));
+        camera.lookAt(0, 0, 0);
+        c.update();
+      } else {
+        flight.current = next;
+        c.enabled = false;
+      }
+    };
+    cameraReset.current = reset;
+    return () => {
+      if (cameraReset.current === reset) cameraReset.current = null;
+    };
+  }, [activity, aspect, camera, cameraReset, kickCamera, seat]);
+
   useFrame((_, dt) => {
     const f = frame.current;
     if (!f) return;
@@ -207,9 +234,11 @@ function Rig({ seat, sourceKey, insets, orbit, kickCamera }: RigProps) {
     const x = follow(f.x, bandX.shiftPx, 0.25);
     const y = follow(f.y, band.shiftPx, 0.25);
 
+    if (flight.current?.reset && kickCamera.active) flight.current = null;
     const fl = flight.current;
     if (fl) {
-      fl.t = instant ? 1 : Math.min(1, fl.t + dt / SEAT_FLIGHT_SECONDS);
+      if (fl.reset && seat !== null) fl.to = seatPose(seat, polar);
+      fl.t = instant ? 1 : Math.min(1, fl.t + dt / fl.duration);
       // The pose between the two ends, turning the shorter way round the board (as `mixPose` and
       // `posePosition` do), written out so a flight allocates nothing per frame.
       const e = easeInOut(fl.t);
@@ -296,6 +325,7 @@ export default function SceneContent({
   myColor,
   onPickHorse,
   onBusyChange,
+  cameraReset,
   insets = NO_INSETS,
   labels,
   sourceKey = 'match',
@@ -447,6 +477,7 @@ export default function SceneContent({
         insets={insets}
         orbit={orbit}
         kickCamera={kickCamera}
+        cameraReset={cameraReset}
       />
     </>
   );

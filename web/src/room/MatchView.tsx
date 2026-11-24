@@ -284,6 +284,7 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
     : gameTime;
   const seconds = left === null ? null : Math.min(left, room.settings.turnSeconds);
   const hud = useHudInsets(room.game !== null);
+  const cameraReset = useRef<(() => void) | null>(null);
 
   const mySeat = room.seats.find((s) => s.occupant?.kind === 'human' && s.occupant.user.id === myId);
   const myColor = mySeat?.color ?? null;
@@ -373,6 +374,7 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
             myColor={myColor}
             insets={hud.insets}
             onBusyChange={board.onBusyChange}
+            cameraReset={cameraReset}
             onPickHorse={(horse) => {
               if (myTurn && !paused && game.phase === 'move' && game.legalHorses.includes(horse)) send({ t: 'move', horse });
             }}
@@ -442,6 +444,16 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
 
       <section className={`glass hud-bottom${myTurn && !paused ? ' is-my-turn' : ''}`} aria-label="Điều khiển" ref={hud.bottomRef}>
         <CreatorBadge />
+        <button
+          type="button"
+          className="ui-btn ui-btn--icon camera-reset"
+          aria-label="Về góc nhìn mặc định"
+          title="Về góc nhìn mặc định"
+          data-testid="camera-reset"
+          onClick={() => cameraReset.current?.()}
+        >
+          <Icon name="camera-reset" />
+        </button>
         {isHost && !finished && room.joinRequests.length > 0 && (
           <ul className="join-requests" aria-label="Người xin vào thay máy" data-testid="join-requests">
             {room.joinRequests.map((r) => (

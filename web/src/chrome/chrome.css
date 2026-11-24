@@ -44,6 +44,19 @@
   height: 40px;
 }
 
+.hud-bottom .camera-reset {
+  position: absolute;
+  left: var(--space-1);
+  bottom: calc(100% + var(--space-2));
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  min-height: 40px;
+  color: var(--color-gold);
+  background: var(--glass-fill-solid);
+  box-shadow: var(--glass-specular), var(--shadow-sm);
+}
+
 /* Feedback pill */
 
 .feedback-pill {

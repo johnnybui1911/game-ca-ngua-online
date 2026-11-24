@@ -150,6 +150,8 @@ export interface CameraPose {
 export const HOME_ORBIT_SECONDS = 140;
 /** Seconds the camera takes from wherever it is to a seat when a match takes the board. */
 export const SEAT_FLIGHT_SECONDS = 1.6;
+/** Short return to the player's default view. */
+export const RESET_FLIGHT_SECONDS = 0.55;
 /** Time constant, seconds, with which the framing follows panels opening and closing. */
 export const FRAMING_SECONDS = 0.28;
 
@@ -164,6 +166,24 @@ export function poseOf(position: readonly [number, number, number], fit: number)
 export function seatPose(color: Color, polar = DEFAULT_POLAR): CameraPose {
   const dir = armDirection(color);
   return { azimuth: Math.atan2(dir.x, dir.z), polar, zoom: 1 };
+}
+
+/** A reset starts from the player's framing; a kick shot must finish first. */
+export function resetFlight(
+  position: readonly [number, number, number],
+  fit: number,
+  color: Color,
+  aspect: number,
+  kickActive: boolean,
+): { from: CameraPose; to: CameraPose; t: number; duration: number; reset: true } | null {
+  if (kickActive) return null;
+  return {
+    from: poseOf(position, fit),
+    to: seatPose(color, defaultPolar(aspect)),
+    t: 0,
+    duration: RESET_FLIGHT_SECONDS,
+    reset: true,
+  };
 }
 
 /** The home page's opening view: between two stables, so no single colour looks like the player's own. */

@@ -107,6 +107,7 @@ export default function PersistentScene() {
         myColor={playing.myColor}
         onPickHorse={playing.onPickHorse}
         onBusyChange={playing.onBusyChange}
+        cameraReset={playing.cameraReset}
         insets={playing.insets}
         eventSource={playing.eventSource}
         sourceKey={`room:${playing.room.code}`}
