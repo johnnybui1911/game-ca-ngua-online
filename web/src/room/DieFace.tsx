@@ -1,5 +1,6 @@
 import type { CSSProperties } from 'react';
 import type { DiceValue } from '../../../shared/game/types';
+import { useT } from '../i18n';
 
 /** Cells of the 3x3 grid (row by row) that hold a pip, per face. */
 const PIP_CELLS: Record<DiceValue, readonly number[]> = {
@@ -20,12 +21,13 @@ interface Props {
 
 /** The die of the match HUD: its pips once thrown, a spinner until then. */
 export function DieFace({ value, seatColor }: Props) {
+  const t = useT();
   return (
     <span
       className={`dice${value === null ? ' is-loading' : ''}`}
       data-testid="dice-value"
       role="img"
-      aria-label={value === null ? 'Xúc xắc đang được đổ' : `Xúc xắc: ${value}`}
+      aria-label={value === null ? t('die.rolling') : t('die.value', { n: value })}
       style={seatColor ? ({ '--seat-color': seatColor } as CSSProperties) : undefined}
     >
       {value === null ? (

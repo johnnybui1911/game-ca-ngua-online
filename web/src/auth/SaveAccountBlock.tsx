@@ -1,6 +1,8 @@
 import { useState, type FormEvent } from 'react';
 import type { MeResponse, SignUpRequest } from '../../../shared/protocol';
 import { api, ApiRequestError } from '../api';
+import { useT } from '../i18n';
+import { errorText } from '../i18n/error-text';
 import { ProviderButtons } from './ProviderButtons';
 import { useSession } from './session-context';
 
@@ -9,6 +11,7 @@ import { useSession } from './session-context';
  * Shows a short confirmation once the session is no longer a guest's.
  */
 export function SaveAccountBlock({ returnTo, onDismiss }: { returnTo: string; onDismiss: () => void }) {
+  const t = useT();
   const { user, guest, adopt } = useSession();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -18,7 +21,7 @@ export function SaveAccountBlock({ returnTo, onDismiss }: { returnTo: string; on
   if (!guest) {
     return (
       <p className="save-account save-account-done" role="status" data-testid="save-account-done">
-        Đã lưu tài khoản. Lần sau bạn đăng nhập bằng email này.
+        {t('auth.saved')}
       </p>
     );
   }
@@ -26,11 +29,11 @@ export function SaveAccountBlock({ returnTo, onDismiss }: { returnTo: string; on
   async function submit(e: FormEvent) {
     e.preventDefault();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
-      setError('Vui lòng nhập email hợp lệ.');
+      setError(t('auth.emailInvalid'));
       return;
     }
     if (password.length < 8) {
-      setError('Mật khẩu phải có ít nhất 8 ký tự.');
+      setError(t('auth.passwordShort'));
       return;
     }
     setError(null);
@@ -43,15 +46,15 @@ export function SaveAccountBlock({ returnTo, onDismiss }: { returnTo: string; on
       // The answer already describes the upgraded session; no second request that could fail.
       adopt(me);
     } catch (err) {
-      setError(err instanceof ApiRequestError ? err.message : 'Có lỗi xảy ra, vui lòng thử lại.');
+      setError(err instanceof ApiRequestError ? errorText(t, err.message) : t('auth.genericError'));
       setBusy(false);
     }
   }
 
   return (
     <section className="save-account" aria-labelledby="save-account-title" data-testid="save-account">
-      <h3 id="save-account-title">Lưu tài khoản</h3>
-      <p>Lưu bằng email để giữ tên và chỗ ngồi của bạn, lần sau vào lại không cần nhập tên.</p>
+      <h3 id="save-account-title">{t('auth.saveAccount')}</h3>
+      <p>{t('auth.savePitch')}</p>
       <form className="form" onSubmit={(e) => void submit(e)} noValidate>
         <div className="field">
           <label htmlFor="save-email">Email</label>
@@ -65,7 +68,7 @@ export function SaveAccountBlock({ returnTo, onDismiss }: { returnTo: string; on
           />
         </div>
         <div className="field">
-          <label htmlFor="save-password">Mật khẩu</label>
+          <label htmlFor="save-password">{t('auth.password')}</label>
           <input
             id="save-password"
             data-testid="save-password"
@@ -81,12 +84,12 @@ export function SaveAccountBlock({ returnTo, onDismiss }: { returnTo: string; on
           </p>
         )}
         <button type="submit" className="ui-btn ui-btn--primary" data-testid="save-submit" disabled={busy}>
-          {busy ? 'Đang lưu…' : 'Lưu tài khoản'}
+          {busy ? t('auth.saving') : t('auth.saveAccount')}
         </button>
       </form>
       <ProviderButtons returnTo={returnTo} />
       <button type="button" className="ui-btn ui-btn--ghost save-dismiss" data-testid="save-dismiss" onClick={onDismiss}>
-        Để sau
+        {t('auth.later')}
       </button>
     </section>
   );

@@ -3,11 +3,13 @@ import { useNavigate } from 'react-router';
 import { isLocked } from '../../../shared/game/engine';
 import { longestBatchSeconds, paceTimings } from '../../../shared/game/pace';
 import { HORSES_PER_COLOR, POS_GATE, type Color, type GameState } from '../../../shared/game/types';
-import { LOCKED_LABEL, NEED_KICK_HINT, QUICK_WIN_TEXT, UNLOCKED_LABEL } from '../../../shared/rules-text';
 import { inviteLink, reportInviteShared } from '../analytics';
 import { SaveAccountBlock } from '../auth/SaveAccountBlock';
+import { useT } from '../i18n';
+import { errorText } from '../i18n/error-text';
+import { LangSwitch } from '../i18n/LangSwitch';
 import { useSession } from '../auth/session-context';
-import type { RoomClientMessage, RoomSnapshot, Seat } from '../../../shared/protocol';
+import type { RoomClientMessage, RoomSnapshot } from '../../../shared/protocol';
 import { sound } from '../audio/sound';
 import { CreatorBadge } from '../chrome/CreatorBadge';
 import { FeedbackModal } from '../chrome/FeedbackModal';
@@ -17,12 +19,13 @@ import { unconsumed, type StateBatch } from './batches';
 import { formatGameTime, secondsLeft } from './countdown';
 import { lastRollAfter, type LastRoll } from './last-roll';
 import { needKickAfter } from './need-kick';
-import { FORFEIT_TOAST_MS, FORFEIT_TOAST_TEXT, forfeitsAfter } from './forfeit-toast';
+import { FORFEIT_TOAST_MS, forfeitsAfter } from './forfeit-toast';
 import { takeoversAfter } from './takeover-notice';
 import { QuickIntroCard } from './QuickIntroCard';
 import { quickIntro } from './quick-intro';
-import { COLOR_NAMES, COLOR_VARS } from './colors';
-import { CPU_LEVEL_LABELS, cpuLevelOf } from './cpu-levels';
+import { COLOR_VARS, colorName } from './colors';
+import { cpuLevelLabel, cpuLevelOf } from './cpu-levels';
+import { seatName } from './names';
 import { EmoteBubble, EmoteLive } from './EmoteBubble';
 import { EmotePicker } from './EmotePicker';
 import type { EmoteBySeat } from './emote-feed';
@@ -129,12 +132,6 @@ interface Props {
   offline: boolean;
 }
 
-function seatName(seat: Seat | undefined): string {
-  const occ = seat?.occupant;
-  if (!occ) return '';
-  return occ.kind === 'cpu' ? occ.name : occ.user.displayName;
-}
-
 /**
  * Most recent die shown on screen, folded over every batch received, in order. Folded while rendering, so
  * the die changes in the same frame as the turn text beside it.
@@ -174,12 +171,13 @@ function useForfeitToast(batches: StateBatch[], color: Color | null): number | n
 
 /** A notice for every person who takes a CPU's seat while this page is open (not for the local player's own). */
 function useTakeoverNotices(batches: StateBatch[], myId: string, notify: (text: string) => void) {
+  const t = useT();
   const consumed = useRef<number | null>(null);
   useEffect(() => {
     const from = consumed.current;
     consumed.current = batches[batches.length - 1]?.room.seq ?? from;
-    for (const text of takeoversAfter(batches, from, myId)) notify(text);
-  }, [batches, myId, notify]);
+    for (const text of takeoversAfter(batches, from, myId, t)) notify(text);
+  }, [batches, myId, notify, t]);
 }
 
 function useCountdown(deadline: number | null, offset: number): number | null {
@@ -250,6 +248,7 @@ function useGameSounds(batches: StateBatch[], myTurn: boolean, seconds: number |
 }
 
 export function MatchView({ room, batches, clockOffset, myId, send, actionError, emotes, offline }: Props) {
+  const t = useT();
   const navigate = useNavigate();
   const [confirmLeave, setConfirmLeave] = useState(false);
   const [hostLeave, setHostLeave] = useState(false);
@@ -315,7 +314,7 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
   const shake = useShakeToRoll(canRoll && !dialogOpen, lastRolledSeq, () => send({ t: 'roll' }));
   if (!game) return null;
   const hudSeats = room.seats.filter((s) => s.occupant !== null && game.colors.includes(s.color));
-  const longHudName = hasLongHudName(hudSeats.map(seatName));
+  const longHudName = hasLongHudName(hudSeats.map((s) => seatName(t, s)));
 
   const turnSeat = room.seats.find((s) => s.color === game.turn);
   const isHost = room.hostId === myId;
@@ -330,10 +329,10 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
   const copyInvite = async () => {
     try {
       await navigator.clipboard.writeText(inviteLink(room.code));
-      notify('Đã sao chép link mời. Người vào sẽ chơi thay máy.');
+      notify(t('join.inviteCopied'));
       reportInviteShared();
     } catch {
-      notify('Không sao chép được link mời.');
+      notify(t('join.inviteCopyFailed'));
     }
   };
   const winnerSeat = game.winner === null ? undefined : room.seats.find((s) => s.color === game.winner);
@@ -352,12 +351,12 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
   };
 
   const turnText = finished
-    ? 'Ván đấu đã kết thúc'
+    ? t('hud.over')
     : paused
-      ? 'Ván đấu đang tạm dừng'
+      ? t('hud.paused')
       : myTurn
-        ? 'Lượt của bạn'
-        : `Lượt của ${seatName(turnSeat)}`;
+        ? t('hud.yourTurn')
+        : t('hud.turnOf', { name: seatName(t, turnSeat) });
   // Whoever throws the die on the board now; else whoever threw the one the HUD shows.
   const dieColor = board.rolling ? game.turn : lastRoll?.color;
   const lowTime = seconds !== null && seconds <= REMINDER_SECONDS && myTurn && !paused;
@@ -370,7 +369,7 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
       data-my-color={myColor ?? ''}
     >
       <div className="match-stage">
-        <Suspense fallback={<div className="stage-loading">Đang tải bàn cờ…</div>}>
+        <Suspense fallback={<div className="stage-loading">{t('hud.loadingBoard')}</div>}>
           <GameScene
             room={room}
             batches={batches}
@@ -401,39 +400,39 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
                 data-active={active}
                 aria-current={active ? 'true' : undefined}
               >
-                <span className="seat-dot" title={COLOR_NAMES[s.color]}>
+                <span className="seat-dot" title={colorName(t, s.color)}>
                   <Icon name={occ?.kind === 'cpu' ? 'bot' : occ?.kind === 'human' && occ.user.id === room.hostId ? 'crown' : 'knight'} size="sm" />
                   {locked && (
-                    <span className="hud-seat-state hud-seat-lock" role="img" aria-label={LOCKED_LABEL}>
+                    <span className="hud-seat-state hud-seat-lock" role="img" aria-label={t('rules.locked')}>
                       <Icon name="lock" size="sm" />
                     </span>
                   )}
-                  {disconnected && <span className="hud-seat-state hud-seat-offline" role="img" aria-label="Offline" />}
+                  {disconnected && <span className="hud-seat-state hud-seat-offline" role="img" aria-label={t('hud.offline')} />}
                 </span>
                 <span className="hud-player-main">
-                  <span className="hud-name" title={seatName(s)}>{seatName(s)}</span>
+                  <span className="hud-name" title={seatName(t, s)}>{seatName(t, s)}</span>
                   <span className="hud-badges">
-                    {occ?.kind === 'cpu' && <span className="badge">Máy · {CPU_LEVEL_LABELS[cpuLevelOf(room)]}</span>}
+                    {occ?.kind === 'cpu' && <span className="badge">{t('cpu.badge', { level: cpuLevelLabel(t, cpuLevelOf(room)) })}</span>}
                     {occ?.kind === 'human' && !occ.connected && (
                       <span className="badge badge-warn">
                         <Icon name="wifi-off" size="sm" />
-                        Offline
+                        {t('hud.offline')}
                       </span>
                     )}
                     {s.auto && s !== mySeat && (
                       <span className="badge" data-testid={`auto-tag-${s.color}`}>
-                        (tự động)
+                        {t('hud.auto')}
                       </span>
                     )}
                     {quickGame && (
                       <span className={`badge lock-badge${locked ? ' is-locked' : ''}`} data-testid={`lock-${s.color}`} data-locked={locked}>
                         <Icon name={locked ? 'lock' : 'unlock'} size="sm" />
-                        <span className="lock-label">{locked ? LOCKED_LABEL : UNLOCKED_LABEL}</span>
+                        <span className="lock-label">{locked ? t('rules.locked') : t('rules.unlocked')}</span>
                       </span>
                     )}
                   </span>
                 </span>
-                <span className="hud-home" title="Quân đã về đích" role="img" aria-label={`${home}/${HORSES_PER_COLOR} quân đã về đích`}>
+                <span className="hud-home" title={t('hud.homeTitle')} role="img" aria-label={t('hud.homeLabel', { home, total: HORSES_PER_COLOR })}>
                   <span className="hud-home-pips" aria-hidden="true">
                     {Array.from({ length: HORSES_PER_COLOR }, (_, i) => (
                       <span key={i} className={i < home ? 'is-home' : undefined} />
@@ -449,15 +448,15 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
           })}
       </ul>
 
-      <EmoteLive emotes={emotes} mySeat={mySeat ? room.seats.indexOf(mySeat) : -1} nameOf={(i) => seatName(room.seats[i])} />
+      <EmoteLive emotes={emotes} mySeat={mySeat ? room.seats.indexOf(mySeat) : -1} nameOf={(i) => seatName(t, room.seats[i])} />
 
-      <section className={`glass hud-bottom${myTurn && !paused ? ' is-my-turn' : ''}`} aria-label="Điều khiển" ref={hud.bottomRef}>
+      <section className={`glass hud-bottom${myTurn && !paused ? ' is-my-turn' : ''}`} aria-label={t('hud.controls')} ref={hud.bottomRef}>
         <CreatorBadge />
         {!finished && gameSeconds !== null && (
           <span
             className={`game-countdown${gameSeconds <= 60 ? ' is-low' : ''}`}
             data-testid="game-countdown"
-            aria-label={`Thời gian ván còn lại ${formatGameTime(gameSeconds)}`}
+            aria-label={t('time.gameLeft', { time: formatGameTime(gameSeconds) })}
           >
             <Icon name="timer" size="sm" />
             {formatGameTime(gameSeconds)}
@@ -466,15 +465,15 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
         <button
           type="button"
           className="ui-btn ui-btn--icon camera-reset"
-          aria-label="Về góc nhìn mặc định"
-          data-tooltip="Reset góc quay"
+          aria-label={t('camera.reset')}
+          data-tooltip={t('camera.tooltip')}
           data-testid="camera-reset"
           onClick={() => cameraReset.current?.()}
         >
           <Icon name="camera-reset" />
         </button>
         {isHost && !finished && room.joinRequests.length > 0 && (
-          <ul className="join-requests" aria-label="Người xin vào thay máy" data-testid="join-requests">
+          <ul className="join-requests" aria-label={t('join.list')} data-testid="join-requests">
             {room.joinRequests.map((r) => (
               <li
                 key={r.user.id}
@@ -487,14 +486,14 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
                 </span>
                 <span className="join-request-text">
                   <strong>{r.user.displayName}</strong>
-                  <span>xin vào thay {seatName(room.seats.find((s) => s.color === r.color))}</span>
+                  <span>{t('join.wants', { cpu: seatName(t, room.seats.find((s) => s.color === r.color)) })}</span>
                 </span>
                 <span className="join-request-actions">
                   <button type="button" className="ui-btn ui-btn--primary" data-testid={`join-approve-${r.color}`} onClick={() => send({ t: 'approveJoin', userId: r.user.id })}>
-                    Duyệt
+                    {t('join.approve')}
                   </button>
                   <button type="button" className="ui-btn ui-btn--secondary" data-testid={`join-reject-${r.color}`} onClick={() => send({ t: 'rejectJoin', userId: r.user.id })}>
-                    Từ chối
+                    {t('join.reject')}
                   </button>
                 </span>
               </li>
@@ -503,7 +502,7 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
         )}
         {forfeitToast !== null && !finished && (
           <p key={forfeitToast} className="forfeit-toast" role="status" data-testid="forfeit-toast">
-            {FORFEIT_TOAST_TEXT}
+            {t('forfeit.toast')}
           </p>
         )}
         <div className="hud-line">
@@ -511,7 +510,7 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
           <div className="turn-info">
             {room.settings.quick && (
               <span className="badge badge-quick" data-testid="quick-tag">
-                Ván nhanh
+                {t('hud.quick')}
               </span>
             )}
             <p
@@ -523,7 +522,7 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
               {myTurn && !paused ? (
                 <>
                   <span className="turn-full">{turnText}</span>
-                  <span className="turn-short">Bạn</span>
+                  <span className="turn-short">{t('hud.you')}</span>
                 </>
               ) : turnText}
             </p>
@@ -531,7 +530,7 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
           {seconds !== null && !finished && (
             <span className={`countdown${lowTime ? ' is-low' : ''}`} data-testid="countdown">
               <Icon name="timer" size="sm" />
-              {seconds} giây
+              {t('hud.seconds', { n: seconds })}
             </span>
           )}
           <RulesButton onClick={() => setRulesOpen(true)} />
@@ -540,22 +539,22 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
         {showKickHint && (
           <p className="need-kick" role="status" data-testid="need-kick-hint">
             <Icon name="lock" size="sm" />
-            {NEED_KICK_HINT}
+            {t('rules.needKick')}
           </p>
         )}
 
         {mySeat?.auto && !finished && (
           <div className="autopilot-banner" role="status" data-testid="autopilot-banner">
-            <span>Đang chơi tự động vì bạn không thao tác.</span>
+            <span>{t('hud.autopilot')}</span>
             <button type="button" className="ui-btn ui-btn--primary" data-testid="autopilot-back" onClick={() => send({ t: 'back' })}>
-              Tôi đã quay lại
+              {t('hud.back')}
             </button>
           </div>
         )}
 
         {actionError && (
           <p className="form-error" role="alert" data-testid="action-error">
-            {actionError}
+            {errorText(t, actionError)}
           </p>
         )}
 
@@ -563,13 +562,13 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
           {canRoll && (
             <button type="button" className="ui-btn ui-btn--hero btn-roll" data-testid="roll-button" onClick={() => send({ t: 'roll' })}>
               <Icon name={shake.enabled ? 'shake' : 'dice'} size="lg" />
-              {shake.enabled ? 'Lắc máy' : 'Đổ xúc xắc'}
+              {shake.enabled ? t('hud.shake') : t('hud.roll')}
             </button>
           )}
           {canRoll && shake.supported && !shake.enabled && (
             <button type="button" className="ui-btn ui-btn--secondary" data-testid="enable-shake" onClick={() => shake.setEnabled(true)}>
               <Icon name="shake" />
-              Bật lắc để đổ
+              {t('hud.enableShake')}
             </button>
           )}
           {myTurn &&
@@ -583,15 +582,15 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
                 data-testid={`move-button-${horse}`}
                 onClick={() => send({ t: 'move', horse })}
               >
-                {describeMove(game, horse, turnNames)}
+                {describeMove(game, horse, turnNames, t)}
               </button>
             ))}
           <span className="hud-tools">
             <EmotePicker send={send} offline={offline} />
-            <button type="button" className="ui-btn ui-btn--icon" aria-label="Menu" data-testid="match-menu-button" onClick={() => setMenuOpen(true)}>
+            <button type="button" className="ui-btn ui-btn--icon" aria-label={t('hud.menu')} data-testid="match-menu-button" onClick={() => setMenuOpen(true)}>
               <Icon name="menu" />
             </button>
-            <button type="button" className="ui-btn ui-btn--icon btn-leave" aria-label="Rời phòng" data-testid="leave-room" onClick={startLeave}>
+            <button type="button" className="ui-btn ui-btn--icon btn-leave" aria-label={t('hud.leave')} data-testid="leave-room" onClick={startLeave}>
               <Icon name="leave" />
             </button>
           </span>
@@ -601,11 +600,11 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
       {paused && !finished && (
         <div className="glass pause-banner" role="status" data-testid="pause-banner">
           <Icon name="pause" size="xl" />
-          <strong>Chủ phòng đã tạm dừng ván đấu</strong>
+          <strong>{t('hud.pausedBanner')}</strong>
           {isHost && (
             <button type="button" className="ui-btn ui-btn--primary" data-testid="resume-button" onClick={() => send({ t: 'resume' })}>
               <Icon name="play" />
-              Tiếp tục
+              {t('hud.resume')}
             </button>
           )}
         </div>
@@ -614,14 +613,14 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
       {menuOpen && (
         <Modal labelledBy="menu-title" testId="match-menu" className="match-menu" onClose={() => setMenuOpen(false)}>
           <h2 id="menu-title" className="ui-title dialog-title">
-            Menu
+            {t('hud.menu')}
           </h2>
           <div className="menu-settings">
             <SoundSwitches />
             {shake.supported && (
               <label className="sound-switch">
                 <Icon name="shake" />
-                <span>Lắc máy để đổ xúc xắc</span>
+                <span>{t('menu.shake')}</span>
                 <input
                   type="checkbox"
                   role="switch"
@@ -633,6 +632,7 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
               </label>
             )}
             <MotionLevelControl variant="menu" />
+            <LangSwitch className="lang-switch--menu" />
           </div>
           <div className="dialog-actions">
             <button
@@ -642,7 +642,7 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
               onClick={() => setStatsOpen(true)}
             >
               <Icon name="win" />
-              Bảng đá ngựa
+              {t('kick.menu')}
             </button>
             <button
               type="button"
@@ -654,7 +654,7 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
               }}
             >
               <Icon name="rules" />
-              Luật chơi
+              {t('menu.rules')}
             </button>
             <button
               type="button"
@@ -666,7 +666,7 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
               }}
             >
               <Icon name="feedback" />
-              Góp ý
+              {t('menu.feedback')}
             </button>
             {mySeat && (
               <button
@@ -679,7 +679,7 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
                 }}
               >
                 <Icon name="pencil" />
-                Đặt tên quân
+                {t('menu.renameHorses')}
               </button>
             )}
             {canInvite && (
@@ -693,7 +693,7 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
                 }}
               >
                 <Icon name="share" />
-                Mời người vào thay máy
+                {t('join.menuInvite')}
               </button>
             )}
             {isHost && !finished && (
@@ -707,7 +707,7 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
                 }}
               >
                 <Icon name={paused ? 'play' : 'pause'} />
-                {paused ? 'Tiếp tục ván đấu' : 'Tạm dừng ván đấu'}
+                {paused ? t('menu.resumeGame') : t('menu.pauseGame')}
               </button>
             )}
             {isHost && !finished && (
@@ -721,11 +721,11 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
                 }}
               >
                 <Icon name="close" />
-                Đóng phòng
+                {t('menu.closeRoom')}
               </button>
             )}
             <button type="button" className="ui-btn ui-btn--primary" data-testid="menu-close" data-autofocus onClick={() => setMenuOpen(false)}>
-              Đóng
+              {t('menu.close')}
             </button>
           </div>
         </Modal>
@@ -734,13 +734,13 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
       {statsOpen && room.game && (
         <Modal labelledBy="kick-stats-title" testId="kick-stats" className="kick-stats" onClose={() => setStatsOpen(false)} closeOnBackdrop>
           <div className="kick-stats-head">
-            <h2 id="kick-stats-title" className="ui-title dialog-title">Bảng đá ngựa</h2>
-            <button type="button" className="ui-btn ui-btn--icon" aria-label="Đóng" data-testid="kick-stats-close" data-autofocus onClick={() => setStatsOpen(false)}>
+            <h2 id="kick-stats-title" className="ui-title dialog-title">{t('kick.title')}</h2>
+            <button type="button" className="ui-btn ui-btn--icon" aria-label={t('kick.close')} data-testid="kick-stats-close" data-autofocus onClick={() => setStatsOpen(false)}>
               <Icon name="close" />
             </button>
           </div>
           <table className="kick-stats-table">
-            <thead><tr><th scope="col">Người chơi</th><th scope="col">Đã đá</th></tr></thead>
+            <thead><tr><th scope="col">{t('kick.player')}</th><th scope="col">{t('kick.kicked')}</th></tr></thead>
             <tbody>
               {[...room.game.colors]
                 .sort((a, b) => (room.game?.kicks?.[b] ?? 0) - (room.game?.kicks?.[a] ?? 0) || a - b)
@@ -751,7 +751,7 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
                       <td>
                         <span className="kick-stats-player">
                           <span className="kick-stats-swatch" style={{ '--seat-color': COLOR_VARS[color] } as CSSProperties} />
-                          <span className="kick-stats-name">{seatName(seat) || 'Máy'} <span className="ui-muted">({COLOR_NAMES[color]})</span></span>
+                          <span className="kick-stats-name">{seatName(t, seat) || t('kick.cpu')} <span className="ui-muted">({colorName(t, color)})</span></span>
                         </span>
                       </td>
                       <td>{room.game?.kicks?.[color] ?? 0}</td>
@@ -783,16 +783,16 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
       {confirmClose && !finished && (
         <Modal labelledBy="close-title" testId="close-dialog" onClose={() => setConfirmClose(false)}>
           <h2 id="close-title" className="ui-title dialog-title">
-            Đóng phòng?
+            {t('close.title')}
           </h2>
-          <p className="ui-muted">Ván đấu sẽ bị huỷ và mọi người sẽ rời phòng.</p>
+          <p className="ui-muted">{t('close.body')}</p>
           <div className="dialog-actions">
             <button type="button" className="ui-btn ui-btn--danger" data-testid="close-confirm" onClick={closeRoom}>
               <Icon name="close" />
-              Đóng phòng
+              {t('menu.closeRoom')}
             </button>
             <button type="button" className="ui-btn ui-btn--secondary" data-testid="close-cancel" data-autofocus onClick={() => setConfirmClose(false)}>
-              Huỷ
+              {t('close.cancel')}
             </button>
           </div>
         </Modal>
@@ -801,7 +801,7 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
       {hostLeave && !finished && (
         <HostLeaveDialog
           others={others}
-          seatNote="Máy sẽ chơi thay bạn đến hết ván."
+          seatNote={t('leave.body')}
           onHandover={handover}
           onCloseRoom={closeRoom}
           onCancel={() => setHostLeave(false)}
@@ -811,16 +811,16 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
       {confirmLeave && !finished && (
         <Modal labelledBy="leave-title" testId="leave-dialog" onClose={() => setConfirmLeave(false)}>
           <h2 id="leave-title" className="ui-title dialog-title">
-            Rời phòng?
+            {t('leave.title')}
           </h2>
-          <p className="ui-muted">Máy sẽ chơi thay bạn đến hết ván.</p>
+          <p className="ui-muted">{t('leave.body')}</p>
           <div className="dialog-actions">
             <button type="button" className="ui-btn ui-btn--primary" data-testid="leave-confirm" onClick={leave}>
               <Icon name="leave" />
-              Rời phòng
+              {t('hud.leave')}
             </button>
             <button type="button" className="ui-btn ui-btn--secondary" data-testid="leave-cancel" data-autofocus onClick={() => setConfirmLeave(false)}>
-              Ở lại
+              {t('leave.stay')}
             </button>
           </div>
         </Modal>
@@ -835,32 +835,25 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
             <Icon name="win" size="xl" />
           </span>
           <h2 id="win-title" className="ui-title dialog-title win-title" data-testid="win-title">
-            {seatName(winnerSeat)} thắng!
+            {t('win.title', { name: seatName(t, winnerSeat) })}
           </h2>
           {game.timeWinReason ? (
-            <p data-testid="win-condition">
-              Hết thời gian. {({
-                'home-count': 'Có nhiều quân trong cột đích nhất.',
-                'home-steps': 'Có tổng bậc trong cột đích cao nhất.',
-                kicks: 'Đá nhiều quân đối thủ nhất.',
-                random: 'Các chỉ số hòa nhau, người thắng được chọn ngẫu nhiên.',
-              })[game.timeWinReason]}
-            </p>
-          ) : quickGame && <p data-testid="win-condition">{QUICK_WIN_TEXT}</p>}
+            <p data-testid="win-condition">{t('win.timeUp')} {t(`win.reason.${game.timeWinReason}`)}</p>
+          ) : quickGame && <p data-testid="win-condition">{t('rules.quickWin')}</p>}
           <div className="dialog-actions">
             {isHost ? (
               <button type="button" className="ui-btn ui-btn--hero" data-testid="rematch-button" data-autofocus onClick={() => send({ t: 'rematch' })}>
                 <Icon name="dice" size="lg" />
-                Chơi lại
+                {t('win.rematch')}
               </button>
             ) : (
               <p className="ui-muted await-host" data-testid="await-host">
-                Chờ chủ phòng
+                {t('win.awaitHost')}
               </p>
             )}
             <button type="button" className="ui-btn ui-btn--secondary" data-testid="to-lobby" onClick={leave}>
               <Icon name="back" />
-              Về sảnh
+              {t('win.toLobby')}
             </button>
           </div>
           {offerSave && !saveDismissed && (

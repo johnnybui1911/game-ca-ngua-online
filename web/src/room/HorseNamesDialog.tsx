@@ -1,8 +1,9 @@
 import { useState, type FormEvent } from 'react';
 import { HORSES_PER_COLOR, type Color } from '../../../shared/game/types';
 import { MAX_HORSE_NAME, MAX_HORSE_NAME_WORDS, countWords, type RoomClientMessage } from '../../../shared/protocol';
+import { useT } from '../i18n';
 import { Icon } from '../ui/Icon';
-import { COLOR_NAMES, COLOR_VARS } from './colors';
+import { COLOR_VARS, colorName } from './colors';
 import { Modal } from './Modal';
 
 interface Props {
@@ -15,6 +16,7 @@ interface Props {
 
 /** Renames the four horses of the local player's colour; an empty field keeps the number. */
 export function HorseNamesDialog({ color, names, send, onClose }: Props) {
+  const t = useT();
   const [draft, setDraft] = useState(() => Array.from({ length: HORSES_PER_COLOR }, (_, i) => names[i] ?? ''));
   // Same measure as the server: characters (code points) after NFC, so emoji and NFD input count fairly.
   const tooLong = draft.map((n) => {
@@ -33,10 +35,10 @@ export function HorseNamesDialog({ color, names, send, onClose }: Props) {
   return (
     <Modal labelledBy="horse-names-title" testId="horse-names-dialog" onClose={onClose} onSubmit={submit}>
       <h2 id="horse-names-title" className="ui-title dialog-title">
-        Đặt tên quân
+        {t('horse.title')}
       </h2>
       <p className="ui-muted">
-        Quân {COLOR_NAMES[color]} của bạn. Để trống để dùng số. Tối đa {MAX_HORSE_NAME} ký tự và {MAX_HORSE_NAME_WORDS} từ.
+        {t('horse.intro', { color: colorName(t, color), max: MAX_HORSE_NAME, words: MAX_HORSE_NAME_WORDS })}
       </p>
       <div className="horse-name-fields">
         {draft.map((value, i) => (
@@ -49,8 +51,8 @@ export function HorseNamesDialog({ color, names, send, onClose }: Props) {
               data-testid={`horse-name-${i}`}
               value={value}
               aria-invalid={tooLong[i]}
-              placeholder={`Quân ${i + 1}`}
-              aria-label={`Tên quân ${i + 1}`}
+              placeholder={t('move.horse', { n: i + 1 })}
+              aria-label={t('horse.fieldLabel', { n: i + 1 })}
               onChange={(e) => setDraft((d) => d.map((n, j) => (j === i ? e.target.value : n)))}
             />
           </label>
@@ -58,16 +60,16 @@ export function HorseNamesDialog({ color, names, send, onClose }: Props) {
       </div>
       {invalid && (
         <p className="form-error" role="alert" data-testid="horse-names-error">
-          Tên quân tối đa {MAX_HORSE_NAME} ký tự và {MAX_HORSE_NAME_WORDS} từ.
+          {t('horse.error', { max: MAX_HORSE_NAME, words: MAX_HORSE_NAME_WORDS })}
         </p>
       )}
       <div className="dialog-actions">
         <button type="submit" className="ui-btn ui-btn--primary" data-testid="horse-names-save" disabled={invalid}>
           <Icon name="check" />
-          Lưu tên
+          {t('horse.save')}
         </button>
         <button type="button" className="ui-btn ui-btn--secondary" data-testid="horse-names-cancel" onClick={onClose}>
-          Huỷ
+          {t('horse.cancel')}
         </button>
       </div>
     </Modal>

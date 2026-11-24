@@ -1,14 +1,16 @@
+import { useT, type TFunction } from '../i18n';
 import type { SceneLoad } from './scene-host';
 
 /** What the card says while the board is on its way; `percent` is how far its first picture is. */
-function progressText(load: SceneLoad, percent: number): string {
-  if (load === 'unavailable') return 'Thiết bị này không hiển thị được bàn cờ 3D.';
+function progressText(t: TFunction, load: SceneLoad, percent: number): string {
+  if (load === 'unavailable') return t('loading.unavailable');
   // Reaching 100 is the card going away: the last step (drawing the first picture) ends there.
-  return `Đang tải bàn cờ 3D… ${Math.min(percent, 99)}%`;
+  return t('loading.progress', { percent: Math.min(percent, 99) });
 }
 
 /** A still picture of the board, with the loading progress while a canvas is on its way; it stays when none is. */
 export function LoadingOverlay({ load, progress }: { load: SceneLoad; progress: number }) {
+  const t = useT();
   return (
     <div className="shell-poster" data-testid="scene-loading" data-load={load} aria-hidden={load === 'ready'}>
       <picture>
@@ -25,7 +27,7 @@ export function LoadingOverlay({ load, progress }: { load: SceneLoad; progress: 
           </span>
           <strong className="shell-poster-name">Cờ Cá Ngựa 3D</strong>
           <span className="shell-poster-progress" data-testid="scene-progress">
-            {progressText(load, progress)}
+            {progressText(t, load, progress)}
           </span>
         </div>
       )}

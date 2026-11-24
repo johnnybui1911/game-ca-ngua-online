@@ -1,18 +1,20 @@
 import { Link } from 'react-router';
+import { useT } from '../i18n';
 import { Icon } from '../ui/Icon';
 
 export function NotFoundPage() {
+  const t = useT();
   return (
     <main className="auth-page">
       <section className="glass auth-card not-found" aria-labelledby="not-found-title">
-        <p className="ui-eyebrow brand-name">Lỗi 404</p>
+        <p className="ui-eyebrow brand-name">{t('notFound.eyebrow')}</p>
         <h1 id="not-found-title" className="ui-title auth-title" data-testid="not-found">
-          Không tìm thấy trang
+          {t('notFound.title')}
         </h1>
-        <p className="ui-muted">Đường dẫn này không còn hoặc chưa từng tồn tại.</p>
+        <p className="ui-muted">{t('notFound.body')}</p>
         <Link className="ui-btn ui-btn--primary" to="/">
           <Icon name="back" />
-          Về trang chủ
+          {t('notFound.home')}
         </Link>
       </section>
     </main>

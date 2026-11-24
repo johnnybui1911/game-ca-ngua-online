@@ -9,6 +9,8 @@ import {
   type RoomSummary,
 } from '../../../shared/protocol';
 import { useSession } from '../auth/session-context';
+import { useT } from '../i18n';
+import { errorText } from '../i18n/error-text';
 import { openReconnectingSocket, type ReconnectingSocket } from './reconnecting-socket';
 import './lobby.css';
 
@@ -36,6 +38,7 @@ const MAX_TOASTS = 3;
 export function LobbyProvider({ children }: { children: ReactNode }) {
   const { user, refresh } = useSession();
   const navigate = useNavigate();
+  const tr = useT();
   const [rooms, setRooms] = useState<RoomSummary[]>([]);
   const [online, setOnline] = useState<PublicUser[]>([]);
   const [toasts, setToasts] = useState<Toast[]>([]);
@@ -107,7 +110,7 @@ export function LobbyProvider({ children }: { children: ReactNode }) {
           t.kind === 'invite' ? (
             <div className="glass toast" role="alert" data-testid="invite-toast" key={t.id}>
               <p>
-                {t.from.displayName} mời bạn vào phòng {t.roomName}
+                {tr('lobby.invited', { name: t.from.displayName, room: t.roomName })}
               </p>
               <div className="toast-actions">
                 <button
@@ -119,16 +122,16 @@ export function LobbyProvider({ children }: { children: ReactNode }) {
                     void navigate(`/r/${t.code}`);
                   }}
                 >
-                  Vào
+                  {tr('lobby.join')}
                 </button>
                 <button type="button" className="ui-btn ui-btn--secondary" data-testid="invite-dismiss" onClick={() => dismiss(t.id)}>
-                  Bỏ qua
+                  {tr('lobby.dismiss')}
                 </button>
               </div>
             </div>
           ) : (
             <div className="glass toast" role="status" data-testid="lobby-notice" key={t.id}>
-              <p>{t.text}</p>
+              <p>{errorText(tr, t.text)}</p>
             </div>
           ),
         )}

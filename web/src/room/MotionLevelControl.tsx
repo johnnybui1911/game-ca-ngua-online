@@ -1,9 +1,10 @@
+import { useT, type TKey } from '../i18n';
 import { Icon } from '../ui/Icon';
 import { motionSetting, useMotionLevel, type MotionLevel } from '../scene/motion/motion-setting';
 
-const MOTION_LEVELS: [MotionLevel, string][] = [
-  ['full', 'Đầy đủ'],
-  ['reduced', 'Giảm'],
+const MOTION_LEVELS: [MotionLevel, TKey][] = [
+  ['full', 'set.motionFull'],
+  ['reduced', 'set.motionReduced'],
 ];
 
 /**
@@ -12,6 +13,7 @@ const MOTION_LEVELS: [MotionLevel, string][] = [
  * settings, and a guest's panel has none. `menu` lays it out like the match menu's sound switches.
  */
 export function MotionLevelControl({ variant = 'settings' }: { variant?: 'settings' | 'menu' }) {
+  const t = useT();
   const motion = useMotionLevel();
   const menu = variant === 'menu';
   return (
@@ -30,10 +32,10 @@ export function MotionLevelControl({ variant = 'settings' }: { variant?: 'settin
         style={menu ? undefined : { whiteSpace: 'nowrap' }}
       >
         {!menu && <Icon name="play" size="sm" />}
-        Hoạt cảnh
+        {t('set.motion')}
       </span>
       <span className="motion-level-pills" style={{ display: 'flex', gap: 'var(--space-2)' }}>
-        {MOTION_LEVELS.map(([level, text]) => (
+        {MOTION_LEVELS.map(([level, key]) => (
           <button
             key={level}
             type="button"
@@ -43,7 +45,7 @@ export function MotionLevelControl({ variant = 'settings' }: { variant?: 'settin
             aria-pressed={motion === level}
             onClick={() => motionSetting.setLevel(level)}
           >
-            {text}
+            {t(key)}
           </button>
         ))}
       </span>

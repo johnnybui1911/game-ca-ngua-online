@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { DICE_SHAPING } from '../../../shared/experiments';
-import { TRIPLE_BONUS_FORFEIT_LABEL, TRIPLE_BONUS_FORFEIT_RULE } from '../../../shared/rules-text';
 import {
   TURN_SECONDS_OPTIONS,
   GAME_MINUTES_OPTIONS,
@@ -9,16 +8,17 @@ import {
   type RoomSnapshot,
   type TurnSeconds,
 } from '../../../shared/protocol';
+import { useT, type TKey } from '../i18n';
 import { Icon } from '../ui/Icon';
 import { RulesSheet } from './RulesSheet';
 import { nextSettings } from './settings';
 import { MotionLevelControl } from './MotionLevelControl';
 import { CpuLevelControl } from './CpuLevelControl';
 
-const MODES = [
-  { quick: false, label: 'Cơ Bản', testId: 'mode-basic' },
-  { quick: true, label: 'Ván Nhanh', testId: 'mode-quick' },
-] as const;
+const MODES: readonly { quick: boolean; label: TKey; testId: string }[] = [
+  { quick: false, label: 'set.modeBasic', testId: 'mode-basic' },
+  { quick: true, label: 'set.modeQuick', testId: 'mode-quick' },
+];
 
 interface Props {
   room: RoomSnapshot;
@@ -35,6 +35,7 @@ interface Props {
  * reads the choice. Each setting is one `.setting-row` or `.setting-block` in the list, so a new one is a new block.
  */
 export function GameSettings({ room, isHost, offline, actionError, send }: Props) {
+  const t = useT();
   const settings = room.settings;
   const [rulesOpen, setRulesOpen] = useState(false);
   // Every accepted change makes the room broadcast a new snapshot; a rejected one reports an error.
@@ -51,7 +52,7 @@ export function GameSettings({ room, isHost, offline, actionError, send }: Props
     <section className="game-settings" aria-labelledby="game-settings-title" data-testid="game-settings">
       <h2 id="game-settings-title" className="ui-eyebrow">
         <Icon name="settings" size="sm" />
-        Cài đặt ván
+        {t('set.title')}
       </h2>
 
       <CpuLevelControl room={room} isHost={isHost} offline={offline} send={send} />
@@ -59,8 +60,8 @@ export function GameSettings({ room, isHost, offline, actionError, send }: Props
       <div className="setting-block" data-testid="game-time">
         {isHost ? (
           <>
-            <span className="setting-label pace-title">Thời gian</span>
-            <div className="setting-pills" role="radiogroup" aria-label="Thời gian ván">
+            <span className="setting-label pace-title">{t('time.title')}</span>
+            <div className="setting-pills" role="radiogroup" aria-label={t('time.groupLabel')}>
               {GAME_MINUTES_OPTIONS.map((minutes) => (
                 <button
                   key={minutes}
@@ -69,7 +70,7 @@ export function GameSettings({ room, isHost, offline, actionError, send }: Props
                   aria-checked={settings.gameMinutes === minutes}
                   className="ui-pill setting-pill"
                   data-testid={`game-time-${minutes}`}
-                  aria-label={minutes === 0 ? 'Vô cực' : `${minutes} phút`}
+                  aria-label={minutes === 0 ? t('time.infinite') : t('time.minutes', { n: minutes })}
                   disabled={locked}
                   onClick={() => settings.gameMinutes !== minutes && change({ gameMinutes: minutes })}
                 >
@@ -80,7 +81,7 @@ export function GameSettings({ room, isHost, offline, actionError, send }: Props
           </>
         ) : (
           <p className="setting-row">
-            <span className="setting-label pace-title">Thời gian</span>
+            <span className="setting-label pace-title">{t('time.title')}</span>
             <strong className="setting-value" data-testid="game-time-label">
               {settings.gameMinutes === 0 ? '∞' : `${settings.gameMinutes}'`}
             </strong>
@@ -91,7 +92,7 @@ export function GameSettings({ room, isHost, offline, actionError, send }: Props
       <div className="setting-row turn-time-row">
         <label htmlFor="turn-seconds" className="setting-label">
           <Icon name="timer" size="sm" />
-          Thời gian mỗi lượt
+          {t('set.turnTime')}
         </label>
         {isHost ? (
           <select
@@ -104,13 +105,13 @@ export function GameSettings({ room, isHost, offline, actionError, send }: Props
           >
             {TURN_SECONDS_OPTIONS.map((s) => (
               <option key={s} value={s}>
-                {s} giây
+                {t('set.seconds', { n: s })}
               </option>
             ))}
           </select>
         ) : (
           <strong className="setting-value" data-testid="turn-seconds">
-            {settings.turnSeconds} giây
+            {t('set.seconds', { n: settings.turnSeconds })}
           </strong>
         )}
       </div>
@@ -119,7 +120,7 @@ export function GameSettings({ room, isHost, offline, actionError, send }: Props
         {isHost ? (
           <>
             <span id="mode-title" className="setting-label pace-title">
-              Mode
+              {t('set.mode')}
             </span>
             <div className="setting-pills" role="radiogroup" aria-labelledby="mode-title">
               {MODES.map(({ quick, label, testId }) => (
@@ -133,30 +134,30 @@ export function GameSettings({ room, isHost, offline, actionError, send }: Props
                   disabled={locked}
                   onClick={() => settings.quick !== quick && change({ quick })}
                 >
-                  {label}
+                  {t(label)}
                 </button>
               ))}
             </div>
           </>
         ) : (
           <p className="setting-row">
-            <span className="setting-label pace-title">Mode</span>
+            <span className="setting-label pace-title">{t('set.mode')}</span>
             <strong className="setting-value" data-testid="mode-label">
-              {settings.quick ? 'Ván Nhanh' : 'Cơ Bản'}
+              {settings.quick ? t('set.modeQuick') : t('set.modeBasic')}
             </strong>
           </p>
         )}
         <button type="button" className="link-button mode-rules" data-testid="mode-rules" onClick={() => setRulesOpen(true)}>
-          Xem luật
+          {t('set.viewRules')}
         </button>
       </div>
 
       {/* Hidden while the dice experiment replaces this rule (shared/experiments.ts). */}
       {!DICE_SHAPING && (
         <div className="setting-block" data-testid="house-rules">
-          <span className="setting-label pace-title">Luật</span>
+          <span className="setting-label pace-title">{t('set.houseRules')}</span>
           <label className="room-switch">
-            <span>{TRIPLE_BONUS_FORFEIT_LABEL}</span>
+            <span>{t('rules.tripleForfeitLabel')}</span>
             <input
               type="checkbox"
               role="switch"
@@ -167,13 +168,13 @@ export function GameSettings({ room, isHost, offline, actionError, send }: Props
               onChange={(e) => change({ rules: { ...settings.rules, tripleBonusForfeit: e.target.checked } })}
             />
           </label>
-          <p className="ui-muted setting-help">{TRIPLE_BONUS_FORFEIT_RULE}</p>
+          <p className="ui-muted setting-help">{t('rules.tripleForfeit')}</p>
         </div>
       )}
 
       <div className="setting-block">
         <label className="room-switch">
-          <span>Tự đổ xúc xắc</span>
+          <span>{t('set.autoRoll')}</span>
           <input
             type="checkbox"
             role="switch"
@@ -184,7 +185,7 @@ export function GameSettings({ room, isHost, offline, actionError, send }: Props
             onChange={(e) => change({ autoRoll: e.target.checked })}
           />
         </label>
-        <p className="ui-muted setting-help">Máy đổ giúp sau 1,5 giây.</p>
+        <p className="ui-muted setting-help">{t('set.autoRollHelp')}</p>
       </div>
 
       <MotionLevelControl />

@@ -2,6 +2,8 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { Link, Navigate, useSearchParams } from 'react-router';
 import type { RoomSummary } from '../../../shared/protocol';
 import { api, ApiRequestError } from '../api';
+import { useT } from '../i18n';
+import { errorText } from '../i18n/error-text';
 import { useMusic } from '../audio/SoundControls';
 import { parseRoomCode } from '../lobby/room-code';
 import { GlassPanel, PanelHost } from '../shell/PanelHost';
@@ -65,6 +67,7 @@ function useRoomSummary(code: string | null): RoomState {
 
 /** The name panel for a visitor without a session: a name and one button, over the board. */
 export function GuestEntryPage() {
+  const t = useT();
   const { ready, user, playAsGuest } = useSession();
   const [params] = useSearchParams();
   const returnTo = sanitizeReturnTo(params.get('returnTo'));
@@ -91,7 +94,7 @@ export function GuestEntryPage() {
     e.preventDefault();
     const length = [...name.trim().replace(/\s+/g, ' ')].length;
     if (length < MIN_NAME_LENGTH || length > MAX_NAME_LENGTH) {
-      setError(`Tên hiển thị phải từ ${MIN_NAME_LENGTH} đến ${MAX_NAME_LENGTH} ký tự.`);
+      setError(t('auth.nameRange', { min: MIN_NAME_LENGTH, max: MAX_NAME_LENGTH }));
       return;
     }
     setError(null);
@@ -101,38 +104,38 @@ export function GuestEntryPage() {
       await playAsGuest(name);
       rememberName(name.trim().replace(/\s+/g, ' '));
     } catch (err) {
-      setError(err instanceof ApiRequestError ? err.message : 'Có lỗi xảy ra, vui lòng thử lại.');
+      setError(err instanceof ApiRequestError ? errorText(t, err.message) : t('auth.genericError'));
       setBusy(false);
     }
   }
 
   return (
     <PanelHost>
-      <GlassPanel title={entering ? 'Vào phòng chơi' : 'Chơi ngay'} className="entry-panel">
+      <GlassPanel title={entering ? t('guest.titleEntering') : t('guest.titlePlay')} className="entry-panel">
         {room.kind === 'found' && (
           <p className="entry-room" data-testid="entry-room">
-            Vào phòng <strong data-testid="entry-room-name">{room.room.name}</strong> của{' '}
+            {t('guest.enterRoomPre')}<strong data-testid="entry-room-name">{room.room.name}</strong>{t('guest.enterRoomMid')}
             <strong data-testid="entry-room-host">{room.room.hostName}</strong>
           </p>
         )}
         {missing && (
           <p className="entry-room entry-room-missing" role="status" data-testid="entry-room-missing">
-            Không tìm thấy phòng. Bạn vẫn có thể vào sảnh và chơi.
+            {t('guest.roomMissing')}
           </p>
         )}
         {room.kind === 'limited' && (
           <p className="entry-room" role="status" data-testid="entry-room-limited">
-            {room.message}
+            {errorText(t, room.message)}
           </p>
         )}
         {code === null && (
           <p className="entry-lead" data-testid="entry-pitch">
-            Nhập tên là chơi: không cài app, không cần đăng ký.
+            {t('guest.pitch')}
           </p>
         )}
         <form className="form" onSubmit={(e) => void submit(e)} noValidate>
           <div className="field">
-            <label htmlFor="guest-name">Tên của bạn</label>
+            <label htmlFor="guest-name">{t('guest.yourName')}</label>
             <input
               id="guest-name"
               data-testid="guest-name"
@@ -150,18 +153,18 @@ export function GuestEntryPage() {
             </p>
           )}
           <button type="submit" className="ui-btn ui-btn--primary" data-testid="guest-submit" disabled={busy || room.kind === 'loading'}>
-            {busy ? 'Đang vào…' : entering ? 'Vào phòng' : 'Chơi ngay'}
+            {busy ? t('guest.entering') : entering ? t('guest.enterRoom') : t('guest.play')}
           </button>
         </form>
         <p className="switch-link">
-          Đã có tài khoản?{' '}
+          {t('auth.haveAccount')}{' '}
           <Link to={signInLink} data-testid="to-signin">
-            Đăng nhập
+            {t('auth.signIn')}
           </Link>
         </p>
         <Link className="ui-btn ui-btn--ghost entry-home" to="/" data-testid="entry-home">
           <Icon name="back" size="sm" />
-          Về trang chủ
+          {t('guest.home')}
         </Link>
       </GlassPanel>
     </PanelHost>

@@ -1,6 +1,8 @@
 import { FEEDBACK_LIMITS, type FeedbackCategory, type FeedbackRequest } from '../../../shared/feedback';
 import { ROOM_CODE_ALPHABET, ROOM_CODE_LENGTH } from '../../../shared/protocol';
 import { ApiRequestError } from '../api';
+import { translatorFor, type TFunction } from '../i18n';
+import { errorText } from '../i18n/error-text';
 
 export interface FeedbackDraft {
   category: FeedbackCategory | '';
@@ -21,17 +23,17 @@ export function textLength(text: string): number {
   return [...text].length;
 }
 
-export function checkDraft(draft: FeedbackDraft): DraftErrors {
+export function checkDraft(draft: FeedbackDraft, t: TFunction = translatorFor('vi')): DraftErrors {
   const errors: DraftErrors = {};
-  if (!draft.category) errors.category = 'Vui lòng chọn loại góp ý.';
+  if (!draft.category) errors.category = t('feedback.errCategory');
   const message = textLength(draft.message.trim());
   if (message < FEEDBACK_LIMITS.messageMin) {
-    errors.message = message === 0 ? 'Vui lòng nhập nội dung góp ý.' : `Nội dung góp ý cần ít nhất ${FEEDBACK_LIMITS.messageMin} ký tự.`;
+    errors.message = message === 0 ? t('feedback.errEmpty') : t('feedback.errMin', { min: FEEDBACK_LIMITS.messageMin });
   } else if (message > FEEDBACK_LIMITS.messageMax) {
-    errors.message = `Nội dung góp ý tối đa ${FEEDBACK_LIMITS.messageMax} ký tự.`;
+    errors.message = t('feedback.errMax', { max: FEEDBACK_LIMITS.messageMax });
   }
   if (textLength(draft.contact.trim()) > FEEDBACK_LIMITS.contactMax) {
-    errors.contact = `Thông tin liên hệ tối đa ${FEEDBACK_LIMITS.contactMax} ký tự.`;
+    errors.contact = t('feedback.errContact', { max: FEEDBACK_LIMITS.contactMax });
   }
   return errors;
 }
@@ -74,12 +76,12 @@ export function buildRequest(draft: FeedbackDraft, env: Environment): FeedbackRe
 }
 
 /** What the player reads when sending failed. */
-export function sendErrorText(err: unknown): string {
+export function sendErrorText(err: unknown, t: TFunction = translatorFor('vi')): string {
   if (err instanceof ApiRequestError) {
-    if (err.status === 429) return 'Bạn đã gửi góp ý quá nhiều lần. Vui lòng thử lại sau ít phút.';
-    if (err.status === 0) return 'Không kết nối được máy chủ. Vui lòng kiểm tra mạng và thử lại.';
-    if (err.status >= 500) return 'Máy chủ đang gặp sự cố. Vui lòng thử lại sau.';
-    return err.message;
+    if (err.status === 429) return t('feedback.errTooMany');
+    if (err.status === 0) return t('feedback.errOffline');
+    if (err.status >= 500) return t('feedback.errServer');
+    return errorText(t, err.message);
   }
-  return 'Không gửi được góp ý. Vui lòng thử lại.';
+  return t('feedback.errUnknown');
 }

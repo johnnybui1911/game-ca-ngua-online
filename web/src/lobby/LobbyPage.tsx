@@ -10,6 +10,8 @@ import {
 } from '../../../shared/protocol';
 import { api, ApiRequestError } from '../api';
 import { useSession } from '../auth/session-context';
+import { useT } from '../i18n';
+import { errorText } from '../i18n/error-text';
 import { useMusic } from '../audio/SoundControls';
 import { entered } from '../shell/entered';
 import { PanelHost } from '../shell/PanelHost';
@@ -20,9 +22,10 @@ import { parseRoomCode } from './room-code';
 const SEAT_OPTIONS = Array.from({ length: MAX_SEATS - MIN_SEATS + 1 }, (_, i) => MIN_SEATS + i);
 
 function CreateRoomForm() {
+  const t = useT();
   const navigate = useNavigate();
   const { user } = useSession();
-  const [name, setName] = useState(user ? `Phòng của ${user.displayName}`.slice(0, 40) : '');
+  const [name, setName] = useState(user ? t('lobby.defaultRoomName', { name: user.displayName }).slice(0, 40) : '');
   const [visibility, setVisibility] = useState<RoomVisibility>('public');
   const [seats, setSeats] = useState(4);
   const [error, setError] = useState<string | null>(null);
@@ -31,7 +34,7 @@ function CreateRoomForm() {
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     if (name.trim().length === 0) {
-      setError('Hãy đặt tên phòng.');
+      setError(t('lobby.nameRequired'));
       return;
     }
     setBusy(true);
@@ -41,21 +44,21 @@ function CreateRoomForm() {
       const res = await api<CreateRoomResponse>('/api/rooms', { method: 'POST', body });
       void navigate(`/r/${res.code}`);
     } catch (err) {
-      setError(err instanceof ApiRequestError ? err.message : 'Không tạo được phòng.');
+      setError(err instanceof ApiRequestError ? errorText(t, err.message) : t('lobby.createFailed'));
       setBusy(false);
     }
   };
 
   return (
     <form className="lobby-section form" onSubmit={(e) => void submit(e)} noValidate>
-      <h2>Tạo phòng</h2>
+      <h2>{t('lobby.createTitle')}</h2>
       <div className="field">
-        <label htmlFor="create-name">Tên phòng</label>
+        <label htmlFor="create-name">{t('lobby.roomName')}</label>
         <input id="create-name" data-testid="create-name" value={name} maxLength={40} onChange={(e) => setName(e.target.value)} />
       </div>
       <div className="lobby-options">
         <fieldset className="choice-row">
-          <legend>Chế độ</legend>
+          <legend>{t('lobby.mode')}</legend>
           <label className="ui-pill">
             <input
               type="radio"
@@ -64,7 +67,7 @@ function CreateRoomForm() {
               checked={visibility === 'public'}
               onChange={() => setVisibility('public')}
             />
-            Công khai
+            {t('lobby.public')}
           </label>
           <label className="ui-pill">
             <input
@@ -74,15 +77,15 @@ function CreateRoomForm() {
               checked={visibility === 'private'}
               onChange={() => setVisibility('private')}
             />
-            Riêng tư
+            {t('lobby.private')}
           </label>
         </fieldset>
         <div className="field">
-          <label htmlFor="create-seats">Số chỗ</label>
+          <label htmlFor="create-seats">{t('lobby.seats')}</label>
           <div className="seat-count-select">
             <select id="create-seats" className="glass-input glass-select" data-testid="create-seats" value={seats} onChange={(e) => setSeats(Number(e.target.value))}>
               {SEAT_OPTIONS.map((n) => (
-                <option key={n} value={n}>{n} người chơi</option>
+                <option key={n} value={n}>{t('lobby.seatsOption', { n })}</option>
               ))}
             </select>
             <span aria-hidden="true">{seats}</span>
@@ -95,7 +98,7 @@ function CreateRoomForm() {
         </p>
       )}
       <button type="submit" className="ui-btn ui-btn--primary" data-testid="create-submit" disabled={busy}>
-        Tạo phòng
+        {t('lobby.createTitle')}
       </button>
     </form>
   );
@@ -103,6 +106,7 @@ function CreateRoomForm() {
 
 /** Opens a room from its code or link. Also used on the home page, where the visitor may not be signed in yet. */
 export function JoinByCodeForm({ autoFocus = false }: { autoFocus?: boolean }) {
+  const t = useT();
   const navigate = useNavigate();
   const [value, setValue] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -112,7 +116,7 @@ export function JoinByCodeForm({ autoFocus = false }: { autoFocus?: boolean }) {
     e.preventDefault();
     const code = parseRoomCode(value);
     if (code === null) {
-      setError('Không tìm thấy phòng');
+      setError(t('lobby.codeNotFound'));
       return;
     }
     setBusy(true);
@@ -124,10 +128,10 @@ export function JoinByCodeForm({ autoFocus = false }: { autoFocus?: boolean }) {
       const known = err instanceof ApiRequestError && (err.status === 404 || err.status === 429);
       setError(
         !known
-          ? 'Không kiểm tra được phòng, vui lòng thử lại.'
+          ? t('lobby.codeCheckFailed')
           : err.status === 404
-            ? 'Không tìm thấy phòng'
-            : err.message,
+            ? t('lobby.codeNotFound')
+            : errorText(t, err.message),
       );
       setBusy(false);
     }
@@ -135,10 +139,10 @@ export function JoinByCodeForm({ autoFocus = false }: { autoFocus?: boolean }) {
 
   return (
     <form className="lobby-section form" onSubmit={(e) => void submit(e)} noValidate>
-      <h2>Nhập mã</h2>
+      <h2>{t('lobby.enterCode')}</h2>
       <div className="join-row">
         <div className="field">
-          <label htmlFor="join-input">Mã phòng hoặc link</label>
+          <label htmlFor="join-input">{t('lobby.codeLabel')}</label>
           <input
             id="join-input"
             data-testid="join-input"
@@ -147,7 +151,7 @@ export function JoinByCodeForm({ autoFocus = false }: { autoFocus?: boolean }) {
             autoComplete="off"
             autoFocus={autoFocus}
             spellCheck={false}
-            placeholder="VD: K7M2QX"
+            placeholder={t('lobby.codePlaceholder')}
             onChange={(e) => {
               setValue(e.target.value);
               setError(null);
@@ -155,7 +159,7 @@ export function JoinByCodeForm({ autoFocus = false }: { autoFocus?: boolean }) {
           />
         </div>
         <button type="submit" className="ui-btn ui-btn--secondary" data-testid="join-submit" disabled={busy}>
-          Vào phòng
+          {t('lobby.joinRoom')}
         </button>
       </div>
       {error && (
@@ -168,14 +172,15 @@ export function JoinByCodeForm({ autoFocus = false }: { autoFocus?: boolean }) {
 }
 
 function RoomList() {
+  const t = useT();
   const { rooms } = useLobby();
   const navigate = useNavigate();
   return (
     <section className="lobby-section" aria-labelledby="room-list-title">
-      <h2 id="room-list-title">Phòng công khai</h2>
+      <h2 id="room-list-title">{t('lobby.publicRooms')}</h2>
       {rooms.length === 0 ? (
         <p className="muted" data-testid="room-empty">
-          Chưa có phòng công khai nào. Hãy tạo phòng đầu tiên!
+          {t('lobby.noRooms')}
         </p>
       ) : (
         <ul className="room-list" data-testid="room-list">
@@ -189,7 +194,7 @@ function RoomList() {
                 <div className="room-item-info">
                   <strong>{r.name}</strong>
                   <span className="muted">
-                    {r.hostName} · {r.seatsTaken}/{r.seatsTotal} chỗ · {takeover ? 'Đang chơi · còn chỗ máy' : playing ? 'Đang chơi' : 'Đang chờ'}
+                    {t('lobby.roomMeta', { host: r.hostName, taken: r.seatsTaken, total: r.seatsTotal, status: takeover ? t('lobby.playingTakeover') : playing ? t('lobby.playing') : t('lobby.waiting') })}
                   </span>
                 </div>
                 <button
@@ -199,7 +204,7 @@ function RoomList() {
                   disabled={!takeover && (full || playing)}
                   onClick={() => void navigate(`/r/${r.code}`)}
                 >
-                  Vào
+                  {t('lobby.join')}
                 </button>
               </li>
             );
@@ -211,31 +216,32 @@ function RoomList() {
 }
 
 function SignOutControl() {
+  const t = useT();
   const { guest, signOut } = useSession();
   const [confirming, setConfirming] = useState(false);
   if (!guest) {
     return (
       <button type="button" className="ui-btn ui-btn--secondary" data-testid="signout" onClick={() => void signOut()}>
-        Đăng xuất
+        {t('lobby.signOut')}
       </button>
     );
   }
   if (!confirming) {
     return (
       <button type="button" className="ui-btn ui-btn--secondary" data-testid="signout" onClick={() => setConfirming(true)}>
-        Thoát
+        {t('lobby.leave')}
       </button>
     );
   }
   return (
     <div className="signout-confirm" role="alertdialog" aria-labelledby="signout-confirm-text" data-testid="signout-confirm-box">
-      <p id="signout-confirm-text">Thoát sẽ mất tên khách và chỗ ngồi của bạn. Thoát thật không?</p>
+      <p id="signout-confirm-text">{t('lobby.leaveWarn')}</p>
       <div className="signout-confirm-actions">
         <button type="button" className="ui-btn ui-btn--danger" data-testid="signout-confirm" onClick={() => void signOut()}>
-          Thoát
+          {t('lobby.leave')}
         </button>
         <button type="button" className="ui-btn ui-btn--secondary" data-testid="signout-cancel" onClick={() => setConfirming(false)}>
-          Ở lại
+          {t('lobby.stay')}
         </button>
       </div>
     </div>
@@ -244,6 +250,7 @@ function SignOutControl() {
 
 /** The lobby, as a glass panel over the board: create a room first, then join by code, then the public rooms. */
 export function LobbyPage() {
+  const t = useT();
   const { user, guest } = useSession();
   const { online } = useLobby();
   useMusic('lobby');
@@ -251,24 +258,24 @@ export function LobbyPage() {
     <PanelHost>
       <main className="glass shell-glass lobby-panel" data-testid="lobby">
         <header className="lobby-header">
-          <button type="button" className="ui-btn ui-btn--icon" aria-label="Về trang chủ" data-testid="lobby-home" onClick={() => entered.set(false)}>
+          <button type="button" className="ui-btn ui-btn--icon" aria-label={t('lobby.backHome')} data-testid="lobby-home" onClick={() => entered.set(false)}>
             <Icon name="back" />
           </button>
           <div className="lobby-who">
             <h1 className="ui-title" data-testid="greeting">
-              Xin chào, {user?.displayName}
+              {t('lobby.greeting', { name: user?.displayName ?? '' })}
             </h1>
             <p className="muted" data-testid="online-count">
-              {online.length} người đang online
+              {t('lobby.online', { n: online.length })}
             </p>
           </div>
           <SignOutControl />
         </header>
         {guest && (
           <aside className="guest-notice" data-testid="guest-notice">
-            <span>Bạn đang chơi với tư cách khách</span>
+            <span>{t('lobby.guestNotice')}</span>
             <Link className="ui-btn ui-btn--secondary" to="/dang-ky?returnTo=/" data-testid="guest-save-link">
-              Lưu tài khoản
+              {t('lobby.saveAccount')}
             </Link>
           </aside>
         )}

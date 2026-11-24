@@ -3,16 +3,19 @@ import { useNavigate } from 'react-router';
 import { horseLabel, type RoomClientMessage, type RoomSnapshot } from '../../../shared/protocol';
 import { useMusic } from '../audio/SoundControls';
 import { inviteLink, reportInviteShared } from '../analytics';
+import { useT } from '../i18n';
+import { errorText } from '../i18n/error-text';
 import { useLobby } from '../lobby/LobbyProvider';
 import { Icon } from '../ui/Icon';
-import { COLOR_NAMES, COLOR_VARS } from './colors';
-import { CPU_LEVEL_LABELS, cpuLevelOf } from './cpu-levels';
+import { COLOR_VARS, colorName } from './colors';
+import { cpuLevelLabel, cpuLevelOf } from './cpu-levels';
 import { EmoteBubble, EmoteLive } from './EmoteBubble';
 import { EmotePicker } from './EmotePicker';
 import type { EmoteBySeat } from './emote-feed';
 import { GameSettings } from './GameSettings';
 import { HorseNamesDialog } from './HorseNamesDialog';
 import { HostLeaveDialog } from './HostLeaveDialog';
+import { cpuDisplayName, seatName as seatLabel } from './names';
 import { RulesSheet } from './RulesSheet';
 
 const INVITE_SENT_MS = 10_000;
@@ -27,13 +30,8 @@ interface Props {
   offline: boolean;
 }
 
-function seatLabel(seat: RoomSnapshot['seats'][number] | undefined): string {
-  const occ = seat?.occupant;
-  if (!occ) return '';
-  return occ.kind === 'cpu' ? occ.name : occ.user.displayName;
-}
-
 export function WaitingView({ room, myId, send, actionError, emotes, offline }: Props) {
+  const t = useT();
   const navigate = useNavigate();
   const { online, invite } = useLobby();
   const [copied, setCopied] = useState<'idle' | 'done' | 'failed'>('idle');
@@ -65,7 +63,7 @@ export function WaitingView({ room, myId, send, actionError, emotes, offline }: 
 
   const share = async () => {
     try {
-      await navigator.share({ title: room.name, text: `Vào phòng ${room.name} chơi cờ cá ngựa nhé!`, url: link });
+      await navigator.share({ title: room.name, text: t('wait.shareText', { name: room.name }), url: link });
       reportInviteShared();
     } catch {
       // dismissed by the user
@@ -102,46 +100,46 @@ export function WaitingView({ room, myId, send, actionError, emotes, offline }: 
     void navigate('/');
   };
 
-  const startReason = occupied < 2 ? 'Cần ít nhất 2 người chơi để bắt đầu.' : null;
+  const startReason = occupied < 2 ? t('wait.needTwo') : null;
 
   return (
     <main className="room-page">
       <section className="glass room-panel" aria-labelledby="room-name">
         <header className="room-head">
           <p className="ui-eyebrow">
-            Phòng chờ · {room.visibility === 'public' ? 'Công khai' : 'Riêng tư'}
-            {room.allowTakeover && <span data-testid="allow-takeover-tag"> · Cho vào thay máy</span>}
+            {t('wait.eyebrow', { visibility: room.visibility === 'public' ? t('wait.public') : t('wait.private') })}
+            {room.allowTakeover && <span data-testid="allow-takeover-tag">{t('wait.takeoverTag')}</span>}
           </p>
           <h1 id="room-name" className="ui-title room-title" data-testid="room-name">
             {room.name}
           </h1>
           <div className="room-code-row">
             <span className="room-code-chip">
-              <span className="ui-muted">Mã phòng</span>
+              <span className="ui-muted">{t('wait.code')}</span>
               <strong className="room-code" data-testid="room-code">
                 {room.code}
               </strong>
             </span>
-            <button type="button" className="ui-btn ui-btn--secondary room-share-action" aria-label="Sao chép link" title="Sao chép link" data-testid="copy-link" onClick={() => void copy()}>
+            <button type="button" className="ui-btn ui-btn--secondary room-share-action" aria-label={t('wait.copyLink')} title={t('wait.copyLink')} data-testid="copy-link" onClick={() => void copy()}>
               <Icon name={copied === 'done' ? 'check' : 'copy-link'} />
-              <span>Sao chép link</span>
+              <span>{t('wait.copyLink')}</span>
             </button>
             {canShare && (
-              <button type="button" className="ui-btn ui-btn--secondary room-share-action" aria-label="Chia sẻ" title="Chia sẻ" data-testid="share-button" onClick={() => void share()}>
+              <button type="button" className="ui-btn ui-btn--secondary room-share-action" aria-label={t('wait.share')} title={t('wait.share')} data-testid="share-button" onClick={() => void share()}>
                 <Icon name="share" />
-                <span>Chia sẻ</span>
+                <span>{t('wait.share')}</span>
               </button>
             )}
           </div>
           <p className="ui-muted copy-status" role="status" data-testid="copy-status">
-            {copied === 'done' && 'Đã sao chép link phòng.'}
-            {copied === 'failed' && 'Không sao chép được, hãy chép link thủ công: ' + link}
+            {copied === 'done' && t('wait.copied')}
+            {copied === 'failed' && t('wait.copyFailed', { link })}
           </p>
           {isHost && (
             <div className="start-row">
               <button type="button" className="ui-btn ui-btn--hero" data-testid="start-button" disabled={startReason !== null} onClick={() => send({ t: 'start' })}>
                 <Icon name="dice" size="lg" />
-                Bắt đầu
+                {t('wait.start')}
               </button>
               {startReason && <p className="ui-muted" data-testid="start-reason">{startReason}</p>}
             </div>
@@ -152,7 +150,7 @@ export function WaitingView({ room, myId, send, actionError, emotes, offline }: 
           <div className="room-col">
             <h2 className="ui-eyebrow">
               <Icon name="user" size="sm" />
-              Người chơi · {occupied}/{room.seats.length}
+              {t('wait.players', { taken: occupied, total: room.seats.length })}
             </h2>
             <ul className="seat-list" data-testid="seat-list">
               {room.seats.map((seat, i) => {
@@ -170,59 +168,59 @@ export function WaitingView({ room, myId, send, actionError, emotes, offline }: 
                       <button
                         type="button"
                         className="seat-select"
-                        aria-label={`Đổi sang màu ${COLOR_NAMES[seat.color]}`}
-                        title={`Đổi sang màu ${COLOR_NAMES[seat.color]}`}
+                        aria-label={t('color.change', { color: colorName(t, seat.color) })}
+                        title={t('color.change', { color: colorName(t, seat.color) })}
                         data-testid={`color-${seat.color}`}
                         disabled={offline}
                         onClick={() => send({ t: 'color', color: seat.color })}
                       />
                     )}
-                    <span className="seat-dot" title={COLOR_NAMES[seat.color]}>
-                      {occ !== null && <Icon name={occ.kind === 'cpu' ? 'bot' : host ? 'crown' : 'knight'} size="sm" label={host ? 'Chủ phòng' : undefined} />}
+                    <span className="seat-dot" title={colorName(t, seat.color)}>
+                      {occ !== null && <Icon name={occ.kind === 'cpu' ? 'bot' : host ? 'crown' : 'knight'} size="sm" label={host ? t('wait.host') : undefined} />}
                     </span>
                     <div className="seat-info">
                       <strong data-testid={`seat-${i}-name`}>
-                        {occ === null ? 'Chỗ trống' : occ.kind === 'cpu' ? occ.name : occ.user.displayName}
-                        {mine ? ' (bạn)' : ''}
+                        {occ === null ? t('wait.emptySeat') : occ.kind === 'cpu' ? cpuDisplayName(t, occ.name) : occ.user.displayName}
+                        {mine ? t('wait.you') : ''}
                       </strong>
                       <span
                         className={`seat-state${occ?.kind === 'human' && !occ.connected ? ' seat-state-off' : ''}`}
                         data-testid={`seat-${i}-state`}
                       >
-                        {occ === null && (mySeat && !offline ? 'Chờ người chơi · Đổi màu' : 'Chờ người chơi')}
-                        {occ?.kind === 'cpu' && `Máy · ${CPU_LEVEL_LABELS[cpuLevelOf(room)]}`}
-                        {occ?.kind === 'human' && (occ.connected ? 'Đang kết nối' : 'Mất kết nối')}
-                        {host && ' · Chủ phòng'}
+                        {occ === null && (mySeat && !offline ? t('wait.waitingChange') : t('wait.waitingPlayer'))}
+                        {occ?.kind === 'cpu' && t('cpu.badge', { level: cpuLevelLabel(t, cpuLevelOf(room)) })}
+                        {occ?.kind === 'human' && (occ.connected ? t('wait.connected') : t('wait.disconnected'))}
+                        {host && t('wait.hostSuffix')}
                       </span>
                       {seat.horseNames.some((n) => n !== '') && (
                         <span className="ui-muted seat-horses" data-testid={`seat-${i}-horses`}>
-                          Quân: {seat.horseNames.map((_, h) => horseLabel(seat.horseNames, h)).join(' · ')}
+                          {t('wait.horses', { names: seat.horseNames.map((_, h) => horseLabel(seat.horseNames, h)).join(' · ') })}
                         </span>
                       )}
                       <EmoteBubble seat={i} emote={emotes[i]} mine={mine} />
                     </div>
                     {mine && (
-                      <button type="button" className="ui-btn ui-btn--ghost seat-action" aria-label="Đặt tên quân" data-testid="rename-horses" onClick={() => setRenaming(true)}>
+                      <button type="button" className="ui-btn ui-btn--ghost seat-action" aria-label={t('wait.renameHorses')} data-testid="rename-horses" onClick={() => setRenaming(true)}>
                         <Icon name="pencil" size="sm" />
-                        <span className="seat-action-label">Đặt tên quân</span>
+                        <span className="seat-action-label">{t('wait.renameHorses')}</span>
                       </button>
                     )}
                     {isHost && occ === null && (
-                      <button type="button" className="ui-btn ui-btn--secondary seat-action" aria-label="Thêm máy" data-testid={`add-cpu-${i}`} onClick={() => send({ t: 'addCpu', seat: i })}>
+                      <button type="button" className="ui-btn ui-btn--secondary seat-action" aria-label={t('wait.addCpu')} data-testid={`add-cpu-${i}`} onClick={() => send({ t: 'addCpu', seat: i })}>
                         <span className="seat-cpu-icon" aria-hidden="true">
                           <Icon name="bot" size="sm" />
                           <Icon name="plus" size="sm" />
                         </span>
-                        <span className="seat-action-label">Thêm máy</span>
+                        <span className="seat-action-label">{t('wait.addCpu')}</span>
                       </button>
                     )}
                     {isHost && occ?.kind === 'cpu' && (
-                      <button type="button" className="ui-btn ui-btn--ghost seat-action" aria-label="Bỏ máy" data-testid={`remove-cpu-${i}`} onClick={() => send({ t: 'removeCpu', seat: i })}>
+                      <button type="button" className="ui-btn ui-btn--ghost seat-action" aria-label={t('wait.removeCpu')} data-testid={`remove-cpu-${i}`} onClick={() => send({ t: 'removeCpu', seat: i })}>
                         <span className="seat-cpu-icon" aria-hidden="true">
                           <Icon name="bot" size="sm" />
                           <Icon name="minus" size="sm" />
                         </span>
-                        <span className="seat-action-label">Bỏ máy</span>
+                        <span className="seat-action-label">{t('wait.removeCpu')}</span>
                       </button>
                     )}
                   </li>
@@ -231,13 +229,13 @@ export function WaitingView({ room, myId, send, actionError, emotes, offline }: 
             </ul>
             {actionError && (
               <p className="form-error" role="alert" data-testid="action-error">
-                {actionError}
+                {errorText(t, actionError)}
               </p>
             )}
 
             {!isHost && (
               <p className="await-host" data-testid="await-host">
-                Chờ chủ phòng bắt đầu…
+                {t('wait.awaitHost')}
               </p>
             )}
           </div>
@@ -250,11 +248,11 @@ export function WaitingView({ room, myId, send, actionError, emotes, offline }: 
             <section aria-labelledby="invite-title" className="room-box invite-box">
               <h2 id="invite-title" className="ui-eyebrow">
                 <Icon name="share" size="sm" />
-                Mời người đang online
+                {t('wait.inviteTitle')}
               </h2>
               {invitable.length === 0 ? (
                 <p className="ui-muted" data-testid="invite-empty">
-                  Chưa có ai khác đang online.
+                  {t('wait.inviteEmpty')}
                 </p>
               ) : (
                 <ul className="invite-list" data-testid="invite-list">
@@ -269,7 +267,7 @@ export function WaitingView({ room, myId, send, actionError, emotes, offline }: 
                         onClick={() => sendInvite(u.id)}
                       >
                         {sent.has(u.id) && <Icon name="check" size="sm" />}
-                        {sent.has(u.id) ? 'Đã mời' : 'Mời'}
+                        {sent.has(u.id) ? t('wait.invited') : t('wait.invite')}
                       </button>
                     </li>
                   ))}
@@ -279,17 +277,17 @@ export function WaitingView({ room, myId, send, actionError, emotes, offline }: 
           </div>
         </div>
 
-        <EmoteLive emotes={emotes} mySeat={room.seats.indexOf(mySeat!)} nameOf={(i) => seatLabel(room.seats[i])} />
+        <EmoteLive emotes={emotes} mySeat={room.seats.indexOf(mySeat!)} nameOf={(i) => seatLabel(t, room.seats[i])} />
 
         <footer className="room-footer">
           <button type="button" className="ui-btn ui-btn--secondary" data-testid="waiting-rules" onClick={() => setRulesOpen(true)}>
             <Icon name="rules" />
-            Luật chơi
+            {t('wait.rules')}
           </button>
           <EmotePicker send={send} offline={offline} />
           <button type="button" className="ui-btn ui-btn--ghost room-leave" data-testid="leave-room" onClick={startLeave}>
             <Icon name="leave" />
-            Rời phòng
+            {t('wait.leave')}
           </button>
         </footer>
       </section>
@@ -297,7 +295,7 @@ export function WaitingView({ room, myId, send, actionError, emotes, offline }: 
       {hostLeave && (
         <HostLeaveDialog
           others={others}
-          seatNote="Chỗ của bạn sẽ thành chỗ trống."
+          seatNote={t('wait.leaveSeatNote')}
           onHandover={handover}
           onCloseRoom={closeRoom}
           onCancel={() => setHostLeave(false)}

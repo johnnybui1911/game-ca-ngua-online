@@ -2,7 +2,8 @@ import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocation } from 'react-router';
 import { api } from '../api';
-import { FEEDBACK_CATEGORIES, FEEDBACK_CATEGORY_LABELS, FEEDBACK_LIMITS, type FeedbackCategory, type FeedbackResponse } from '../../../shared/feedback';
+import { useT } from '../i18n';
+import { FEEDBACK_CATEGORIES, FEEDBACK_LIMITS, type FeedbackCategory, type FeedbackResponse } from '../../../shared/feedback';
 import { Modal } from '../room/Modal';
 import { Icon } from '../ui/Icon';
 import { EMPTY_DRAFT, buildRequest, checkDraft, hasErrors, roomCodeFromPath, sendErrorText, textLength, type DraftErrors } from './feedback-form';
@@ -19,6 +20,7 @@ interface Props {
  * never asked for. Everything typed is plain text: it is sent as JSON and never rendered as HTML.
  */
 export function FeedbackModal({ onClose }: Props) {
+  const t = useT();
   const { pathname } = useLocation();
   const [draft, setDraft] = useState(EMPTY_DRAFT);
   const [status, setStatus] = useState<Status>('editing');
@@ -38,7 +40,7 @@ export function FeedbackModal({ onClose }: Props) {
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     if (sending || status === 'sent') return;
-    const found = checkDraft(draft);
+    const found = checkDraft(draft, t);
     setErrors(found);
     if (hasErrors(found)) return;
     setStatus('sending');
@@ -53,7 +55,7 @@ export function FeedbackModal({ onClose }: Props) {
       await api<FeedbackResponse>('/api/feedback', { method: 'POST', body });
       setStatus('sent');
     } catch (err) {
-      setSendError(sendErrorText(err));
+      setSendError(sendErrorText(err, t));
       setStatus('editing');
     }
   };
@@ -65,24 +67,24 @@ export function FeedbackModal({ onClose }: Props) {
         <div className="feedback-sent" role="status" data-testid="feedback-success">
           <Icon name="check" size="xl" />
           <h2 id="feedback-title" className="ui-title dialog-title">
-            Cảm ơn bạn!
+            {t('feedback.thanks')}
           </h2>
-          <p>Góp ý đã được gửi. Nhờ bạn mà trò chơi sẽ tốt hơn.</p>
+          <p>{t('feedback.sent')}</p>
         </div>
         <div className="dialog-actions">
           <button ref={doneRef} type="button" className="ui-btn ui-btn--primary" data-testid="feedback-done" onClick={onClose}>
-            Đóng
+            {t('feedback.close')}
           </button>
         </div>
       </>
     ) : (
       <>
         <h2 id="feedback-title" className="ui-title dialog-title">
-          Góp ý
+          {t('feedback.title')}
         </h2>
         <div className="form" data-testid="feedback-form">
           <div className="field">
-            <label htmlFor="feedback-category">Loại góp ý</label>
+            <label htmlFor="feedback-category">{t('feedback.category')}</label>
             <select
               id="feedback-category"
               className="glass-input glass-select feedback-control"
@@ -95,11 +97,11 @@ export function FeedbackModal({ onClose }: Props) {
               onChange={(e) => setDraft({ ...draft, category: e.target.value as FeedbackCategory | '' })}
             >
               <option value="" disabled>
-                Chọn loại góp ý
+                {t('feedback.pickCategory')}
               </option>
               {FEEDBACK_CATEGORIES.map((c) => (
                 <option key={c} value={c}>
-                  {FEEDBACK_CATEGORY_LABELS[c]}
+                  {t(`feedback.cat.${c}`)}
                 </option>
               ))}
             </select>
@@ -111,13 +113,13 @@ export function FeedbackModal({ onClose }: Props) {
           </div>
 
           <div className="field">
-            <label htmlFor="feedback-message">Nội dung</label>
+            <label htmlFor="feedback-message">{t('feedback.content')}</label>
             <textarea
               id="feedback-message"
               className="glass-input feedback-control feedback-message"
               data-testid="feedback-message"
               rows={5}
-              placeholder="Bạn muốn góp ý điều gì?"
+              placeholder={t('feedback.placeholder')}
               value={draft.message}
               disabled={sending}
               aria-invalid={errors.message ? true : undefined}
@@ -143,12 +145,12 @@ export function FeedbackModal({ onClose }: Props) {
           </div>
 
           <div className="field">
-            <label htmlFor="feedback-contact">Liên hệ (không bắt buộc)</label>
+            <label htmlFor="feedback-contact">{t('feedback.contact')}</label>
             <input
               id="feedback-contact"
               type="text"
               data-testid="feedback-contact"
-              placeholder="Email, Zalo… để mình phản hồi"
+              placeholder={t('feedback.contactPlaceholder')}
               autoComplete="off"
               value={draft.contact}
               disabled={sending}
@@ -164,7 +166,7 @@ export function FeedbackModal({ onClose }: Props) {
           </div>
 
           <p className="feedback-note">
-            {inRoom ? 'Mã phòng, trang đang xem và thiết bị của bạn được gửi kèm để mình dễ kiểm tra.' : 'Trang đang xem và thiết bị của bạn được gửi kèm để mình dễ kiểm tra.'}
+            {inRoom ? t('feedback.noteRoom') : t('feedback.note')}
           </p>
 
           {sendError && (
@@ -175,10 +177,10 @@ export function FeedbackModal({ onClose }: Props) {
         </div>
         <div className="dialog-actions">
           <button ref={submitRef} type="submit" className="ui-btn ui-btn--primary" data-testid="feedback-submit" disabled={sending}>
-            {sending ? 'Đang gửi…' : 'Gửi góp ý'}
+            {sending ? t('feedback.sending') : t('feedback.submit')}
           </button>
           <button type="button" className="ui-btn ui-btn--ghost" data-testid="feedback-cancel" disabled={sending} onClick={onClose}>
-            Hủy
+            {t('feedback.cancel')}
           </button>
         </div>
       </>

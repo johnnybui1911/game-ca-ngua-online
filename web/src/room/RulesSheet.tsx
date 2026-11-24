@@ -1,6 +1,7 @@
-import { rulesFor } from '../../../shared/rules-text';
+import { useT } from '../i18n';
 import { Icon } from '../ui/Icon';
 import { Modal } from './Modal';
+import { rulesForT } from './rules-copy';
 
 interface Props {
   /** The room's settings: a quick room lists the quick-match differences first. */
@@ -12,21 +13,22 @@ interface Props {
 
 /** Modal rules sheet. Opening it never touches the turn clock. */
 export function RulesSheet({ settings, secondsLeft, onClose }: Props) {
+  const t = useT();
   return (
     <Modal labelledBy="rules-title" testId="rules-sheet" className="rules-sheet" onClose={onClose}>
       <div className="rules-head">
         <h2 id="rules-title" className="ui-title dialog-title">
-          Luật chơi
+          {t('rules.title')}
         </h2>
         {secondsLeft !== null && (
           <span className="rules-countdown" data-testid="rules-countdown">
             <Icon name="timer" size="sm" />
-            Còn {secondsLeft} giây
+            {t('rules.secondsLeft', { n: secondsLeft })}
           </span>
         )}
       </div>
       <div className="rules-body">
-        {rulesFor(settings).map((section) => (
+        {rulesForT(t, settings).map((section) => (
           <section key={section.heading}>
             <h3>{section.heading}</h3>
             <ol>
@@ -39,7 +41,7 @@ export function RulesSheet({ settings, secondsLeft, onClose }: Props) {
       </div>
       <button type="button" className="ui-btn ui-btn--primary" data-testid="rules-close" data-autofocus onClick={onClose}>
         <Icon name="close" />
-        Đóng
+        {t('rules.close')}
       </button>
     </Modal>
   );
@@ -47,8 +49,9 @@ export function RulesSheet({ settings, secondsLeft, onClose }: Props) {
 
 /** Round help button that opens the sheet. */
 export function RulesButton({ onClick }: { onClick: () => void }) {
+  const t = useT();
   return (
-    <button type="button" className="ui-btn ui-btn--icon" aria-label="Luật chơi" data-testid="rules-button" onClick={onClick}>
+    <button type="button" className="ui-btn ui-btn--icon" aria-label={t('rules.title')} data-testid="rules-button" onClick={onClick}>
       <Icon name="help" />
     </button>
   );
