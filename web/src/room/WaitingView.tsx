@@ -158,8 +158,7 @@ export function WaitingView({ room, myId, send, actionError, emotes, offline }: 
                     style={{ '--seat-color': COLOR_VARS[seat.color] } as CSSProperties}
                   >
                     <span className="seat-dot" title={COLOR_NAMES[seat.color]}>
-                      {host && <Icon name="crown" size="sm" label="Chủ phòng" />}
-                      {occ?.kind === 'cpu' && <Icon name="bot" size="sm" />}
+                      {occ !== null && <Icon name={occ.kind === 'cpu' ? 'bot' : host ? 'crown' : 'knight'} size="sm" label={host ? 'Chủ phòng' : undefined} />}
                     </span>
                     <div className="seat-info">
                       <strong data-testid={`seat-${i}-name`}>
