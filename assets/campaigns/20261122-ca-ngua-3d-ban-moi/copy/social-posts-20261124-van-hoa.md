@@ -73,24 +73,24 @@ Link: `https://ca-ngua-online.johnny-bui1911.workers.dev/?utm_source=facebook`
 
 Trước khi đăng: đọc nội quy nhóm (tag `#share`, ngày được đăng link); mỗi nhóm cách nhau vài giờ và đổi nhẹ câu mở; trả lời bình luận nhanh trong giờ đầu.
 
-> **[Chia sẻ dự án] Cờ Cá Ngựa 3D chơi trên trình duyệt, làm cùng đội AI agent: vừa vẽ lại ngựa bằng Blender, làm lại UI và animation đá ngựa. Mong anh chị em chơi thử và góp ý 🙏**
+> **[Chia sẻ dự án] Cờ Cá Ngựa 3D chơi ngay trên trình duyệt, làm cùng đội AI agent. Mong anh chị em chơi thử và góp ý 🙏**
 >
 > Chào cả nhà, xin phép admin cho tui chia sẻ một dự án nhỏ ạ. Nhân Ngày Văn hoá Việt Nam, tui muốn mời mọi người chơi thử một trò chơi rất Việt Nam: cờ cá ngựa.
 >
-> Tui là Johnny. Tui cho một đội AI agent làm game cờ cá ngựa 3D chạy trên trình duyệt (điện thoại và máy tính). Bản đầu ra 21/11 từ đúng 1 prompt (Fable 5.2): chơi được, nhiều người, có máy chơi cùng, nhưng giao diện còn rất "AI". Đêm qua tui đập đi làm lại phần nhìn, nên xin mời mọi người xem thử:
+> Tui là Johnny. Mấy ngày nay tui cho một đội AI agent làm game cờ cá ngựa 3D chạy trên trình duyệt (điện thoại và máy tính): nhiều người chơi chung một phòng, có máy chơi cùng. Đêm qua đội vừa làm lại toàn bộ phần nhìn (vẽ lại ngựa bằng Blender, làm lại HUD, làm animation đá ngựa), nên tui xin mời mọi người chơi thử:
 >
 > 🎮 https://ca-ngua-online.johnny-bui1911.workers.dev/?utm_source=facebook
 > Không cài app, không đăng ký, nhập tên là chơi. Free, không quảng cáo.
 >
-> 🐴 **Bản mới có gì**
-> - **Vẽ lại ngựa:** trước là hình khối ghép bằng code trông như quân cờ vua nhựa. Giờ là mô hình ngựa gỗ (nguồn CC0 từ Poly Haven), tui cho agent chạy Blender không giao diện bằng script để dọn mesh, giảm số tam giác (~2.600), xuất glb. Mỗi màu nhuộm lên cùng một vân gỗ óc chó.
+> 🐴 **Game có gì**
+> - **Con ngựa:** dựng bằng hình khối ghép bằng code thì mãi trông như quân cờ vua nhựa, nên đêm qua tui cho agent làm lại bằng mô hình ngựa gỗ (nguồn CC0 từ Poly Haven), chạy Blender không giao diện bằng script để dọn mesh, giảm số tam giác (~2.600), xuất glb. Mỗi màu nhuộm lên cùng một vân gỗ óc chó.
 > - **Bàn cờ sơn mài, chuồng đích dạng bậc thang**, giữa phòng là tượng ngựa chồm mạ vàng "Mã đáo thành công". Phòng chơi có đèn lồng, câu đối đỏ, hoa văn.
 > - **Làm lại HUD cho điện thoại:** thanh điều khiển gọn, biểu tượng ghế, hộp thắng hiện sau pháo hoa.
 > - **Pha đá ngựa:** bật cao, đá hậu vào sườn ngựa kia, camera zoom cận; ngựa bị đá nhấc lên rồi bay vòng cung xoay hai vòng, camera lùi theo tới chuồng; có bụi, chớp sáng, khói hoạt hình, vòng sáng vàng, sao chóng mặt, tiếng gió. Chạy ở mức đồ hoạ cao/trung bình; máy yếu tự hạ cho mượt.
 > - Vẫn đúng luật cá ngựa Việt Nam, phòng nhiều người rủ bằng link, thêm máy 3 mức Dễ/Thường/Khó, ván nhanh, đồng hồ lượt, rớt mạng thì máy giữ chỗ.
 >
 > 🛠️ **Vài dòng cho anh chị em cùng vibe code**
-> - Lần này tui không 1 prompt nữa: chốt hướng trước, chia việc theo mảng, mỗi mảng một nhánh riêng chạy song song, review rồi mới gộp.
+> - Cách làm: tui chốt hướng thiết kế trước, chia việc theo mảng, mỗi mảng một nhánh riêng chạy song song, review rồi mới gộp.
 > - Bài học: AI làm rất nhanh nhưng "đẹp hay chưa" vẫn phải người quyết. Món giữa bàn tui đổi qua mâm ngũ quả → dưa hấu → tượng ngựa vàng; riêng con ngựa phải làm lại bằng mô hình thật, vì dựng bằng hình khối thì mãi không ra ngựa.
 > - Stack: React Three Fiber + Cloudflare Workers / Durable Objects / D1, đang chạy trong gói miễn phí. Âm thanh tổng hợp bằng Web Audio, không dùng file nhạc.
 >
@@ -105,7 +105,7 @@ Trước khi đăng: đọc nội quy nhóm (tag `#share`, ngày được đăng
 Ảnh: clip pha đá (đầu; chưa có thì `da-ngua-2-khung-1600x884.jpg`) → `ngua-truoc-sau-1600x924.jpg` → `truoc-sau-1080x1248.jpg` → `og-1200x630.jpg`.
 
 Cần anh xác nhận trước khi đăng:
-- "(Fable 5.2)" và "1 prompt" anh đã công khai 21/11; bỏ nếu không muốn nêu.
+- Em đã bỏ "Fable 5.2" và "1 prompt". Bài viết như bài giới thiệu đầu tiên ở nhóm, không nhắc bản 21/11.
 - "Mâm ngũ quả → dưa hấu → tượng ngựa": lấy từ lịch sử PR #50–#56; nếu anh không muốn kể thì xoá câu đó.
 - "~2.600 tam giác", Poly Haven CC0, Blender script: lấy từ `plans/reports/20261124-sumup-3d-wood-redesign.md`.
 - Câu "Chạy ở mức đồ hoạ cao/trung bình" đúng theo README, nhưng em chưa mở production bằng mắt sau deploy 11:49; anh mở thử pha đá trước khi đăng.
