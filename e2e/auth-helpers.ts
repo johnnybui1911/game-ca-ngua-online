@@ -15,6 +15,15 @@ export async function control(path: string, body: unknown = {}) {
   expect(res.ok).toBe(true);
 }
 
+/**
+ * Starts a provider sign-in. Only Google has a button for now; the other providers still work
+ * on the server, so they are started by their start URL.
+ */
+export async function startOAuth(page: Page, provider: 'google' | 'facebook' | 'x', returnTo = '/') {
+  if (provider === 'google') await page.getByTestId('oauth-google').click();
+  else await page.goto(`/api/auth/oauth/${provider}/start?returnTo=${encodeURIComponent(returnTo)}`);
+}
+
 export async function signUp(page: Page, email: string, name: string, password = PASSWORD) {
   await page.goto('/dang-ky');
   await page.getByTestId('signup-name').fill(name);

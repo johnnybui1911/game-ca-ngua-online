@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { PASSWORD, control, enterLobby, signOut, signUp, uniqueEmail } from './auth-helpers';
+import { PASSWORD, control, enterLobby, signOut, signUp, startOAuth, uniqueEmail } from './auth-helpers';
 
 test.beforeEach(async () => {
   await control('reset');
@@ -15,8 +15,8 @@ for (const [provider, label] of [
     await control('profile', { provider, profile: { id, name: `Mock ${label} ${id.slice(-4)}` } });
 
     await page.goto('/dang-nhap?returnTo=%2Fr%2FABC234');
-    await expect(page.getByTestId(`oauth-${provider}`)).toBeEnabled();
-    await page.getByTestId(`oauth-${provider}`).click();
+    if (provider === 'google') await expect(page.getByTestId('oauth-google')).toBeEnabled();
+    await startOAuth(page, provider, '/r/ABC234');
     await expect(page).toHaveURL('/r/ABC234');
     await page.goto('/');
     const greeting = `Xin chào, Mock ${label} ${id.slice(-4)}`;
@@ -26,7 +26,7 @@ for (const [provider, label] of [
     await signOut(page);
     // The profile name changed at the provider; the existing account must be reused, not recreated.
     await control('profile', { provider, profile: { id, name: 'Tên Khác' } });
-    await page.getByTestId(`oauth-${provider}`).click();
+    await startOAuth(page, provider);
     await expect(page.getByTestId('greeting')).toHaveText(greeting);
     const second = await (await page.request.get('/api/auth/me')).json();
     expect(second.user.id).toBe(first.user.id);
@@ -109,7 +109,7 @@ test('Facebook with the same email creates a separate user', async ({ page }) =>
     provider: 'facebook',
     profile: { id: `f-${Date.now()}`, name: 'Người Facebook', email, emailVerified: true },
   });
-  await page.getByTestId('oauth-facebook').click();
+  await startOAuth(page, 'facebook');
   await expect(page.getByTestId('greeting')).toHaveText('Xin chào, Người Facebook');
   const after = await (await page.request.get('/api/auth/me')).json();
   expect(after.user.id).not.toBe(before.user.id);
@@ -142,7 +142,7 @@ test('a provider-only account cannot sign in with a password', async ({ page }) 
 test('a denied authorization shows a generic error', async ({ page }) => {
   await control('deny', { provider: 'x', deny: true });
   await page.goto('/dang-nhap');
-  await page.getByTestId('oauth-x').click();
+  await startOAuth(page, 'x');
   await expect(page).toHaveURL(/\/dang-nhap\?error=oauth_failed/);
   await expect(page.getByTestId('signin-error')).toHaveText('Đăng nhập không thành công. Vui lòng thử lại.');
 });

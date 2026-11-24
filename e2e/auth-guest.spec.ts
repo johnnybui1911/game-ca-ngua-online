@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { ORIGIN_HEADER, PASSWORD, control, openLobby, signUp, uniqueEmail, whoAmI } from './auth-helpers';
+import { ORIGIN_HEADER, PASSWORD, control, openLobby, signUp, startOAuth, uniqueEmail, whoAmI } from './auth-helpers';
 import { createRoom, newGuest, newPlayer, ORIGIN } from './helpers/rooms';
 
 test.beforeEach(async () => {
@@ -235,7 +235,7 @@ test('a guest signing in with a provider seen for the first time keeps the user 
   const g = await newGuest(browser, 'Tên Khách Chọn');
   await control('profile', { provider: 'facebook', profile: { id: `f-${Date.now()}`, name: 'Tên Từ Facebook' } });
   await g.page.goto('/dang-nhap');
-  await g.page.getByTestId('oauth-facebook').click();
+  await startOAuth(g.page, 'facebook');
   await expect(g.page).toHaveURL('/');
   await expect(g.page.getByTestId('greeting')).toHaveText('Xin chào, Tên Khách Chọn');
   expect(await whoAmI(g.page)).toEqual({ id: g.id, displayName: 'Tên Khách Chọn', guest: false });

@@ -189,19 +189,28 @@
 }
 
 .glass .btn-provider {
+  position: relative;
   width: 100%;
+  justify-content: center;
+  padding-inline: 64px;
 }
 
 .provider-mark {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: var(--provider-color, var(--color-text));
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0;
+  width: 56px;
+  display: grid;
+  place-items: center;
+  color: var(--color-text);
+  border-inline-end: 1px solid color-mix(in srgb, var(--color-text) 18%, transparent);
 }
 
-.provider-google { --provider-color: var(--horse-red); }
-.provider-facebook { --provider-color: var(--horse-blue); }
-.provider-x { --provider-color: var(--color-text); }
+.provider-mark svg {
+  width: 22px;
+  height: 22px;
+  display: block;
+}
 
 .glass .switch-link {
   margin: 0;
