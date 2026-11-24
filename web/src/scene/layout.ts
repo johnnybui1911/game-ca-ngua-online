@@ -165,8 +165,8 @@ export const CELL_RADIUS = 0.5;
 
 /** Top of the inlay and the footprints of the stairs and centre dais, in board units. */
 export const INLAY_TOP = 0.04;
-export const TREAD_WIDTH = 0.9;
-export const DAIS_WIDTH = 0.88;
+export const TREAD_WIDTH = 1.12;
+export const DAIS_WIDTH = 1;
 /** Scale of the floating medallion, keeping it clear of the full-size home discs. */
 export const HUB_SCALE = 0.78;
 /** Outer radius of the gold ring around the floating centre medallion. */

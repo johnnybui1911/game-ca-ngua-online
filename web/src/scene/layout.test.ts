@@ -183,7 +183,8 @@ describe('horse placement', () => {
 
 describe('home stair clearances', () => {
   it('leaves the same gap beside the neighbouring track discs for every step', () => {
-    expect(1 + TRACK_OUTSET - TREAD_WIDTH / 2 - CELL_RADIUS).toBeCloseTo(0.23, 9);
+    expect(1 + TRACK_OUTSET - TREAD_WIDTH / 2 - CELL_RADIUS).toBeCloseTo(0.12, 9);
+    expect(TREAD_WIDTH / 2).toBeGreaterThan(CELL_RADIUS);
     expect(1 + TRACK_OUTSET - CELL_RADIUS - LANE_HALF_WIDTH).toBeCloseTo(
       INLAY_HALF_WIDTH - (1 + TRACK_OUTSET + CELL_RADIUS), 9,
     );
@@ -202,8 +203,8 @@ describe('home stair clearances', () => {
     }
   });
 
-  it('keeps each sixth disc clear of the dais, with its centre and horse pose unchanged', () => {
-    expect(1 - DAIS_WIDTH / 2 - CELL_RADIUS).toBeCloseTo(0.06, 9);
+  it('joins the sixth treads to the dais while preserving the disc and horse centres', () => {
+    expect(1 - DAIS_WIDTH / 2 - 0.5).toBeCloseTo(0, 9);
     expect(1 - HUB_RING_RADIUS - CELL_RADIUS).toBeCloseTo(0.071, 9);
     for (const color of COLORS) {
       for (let step = 1; step <= HOME_STEPS; step++) {
@@ -214,7 +215,6 @@ describe('home stair clearances', () => {
       }
     }
     expect(obstacleHeight(DAIS_WIDTH / 2 - 0.001, 0, 0)).toBeCloseTo(INLAY_TOP + 7 * STAIR_RISE, 9);
-    expect(obstacleHeight((DAIS_WIDTH / 2 + 0.5) / 2, 0, 0)).toBe(0);
     expect(obstacleHeight(0.501, 0, 0)).toBeCloseTo(INLAY_TOP + HOME_STEPS * STAIR_RISE, 9);
   });
 });

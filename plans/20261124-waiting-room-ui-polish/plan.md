@@ -25,7 +25,7 @@ Game rule changes, migration of existing rooms, deployment or merge.
 - Settings spacing and mode rules link match the request.
 - A limited-game clock sits above the HUD without colliding with the badge or future camera reset control, is readable and urgent in its final minute, and is absent for unlimited games. Only the local turn label shortens on mobile.
 - CPU add/remove actions use robot icons with plus/minus badges and remain separate from color selection.
-- Clear the neighbouring track discs and centre dais from all home stairs without moving game positions, changing horse heights, or altering the approved 3D look.
+- Clear neighbouring track discs from the home stairs and join the centre dais to all four staircases without changing game positions or horse heights.
 - Unit tests, typecheck, full tests and build pass; update user-visible E2E specs without running them per Johnny's instruction. Measure the requested viewports using a temporary Playwright script and stop its server.
 
 ## Decisions
@@ -35,7 +35,7 @@ Game rule changes, migration of existing rooms, deployment or merge.
 - Apply sticky styling at all widths because the shell scrolls the waiting panel on desktop too.
 - Reserve the 40px band above the match panel in board framing and move transient overlays above it. Do not animate clock urgency.
 - Run autonomously and skip E2E execution as explicitly instructed.
-- Keep all home discs full-size, centre track discs between the coloured lanes and wood edges, align the three tip-row discs, and move horse poses with them. Narrow treads and the central dais and medallion; keep collision footprints consistent with the rendered geometry.
+- Keep all home discs and treads full-size, centre track discs between the coloured lanes and wood edges, align the three tip-row discs, and move horse poses with them. Join the central dais to the treads and retain a floating medallion; keep collision footprints consistent with the rendered geometry.
 
 ## Phases
 
