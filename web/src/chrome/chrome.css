@@ -44,6 +44,42 @@
   height: 40px;
 }
 
+.hud-bottom .camera-reset {
+  position: absolute;
+  left: var(--space-1);
+  bottom: calc(100% + var(--space-2));
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  min-height: 40px;
+  color: var(--color-gold);
+  background: var(--glass-fill-solid);
+  box-shadow: var(--glass-specular), var(--shadow-sm);
+}
+
+.hud-bottom .camera-reset::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + var(--space-2));
+  padding: var(--space-2) var(--space-3);
+  color: var(--color-text);
+  background: var(--glass-fill-solid);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  font-size: var(--text-sm);
+  white-space: nowrap;
+  pointer-events: none;
+  visibility: hidden;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .hud-bottom .camera-reset:hover::after {
+    visibility: visible;
+  }
+}
+
 /* Feedback pill */
 
 .feedback-pill {

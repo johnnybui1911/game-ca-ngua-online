@@ -1,6 +1,7 @@
 import type { Color, GameEvent, GameState } from '../../../shared/game/types';
 import type { RoomSnapshot } from '../../../shared/protocol';
 import type { StateBatch } from '../room/batches';
+import type { RefObject } from 'react';
 
 /**
  * Contract between the match page and the 3D scene. The match page owns all
@@ -28,6 +29,8 @@ export interface GameSceneProps {
   onPickHorse: (horse: number) => void;
   /** Called whenever the board starts or finishes animating what the server reported (rolls, moves). */
   onBusyChange?: (busy: boolean) => void;
+  /** Match-owned handle for returning the camera to its seat view. */
+  cameraReset?: RefObject<(() => void) | null>;
 }
 
 /** DOM label of each horse, `[color][horse]`, owned by the scene's mount point and placed by the frame loop. */

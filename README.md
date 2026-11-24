@@ -8,6 +8,8 @@ Chơi khách: người mới bấm "Chơi ngay" hoặc mở link phòng sẽ th�
 
 Trong phòng: mỗi quân có nhãn tên trên bàn cờ (mặc định là số 1–4), người chơi đặt tên cho quân màu của mình ở phòng chờ hoặc trong "Menu" khi đang chơi. Trên điện thoại, nút bắt đầu của chủ phòng luôn ở đầu phòng chờ khi cuộn. Chủ phòng có thể tạm dừng/tiếp tục ván (người đang tới lượt giữ nguyên thời gian còn lại) và đóng phòng để huỷ ván. Trên điện thoại có thể bật "Lắc máy để đổ xúc xắc" (nút "Bật lắc để đổ" hoặc trong "Menu"; lựa chọn lưu trong trình duyệt, iOS hỏi quyền cảm biến mỗi lần vào trang); mỗi lần lắc đổ một lần.
 
+Trong ván, nút góc nhìn bên trái phía trên thanh điều khiển đưa camera về góc nhìn mặc định của ghế. Nút không đổi góc nhìn khi camera đang chiếu pha đá ngựa.
+
 Trong ván, "Bảng đá ngựa" trong "Menu" xếp các màu theo số quân đối thủ đã đá. Máy chủ lưu số này trong `GameState.kicks`, theo màu của người đá, và gửi cùng trạng thái ván; ván cũ chưa có trường này tính từ 0, không khôi phục các cú đá trước đó.
 
 Luật chơi: nút tròn "?" ở thanh trạng thái khi đang chơi, mục "Luật chơi" trong "Menu" và nút "Luật chơi" ở phòng chờ mở bảng luật (nội dung ở `shared/rules-text.ts`, có test so khớp với trang giới thiệu `gioi-thieu.html`). Mở bảng luật không làm dừng đồng hồ lượt; tới lượt mình thì đầu bảng hiện "Còn N giây".
