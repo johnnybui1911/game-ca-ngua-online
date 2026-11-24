@@ -1,6 +1,6 @@
 # Mobile player HUD brainstorm
 
-Date: 2026-11-24. Status: Initially chosen: 1b; Johnny subsequently requested up to two rows of edge-aligned chips capped at 30% viewport width with a clear center gap, without an expand button, Menu toggle or triangle marker.
+Date: 2026-11-24. Status: Johnny's latest decision is one equal-width row when all player names have at most eight words, two equal-width rows otherwise, without an expand button, Menu toggle or triangle marker.
 
 ## Earlier Revision After Johnny's Feedback
 
@@ -102,4 +102,4 @@ Do not auto-collapse during animations: it can hide information or move a contro
 
 ## Remaining Decisions
 
-Johnny selected a compact HUD without a Menu switch and subsequently changed its arrangement to two edge-aligned columns with a center gap. The implementation keeps small lock and offline cues; the auto-play badge and CPU level are not displayed on mobile during a match.
+Johnny selected a compact HUD without a Menu switch; the latest arrangement is one or two rows based on the eight-word name threshold. The implementation keeps small lock and offline cues; the auto-play badge and CPU level are not displayed on mobile during a match.

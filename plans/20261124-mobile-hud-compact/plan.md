@@ -7,7 +7,7 @@ status: complete
 
 ## Outcome
 
-At widths below 720 px, show players in up to two compact rows, with a wide central gap, readable truncated names, avatars, turn emphasis and four finished-horse marks. The smaller measured top inset gives the game camera more usable vertical space.
+At widths below 720 px, show players in one compact row when all names have at most eight words, or two rows when any has more. Chips are equally wide, names truncate, and avatars, turn emphasis and four finished-horse marks remain visible.
 
 ## Constraints and non-goals
 
@@ -28,14 +28,15 @@ At widths below 720 px, show players in up to two compact rows, with a wide cent
 
 ## Decisions
 
-- Johnny initially chose option 1b, then requested up to two rows with edge-aligned, content-sized chips capped at 30% of the viewport width and a clear center gap. No expand, menu controls or triangle marker. Hide secondary badge rows on mobile, while retaining small lock/offline cues where they fit.
-- Truncate long names at the chip width cap.
+- Johnny's latest decision: one row when all names have at most eight whitespace-separated words; otherwise two rows. Chips are equal width with only ordinary spacing between columns. No expand, menu controls or triangle marker. Hide secondary badge rows on mobile, while retaining small lock/offline cues.
+- Two seats remain on one row even for long names; with three seats and a long name, center the third chip in the second row at the same width as the first two.
+- Truncate names that do not fit their chip, independently of their word count.
 - Keep the existing maximum-inset camera policy; the mobile strip has stable height and the observer measures it directly.
 - Use existing icon, color and glass tokens; do not introduce a UI library or new copy for decorative cues.
 
 ## Acceptance
 
-- Two, three and four players fit in content-sized chips across two edge-aligned columns; names truncate without overlapping, and emotes remain attached and visible within the viewport.
+- Two, three and four players fit in equal-width chips using the requested word-count threshold; names truncate without overlapping, and emotes remain attached and visible within the viewport.
 - A progress count remains accessible; turn has a visible non-color marker and an accessible indication. Status icons do not clutter.
 - 360×740 and 390×844 classic and quick, two-seat, long-name and desktop 1280×800 comparisons include measured HUD and board framing.
 - Typecheck, `npx vitest run --maxWorkers=4`, build and focused checks pass; document any limitations.

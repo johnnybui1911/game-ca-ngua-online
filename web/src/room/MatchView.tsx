@@ -38,6 +38,7 @@ import { useShakeToRoll } from './shake';
 import { reserveInsets, type ReservedInsets } from '../scene/camera';
 import { CELEBRATION_SECONDS } from '../scene/director';
 import { Icon } from '../ui/Icon';
+import { hasLongHudName } from './hud-layout';
 
 /** Seconds left on the local player's action at which the reminder sounds. */
 const REMINDER_SECONDS = 10;
@@ -312,6 +313,8 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
   const lastRolledSeq = [...batches].reverse().find((b) => b.events.some((e) => e.type === 'rolled'))?.room.seq ?? null;
   const shake = useShakeToRoll(canRoll && !dialogOpen, lastRolledSeq, () => send({ t: 'roll' }));
   if (!game) return null;
+  const hudSeats = room.seats.filter((s) => s.occupant !== null && game.colors.includes(s.color));
+  const longHudName = hasLongHudName(hudSeats.map(seatName));
 
   const turnSeat = room.seats.find((s) => s.color === game.turn);
   const isHost = room.hostId === myId;
@@ -380,10 +383,8 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
         </Suspense>
       </div>
 
-      <ul className="hud-players" ref={hud.topRef}>
-        {room.seats
-          .filter((s) => s.occupant !== null && game.colors.includes(s.color))
-          .map((s) => {
+      <ul className={`hud-players${longHudName ? ' has-long-name' : ''}`} ref={hud.topRef}>
+        {hudSeats.map((s) => {
             const occ = s.occupant;
             const home = (game.horses[s.color] ?? []).filter((p) => p > POS_GATE).length;
             const active = !finished && game.turn === s.color;
