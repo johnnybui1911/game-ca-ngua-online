@@ -53,9 +53,10 @@
   <!-- end card -->
   <img id="end-img" class="still" src="media/statue.jpg" alt="" data-start="41.5" data-duration="3.5" style="object-position:62% 55%">
   <div id="end-shade" class="dim" data-start="41.5" data-duration="3.5" style="background:linear-gradient(90deg,rgba(20,6,5,.94) 0%,rgba(20,6,5,.8) 36%,rgba(20,6,5,0) 62%)"></div>
-  <div id="end-k" class="kicker" data-start="41.5" data-duration="3.5" style="left:110px;top:330px">Nhân Ngày Văn hoá Việt Nam</div>
-  <h1 id="end-h" class="h1" data-start="41.5" data-duration="3.5" style="left:110px;top:390px;font-size:118px">Rủ cả nhà<br>một <em>ván cờ</em><br><em>cá ngựa</em></h1>
-  <div id="end-b" class="brand" data-start="41.5" data-duration="3.5" style="left:110px;top:800px"><img src="media/mark.svg" alt=""><b>Cờ Cá Ngựa</b><span>3D ONLINE</span></div>
+  <div id="end-k" class="kicker" data-start="41.5" data-duration="3.5" style="left:110px;top:240px">Nhân Ngày Văn hoá Việt Nam</div>
+  <h1 id="end-h" class="h1" data-start="41.5" data-duration="3.5" style="left:110px;top:300px;font-size:118px">Rủ cả nhà<br>một <em>ván cờ</em><br><em>cá ngựa</em></h1>
+  <p id="end-t" data-start="41.5" data-duration="3.5" style="position:absolute;z-index:3;left:110px;top:810px;width:640px;font-size:34px;line-height:1.3;font-weight:500;color:var(--cream);opacity:.92">Cờ Cá Ngựa 3D Online: rủ nhau một ván, vui như hồi nhỏ</p>
+  <div id="end-b" class="brand" data-start="41.5" data-duration="3.5" style="left:110px;top:690px"><img src="media/mark.svg" alt=""><b>Cờ Cá Ngựa</b></div>
 </main>
 <script>
   window.__timelines = window.__timelines || {};
@@ -77,6 +78,7 @@
   tl.fromTo('#end-k', { y: 40, opacity: 0 }, { y: 0, opacity: 1, duration: .5 }, 41.6);
   tl.fromTo('#end-h', { y: 50, opacity: 0 }, { y: 0, opacity: 1, duration: .6, ease: 'back.out(1.4)' }, 41.75);
   tl.fromTo('#end-b', { y: 40, opacity: 0 }, { y: 0, opacity: 1, duration: .5 }, 42.3);
+  tl.fromTo('#end-t', { y: 30, opacity: 0 }, { y: 0, opacity: .92, duration: .5 }, 42.6);
   window.__timelines['ca-ngua-desktop'] = tl;
 </script>
 </body>

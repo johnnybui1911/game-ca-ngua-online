@@ -77,7 +77,9 @@ Trước khi đăng: đọc nội quy nhóm (tag `#share`, ngày được đăng
 
 > 👋 Chào mọi người, em là Johnny ạ
 >
-> Nhân Ngày Văn hoá Việt Nam hôm nay, em xin giới thiệu Cờ Cá Ngựa 3D online, game em vibe code cùng AI agent, để mình cùng chơi lại một trò tuổi thơ rất Việt Nam 🧧
+> Cờ Cá Ngựa 3D Online: rủ nhau một ván, vui như hồi nhỏ 🐴
+>
+> Nhân Ngày Văn hoá Việt Nam hôm nay, em xin giới thiệu game em vibe code cùng AI agent, để mình cùng chơi lại một trò tuổi thơ rất Việt Nam 🧧
 >
 > Ý tưởng rất đơn giản: nhóm bạn hay cả gia đình, đi cafe hay ở nhà, đều có thể chơi ngay một ván cờ cá ngựa ngay trên điện thoại hoặc tablet, với thiết kế 3D đồ họa đậm chất Việt, chỉ bằng một đường link. Khỏi phải đi tìm mua bộ cờ cá ngựa ở ngoài. Nhanh lẹ, free, giải trí nhanh cho anh chị em hội nhóm.
 >
@@ -85,7 +87,7 @@ Trước khi đăng: đọc nội quy nhóm (tag `#share`, ngày được đăng
 >
 > 🎮 Chơi ngay trên trình duyệt, nhập tên là chơi, không cần cài app, không cần đăng ký. Free ạ.
 >
-> 📜 Đúng luật cá ngựa Việt Nam, có bảng luật ngay trong ván.
+> 📜 Có bảng luật ngay trong ván, quên luật là bấm xem liền.
 >
 > 🏮 Bàn cờ 3D như phòng khách ngày Tết: quân ngựa gỗ, bàn sơn mài, đèn lồng, câu đối, tượng "Mã đáo thành công".
 >
