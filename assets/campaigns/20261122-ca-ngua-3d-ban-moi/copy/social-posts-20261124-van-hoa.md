@@ -52,8 +52,8 @@ Link: `https://cocangua3d.jblabs.me/?utm_source=facebook`
 >
 > #CoCaNgua #CoCaNguaOnline #NgayVanHoaVietNam #TroChoiTuoiTho #GameViet #Claude #ClaudeCode #VibeCoding
 
-Ảnh: `truoc-sau-1080x1248.jpg` (ảnh đầu) → `ngua-truoc-sau-1600x924.jpg` → clip pha đá (hoặc `da-ngua-2-khung-1600x884.jpg`) → `tet-board-780x1560.jpg`.
-**Sau khi đăng:** bình luận vào bài 21/11: "Bản mới lên rồi nè: [link bài mới]".
+Ảnh: `ads-01-hero.jpg` (ảnh đầu) → `ads-09-ma-dao-thanh-cong.jpg` → `ads-05-da-ngua.jpg`; hoặc đăng video điện thoại 9:16 (`ads/video/ca-ngua-ban-moi-1080x1920.mp4`).
+**Sau khi đăng:** bình luận vào bài 21/11: "Bản chính thức lên sàn rồi nè: [link bài mới]".
 
 ---
 
