@@ -60,6 +60,8 @@ Nút **VI | EN** nằm cạnh nút âm thanh ở góc trên bên phải (trang c
 
 Mọi chữ hiển thị nằm trong từ điển có kiểu ở `web/src/i18n/dict/*.ts`: mỗi khu vực là một `defineArea(vi, en)`, thiếu hoặc thừa khoá tiếng Anh là lỗi `tsc`. Thêm chữ mới: thêm khoá vào bản tiếng Việt, thêm bản tiếng Anh cùng khoá, dùng `const t = useT(); t('khu-vuc.khoa', { n })` (hàm ngoài React nhận tham số `t`, mặc định tiếng Việt). Nội dung do máy chủ gửi (thông báo lỗi, tên CPU "Máy n") vẫn là tiếng Việt trên đường truyền và được dịch ở client: thông báo lỗi khớp theo đúng câu tiếng Việt trong `dict/errors.ts` (test quét `worker/` và báo thiếu), tên CPU theo mẫu `Máy n`. Tên do người chơi đặt không bao giờ bị dịch. Trang tĩnh `gioi-thieu.html` không nằm trong phạm vi.
 
+**Chọn ngôn ngữ bằng đường dẫn**: link thường (`/`, `/r/<mã>`) mở bằng tiếng Việt như trước (trừ khi người đó đã chọn khác bằng nút VI | EN). Thêm `?lang=en` mở game bằng tiếng Anh, `?lang=vi` ép tiếng Việt; chạy trên mọi route (trang chủ, sảnh, link mời phòng), áp dụng trước khi vẽ khung hình đầu tiên, đặt `<html lang>` và được lưu như lựa chọn của người chơi nên chuyển trang hay tải lại không còn tham số vẫn giữ ngôn ngữ đó. Giá trị lạ bị bỏ qua. Tham số `lang` được gỡ khỏi thanh địa chỉ sau khi áp dụng (các tham số khác và đường dẫn giữ nguyên). Nút sao chép/chia sẻ link mời trong app vẫn tạo link thường, không kèm `lang`.
+
 ## Phát triển
 
 Cần Node 22.

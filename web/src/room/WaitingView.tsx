@@ -295,7 +295,7 @@ export function WaitingView({ room, myId, send, actionError, emotes, offline }: 
       {hostLeave && (
         <HostLeaveDialog
           others={others}
-          seatNote="Chỗ của bạn sẽ thành chỗ trống."
+          seatNote={t('wait.leaveSeatNote')}
           onHandover={handover}
           onCloseRoom={closeRoom}
           onCancel={() => setHostLeave(false)}

@@ -35,6 +35,8 @@ Every user-facing string of the React app (`web/src`) exists in Vietnamese (toda
 8. **Switch placement:** a VI / EN capsule (`i18n/LangSwitch.tsx`) in the app shell's top-right slot next to the sound button (home, lobby, auth pages, waiting room) and inside the match menu (the shell chrome steps aside during a match). Two buttons with `aria-pressed`.
 9. **Out of the dictionary on purpose:** scene dev pages, design preview, set lettering, console/dev strings, analytics event names.
 
+10. **Language from the link.** `?lang=en|vi` is applied when `lang.ts` loads (before React renders), saved as the person's choice, and removed from the address bar with `history.replaceState` (route, other params and hash kept; failure to rewrite is ignored). Unknown values are ignored; no parameter keeps the stored choice, else Vietnamese. In-app invite links stay plain (they carry no sender language): a receiver's own choice should decide.
+
 ## Acceptance criteria
 
 1. `npm run typecheck`, `npm test`, `npm run build` green; deleting an EN key makes `tsc` fail.

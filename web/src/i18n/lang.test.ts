@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { LANG_STORAGE_KEY, createLangStore, isLang, type Lang } from './lang';
+import { LANG_STORAGE_KEY, applyLangFromSearch, createLangStore, isLang, langFromSearch, searchWithoutLang, type Lang } from './lang';
 
 function memoryStorage(initial?: string) {
   const data = new Map<string, string>(initial === undefined ? [] : [[LANG_STORAGE_KEY, initial]]);
@@ -55,5 +55,53 @@ describe('language store', () => {
 
   it('accepts only the two languages', () => {
     expect(['vi', 'en', 'fr', '', null].map(isLang)).toEqual([true, true, false, false, false]);
+  });
+});
+
+describe('language from the link', () => {
+  const open = (search: string, stored?: string) => {
+    const storage = memoryStorage(stored);
+    const store = createLangStore(storage);
+    applyLangFromSearch(store, search);
+    return { store, storage };
+  };
+
+  it('opens in Vietnamese with no parameter and nothing stored', () => {
+    const { store, storage } = open('');
+    expect(store.get()).toBe('vi');
+    expect(storage.data.has(LANG_STORAGE_KEY)).toBe(false);
+  });
+
+  it('keeps a stored choice when the link has no parameter', () => {
+    expect(open('?foo=1', 'en').store.get()).toBe('en');
+  });
+
+  it('?lang=en opens in English and is saved for the next visit', () => {
+    const { store, storage } = open('?lang=en');
+    expect(store.get()).toBe('en');
+    expect(createLangStore(storage).get()).toBe('en');
+  });
+
+  it('?lang=vi overrides a stored English choice', () => {
+    const { store, storage } = open('?lang=vi', 'en');
+    expect(store.get()).toBe('vi');
+    expect(createLangStore(storage).get()).toBe('vi');
+  });
+
+  it('ignores an unknown value', () => {
+    expect(open('?lang=fr', 'en').store.get()).toBe('en');
+    expect(open('?lang=EN').store.get()).toBe('vi');
+    expect(open('?lang=').store.get()).toBe('vi');
+  });
+
+  it('reads the parameter next to others, as on a room link', () => {
+    expect(langFromSearch('?ref=invite&lang=en')).toBe('en');
+    expect(langFromSearch('')).toBeNull();
+  });
+
+  it('removes only the lang parameter from the address', () => {
+    expect(searchWithoutLang('?lang=en')).toBe('');
+    expect(searchWithoutLang('?ref=invite&lang=en&x=1')).toBe('?ref=invite&x=1');
+    expect(searchWithoutLang('?x=1')).toBe('?x=1');
   });
 });

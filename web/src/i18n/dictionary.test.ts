@@ -87,15 +87,20 @@ describe('server-made text', () => {
       ...import.meta.glob('../../../shared/protocol.ts', { eager: true, query: '?raw', import: 'default' }),
     } as Record<string, string>;
     const files = Object.keys(sources).filter((f) => !f.endsWith('.test.ts'));
-    // Strings in a message position: the last text argument of a `HttpError`/`RoomError`/`fail`/error frame.
-    const call = /(?:HttpError\(\s*\d+,\s*'[^']*',\s*|RoomError\(\s*'[^']*',\s*|fail\([^,]*,?\s*(?:\d+,\s*)?'[^']*',\s*|message:\s*|MESSAGE\s*=\s*)(['`])((?:(?!\1).)*[À-ỹ](?:(?!\1).)*)\1/g;
+    // Every Vietnamese literal in the worker is a player-facing message, except these (names, labels, comments).
+    const notMessages = new Set(['Người chơi', 'Kích thước màn hình', 'Thông tin liên hệ', 'Trình duyệt', 'Đường dẫn', 'Máy ${n}']);
+    const literal = /(['`])((?:(?!\1)[^\n\\])*[À-ỹ](?:(?!\1)[^\n\\])*)\1/g;
     const unknown: string[] = [];
     let found = 0;
     for (const file of files) {
-      for (const m of sources[file]!.matchAll(call)) {
-        found++;
-        const text = m[2]!.replace(/\$\{[^}]*\}/g, '1');
-        if (!matchServerMessage(text)) unknown.push(`${file}: ${text}`);
+      for (const line of sources[file]!.split('\n')) {
+        if (/^\s*(\*|\/\/|\/\*)/.test(line)) continue;
+        for (const m of line.replace(/\/\/.*$/, (c) => (/['`]/.test(c) ? c : '')).matchAll(literal)) {
+          if (notMessages.has(m[2]!) || /^ ?s |"Nhịp ván"/.test(m[2]!)) continue;
+          found++;
+          const text = m[2]!.replace(/\$\{[^}]*\}/g, '1');
+          if (!matchServerMessage(text)) unknown.push(`${file}: ${text}`);
+        }
       }
     }
     expect(found).toBeGreaterThan(40);

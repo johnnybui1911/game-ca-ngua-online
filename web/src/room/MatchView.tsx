@@ -171,12 +171,13 @@ function useForfeitToast(batches: StateBatch[], color: Color | null): number | n
 
 /** A notice for every person who takes a CPU's seat while this page is open (not for the local player's own). */
 function useTakeoverNotices(batches: StateBatch[], myId: string, notify: (text: string) => void) {
+  const t = useT();
   const consumed = useRef<number | null>(null);
   useEffect(() => {
     const from = consumed.current;
     consumed.current = batches[batches.length - 1]?.room.seq ?? from;
-    for (const text of takeoversAfter(batches, from, myId)) notify(text);
-  }, [batches, myId, notify]);
+    for (const text of takeoversAfter(batches, from, myId, t)) notify(text);
+  }, [batches, myId, notify, t]);
 }
 
 function useCountdown(deadline: number | null, offset: number): number | null {
@@ -328,10 +329,10 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
   const copyInvite = async () => {
     try {
       await navigator.clipboard.writeText(inviteLink(room.code));
-      notify('Đã sao chép link mời. Người vào sẽ chơi thay máy.');
+      notify(t('join.inviteCopied'));
       reportInviteShared();
     } catch {
-      notify('Không sao chép được link mời.');
+      notify(t('join.inviteCopyFailed'));
     }
   };
   const winnerSeat = game.winner === null ? undefined : room.seats.find((s) => s.color === game.winner);
@@ -472,7 +473,7 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
           <Icon name="camera-reset" />
         </button>
         {isHost && !finished && room.joinRequests.length > 0 && (
-          <ul className="join-requests" aria-label="Người xin vào thay máy" data-testid="join-requests">
+          <ul className="join-requests" aria-label={t('join.list')} data-testid="join-requests">
             {room.joinRequests.map((r) => (
               <li
                 key={r.user.id}
@@ -485,14 +486,14 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
                 </span>
                 <span className="join-request-text">
                   <strong>{r.user.displayName}</strong>
-                  <span>xin vào thay {seatName(room.seats.find((s) => s.color === r.color))}</span>
+                  <span>{t('join.wants', { cpu: seatName(t, room.seats.find((s) => s.color === r.color)) })}</span>
                 </span>
                 <span className="join-request-actions">
                   <button type="button" className="ui-btn ui-btn--primary" data-testid={`join-approve-${r.color}`} onClick={() => send({ t: 'approveJoin', userId: r.user.id })}>
-                    Duyệt
+                    {t('join.approve')}
                   </button>
                   <button type="button" className="ui-btn ui-btn--secondary" data-testid={`join-reject-${r.color}`} onClick={() => send({ t: 'rejectJoin', userId: r.user.id })}>
-                    Từ chối
+                    {t('join.reject')}
                   </button>
                 </span>
               </li>
@@ -641,7 +642,7 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
               onClick={() => setStatsOpen(true)}
             >
               <Icon name="win" />
-              Bảng đá ngựa
+              {t('kick.menu')}
             </button>
             <button
               type="button"
@@ -692,7 +693,7 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
                 }}
               >
                 <Icon name="share" />
-                Mời người vào thay máy
+                {t('join.menuInvite')}
               </button>
             )}
             {isHost && !finished && (
@@ -733,13 +734,13 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
       {statsOpen && room.game && (
         <Modal labelledBy="kick-stats-title" testId="kick-stats" className="kick-stats" onClose={() => setStatsOpen(false)} closeOnBackdrop>
           <div className="kick-stats-head">
-            <h2 id="kick-stats-title" className="ui-title dialog-title">Bảng đá ngựa</h2>
-            <button type="button" className="ui-btn ui-btn--icon" aria-label="Đóng" data-testid="kick-stats-close" data-autofocus onClick={() => setStatsOpen(false)}>
+            <h2 id="kick-stats-title" className="ui-title dialog-title">{t('kick.title')}</h2>
+            <button type="button" className="ui-btn ui-btn--icon" aria-label={t('kick.close')} data-testid="kick-stats-close" data-autofocus onClick={() => setStatsOpen(false)}>
               <Icon name="close" />
             </button>
           </div>
           <table className="kick-stats-table">
-            <thead><tr><th scope="col">Người chơi</th><th scope="col">Đã đá</th></tr></thead>
+            <thead><tr><th scope="col">{t('kick.player')}</th><th scope="col">{t('kick.kicked')}</th></tr></thead>
             <tbody>
               {[...room.game.colors]
                 .sort((a, b) => (room.game?.kicks?.[b] ?? 0) - (room.game?.kicks?.[a] ?? 0) || a - b)
@@ -750,7 +751,7 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
                       <td>
                         <span className="kick-stats-player">
                           <span className="kick-stats-swatch" style={{ '--seat-color': COLOR_VARS[color] } as CSSProperties} />
-                          <span className="kick-stats-name">{seatName(seat) || 'Máy'} <span className="ui-muted">({COLOR_NAMES[color]})</span></span>
+                          <span className="kick-stats-name">{seatName(t, seat) || t('kick.cpu')} <span className="ui-muted">({colorName(t, color)})</span></span>
                         </span>
                       </td>
                       <td>{room.game?.kicks?.[color] ?? 0}</td>
@@ -800,7 +801,7 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
       {hostLeave && !finished && (
         <HostLeaveDialog
           others={others}
-          seatNote="Máy sẽ chơi thay bạn đến hết ván."
+          seatNote={t('leave.body')}
           onHandover={handover}
           onCloseRoom={closeRoom}
           onCancel={() => setHostLeave(false)}

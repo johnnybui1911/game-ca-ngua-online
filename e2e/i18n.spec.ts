@@ -61,3 +61,26 @@ test('the switch changes the lobby and the room to English at once, and is remem
   await expect(page.locator('html')).toHaveAttribute('lang', 'vi');
   await host.context.close();
 });
+
+test('?lang=en opens in English on any route, is remembered and leaves the address clean', async ({ browser }) => {
+  const host = await newPlayer(browser, 'Link Lang', VIEWPORT);
+  const code = await createRoom(host, { name: 'Phòng link', seats: 3 });
+  const page = host.page;
+
+  await page.goto(`/r/${code}?lang=en`);
+  await expect(page.locator('html')).toHaveAttribute('lang', 'en');
+  await expect(page.getByTestId('start-button')).toHaveText('Start');
+  await expect(page).toHaveURL(new RegExp(`/r/${code}$`));
+
+  // No parameter now: the saved choice stays; ?lang=vi forces Vietnamese; an unknown value changes nothing.
+  const lang = page.locator('html');
+  await page.goto('/');
+  await expect(lang).toHaveAttribute('lang', 'en');
+  await page.goto('/?lang=vi');
+  await expect(lang).toHaveAttribute('lang', 'vi');
+  await expect(page.getByTestId('lang-vi')).toHaveAttribute('aria-pressed', 'true');
+  await page.goto('/?lang=xx');
+  await expect(lang).toHaveAttribute('lang', 'vi');
+  await expect(page).toHaveURL(/\/\?lang=xx$/);
+  await host.context.close();
+});
