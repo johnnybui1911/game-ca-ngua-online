@@ -75,28 +75,22 @@ Link: `https://ca-ngua-online.johnny-bui1911.workers.dev/?utm_source=facebook`
 
 Trước khi đăng: đọc nội quy nhóm (tag `#share`, ngày được đăng link, có cho đăng link trong bài không); mỗi nhóm cách nhau vài giờ và đổi nhẹ câu mở; trả lời bình luận nhanh trong giờ đầu.
 
-> **[Chia sẻ dự án] Nhân Ngày Văn hoá Việt Nam, tui cho AI agent làm lại cờ cá ngựa thành game 3D. Đêm qua nó vẽ lại con ngựa bằng Blender 🐴**
+> **[Chia sẻ dự án] Cờ cá ngựa 3D chơi ngay trên trình duyệt, làm cùng AI agent 🐴**
 >
-> Chào cả nhà, xin phép admin cho tui chia sẻ một dự án nhỏ ạ.
+> Chào cả nhà, xin phép admin cho tui chia sẻ một dự án nhỏ ạ. Nhân Ngày Văn hoá Việt Nam 24/11, tui mời mọi người chơi lại trò tuổi thơ: cờ cá ngựa 🧧
 >
-> Hôm nay 24/11 là Ngày Văn hoá Việt Nam, nên tui muốn mời mọi người chơi lại một trò tuổi thơ rất Việt Nam: cờ cá ngựa 🧧
+> Đêm qua agent vừa làm lại toàn bộ phần nhìn:
+> 🐴 Ngựa gỗ vẽ lại bằng Blender
+> 💥 Pha đá điện ảnh: bật cao, đá hậu, đối thủ bay vòng về chuồng
+> 📊 Bảng đá ngựa: ai đá nhiều nhất nhà
+> 🚪 Đang chơi dở vẫn xin vào, chủ phòng duyệt
+> ⚡ Ván Nhanh, máy Dễ / Thường / Khó, giới hạn thời gian ván
 >
-> Tui là Johnny. Mấy ngày nay tui cho một đội AI agent làm game cờ cá ngựa 3D chạy ngay trên trình duyệt (điện thoại và máy tính): đúng luật cá ngựa Việt Nam, nhiều người chơi chung một phòng, thiếu người thì có máy chơi cùng. Không cài app, không đăng ký, Free.
+> Đúng luật cá ngựa Việt Nam. Không cài app, không đăng ký, Free. Link ở bình luận đầu tiên 👇
 >
-> Đêm qua tui bảo agent làm lại toàn bộ phần nhìn:
-> 🐴 **Con ngựa:** dựng bằng hình khối ghép bằng code thì mãi trông như quân cờ vua nhựa. Giờ là mô hình ngựa gỗ (nguồn CC0 từ Poly Haven), chạy Blender không giao diện bằng script để dọn mesh, nhuộm theo từng màu lên vân gỗ óc chó
-> 💥 **Pha đá ngựa:** ngựa bật cao, đá hậu, camera zoom cận; ngựa bị đá bay vòng cung xoay hai vòng, camera lùi theo tới chuồng, có bụi, chớp sáng, khói hoạt hình, sao chóng mặt (máy yếu tự hạ cho mượt)
-> 🏮 **Phòng chơi như phòng khách ngày Tết:** bàn sơn mài, đèn lồng, câu đối đỏ, tượng ngựa chồm mạ vàng "Mã đáo thành công"
+> 🛠️ React Three Fiber + Cloudflare, chạy trong gói free.
 >
-> 🛠️ **Cho anh chị em cùng vibe code:** tui chốt hướng thiết kế trước, chia việc theo mảng, mỗi mảng một nhánh chạy song song rồi review mới gộp. AI làm rất nhanh, nhưng "đẹp hay chưa" vẫn phải người quyết (món giữa bàn tui đổi qua mâm ngũ quả → dưa hấu → tượng ngựa vàng). Stack: React Three Fiber + Cloudflare Workers / Durable Objects / D1, đang chạy trong gói miễn phí.
->
-> 👉 Link chơi thử tui để ở bình luận đầu tiên ạ.
->
-> Tui xin hỏi cả nhà hai chuyện:
-> 1️⃣ Hồi nhỏ nhà mình chơi cờ cá ngựa luật thế nào? Ra chuồng bằng 6 hay 1 hoặc 6, có được đá ngựa, phải đi đủ vòng mới lên chuồng không? Nghe nói mỗi nhà mỗi luật, tui muốn nghe thử 😄
-> 2️⃣ Ai chơi thử cho tui xin tên máy và trình duyệt, pha đá có mượt không, chỗ nào khó hiểu thì bấm "Góp ý" trong game hoặc bình luận giúp tui.
->
-> Hôm nay Ngày Văn hoá, ai còn cả nhà ở gần nhau thì bỏ điện thoại xuống chơi một ván cờ cá ngựa thật nha. Cảm ơn mọi người đã đọc và chơi thử ạ 🙏
+> Cả nhà cho tui hỏi: hồi nhỏ nhà mình chơi cờ cá ngựa luật thế nào, ra chuồng bằng 6 hay 1 hoặc 6? 😄 Ai chơi thử cho tui xin góp ý nha 🙏
 >
 > #CoCaNgua #CoCaNguaOnline #NgayVanHoaVietNam #VibeCoding #AIAgent #Claude #ClaudeCode #BuildInPublic #Blender #ThreeJS
 
@@ -119,7 +113,6 @@ Nếu nhóm cho đăng link trong bài thì dán link vào ngay sau câu "Không
 
 Cần anh xác nhận trước khi đăng:
 - Bài không nhắc "Fable 5.2", "1 prompt" và bản 21/11. Viết như bài giới thiệu đầu tiên.
-- "Mâm ngũ quả → dưa hấu → tượng ngựa": lấy từ lịch sử PR #50–#56; xoá nếu không muốn kể.
-- Poly Haven CC0, Blender script: lấy từ `plans/reports/20261124-sumup-3d-wood-redesign.md`.
-- "Nghe nói mỗi nhà mỗi luật": là câu hỏi mở để kéo bình luận, không phải khẳng định; em không có nguồn thống kê.
-- Câu "máy yếu tự hạ cho mượt" đúng theo README; em chưa mở production bằng mắt sau deploy 11:49, anh mở thử pha đá trước khi đăng.
+- Mọi tính năng trong bài đều có trên bản live: ngựa gỗ (Blender), pha đá, Bảng đá ngựa, xin vào thay máy chủ phòng duyệt, Ván Nhanh, máy 3 mức, giới hạn thời gian ván.
+- Dòng "React Three Fiber + Cloudflare, chạy trong gói free" lấy từ README; xoá nếu không muốn nêu stack.
+- Câu hỏi về luật nhà mình là câu hỏi mở để kéo bình luận.
