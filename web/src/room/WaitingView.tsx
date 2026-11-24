@@ -120,12 +120,12 @@ export function WaitingView({ room, myId, send, actionError, emotes, offline }: 
                 {room.code}
               </strong>
             </span>
-            <button type="button" className="ui-btn ui-btn--secondary room-share-action" aria-label="Sao chép link" title="Sao chép link" data-testid="copy-link" onClick={() => void copy()}>
+            <button type="button" className="ui-btn ui-btn--secondary room-share-action" aria-label={t('wait.copyLink')} title={t('wait.copyLink')} data-testid="copy-link" onClick={() => void copy()}>
               <Icon name={copied === 'done' ? 'check' : 'copy-link'} />
               <span>{t('wait.copyLink')}</span>
             </button>
             {canShare && (
-              <button type="button" className="ui-btn ui-btn--secondary room-share-action" aria-label="Chia sẻ" title="Chia sẻ" data-testid="share-button" onClick={() => void share()}>
+              <button type="button" className="ui-btn ui-btn--secondary room-share-action" aria-label={t('wait.share')} title={t('wait.share')} data-testid="share-button" onClick={() => void share()}>
                 <Icon name="share" />
                 <span>{t('wait.share')}</span>
               </button>
@@ -139,7 +139,7 @@ export function WaitingView({ room, myId, send, actionError, emotes, offline }: 
             <div className="start-row">
               <button type="button" className="ui-btn ui-btn--hero" data-testid="start-button" disabled={startReason !== null} onClick={() => send({ t: 'start' })}>
                 <Icon name="dice" size="lg" />
-                Bắt đầu
+                {t('wait.start')}
               </button>
               {startReason && <p className="ui-muted" data-testid="start-reason">{startReason}</p>}
             </div>

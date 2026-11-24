@@ -314,7 +314,7 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
   const shake = useShakeToRoll(canRoll && !dialogOpen, lastRolledSeq, () => send({ t: 'roll' }));
   if (!game) return null;
   const hudSeats = room.seats.filter((s) => s.occupant !== null && game.colors.includes(s.color));
-  const longHudName = hasLongHudName(hudSeats.map(seatName));
+  const longHudName = hasLongHudName(hudSeats.map((s) => seatName(t, s)));
 
   const turnSeat = room.seats.find((s) => s.color === game.turn);
   const isHost = room.hostId === myId;
@@ -403,11 +403,11 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
                 <span className="seat-dot" title={colorName(t, s.color)}>
                   <Icon name={occ?.kind === 'cpu' ? 'bot' : occ?.kind === 'human' && occ.user.id === room.hostId ? 'crown' : 'knight'} size="sm" />
                   {locked && (
-                    <span className="hud-seat-state hud-seat-lock" role="img" aria-label={LOCKED_LABEL}>
+                    <span className="hud-seat-state hud-seat-lock" role="img" aria-label={t('rules.locked')}>
                       <Icon name="lock" size="sm" />
                     </span>
                   )}
-                  {disconnected && <span className="hud-seat-state hud-seat-offline" role="img" aria-label="Offline" />}
+                  {disconnected && <span className="hud-seat-state hud-seat-offline" role="img" aria-label={t('hud.offline')} />}
                 </span>
                 <span className="hud-player-main">
                   <span className="hud-name" title={seatName(t, s)}>{seatName(t, s)}</span>
@@ -456,7 +456,7 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
           <span
             className={`game-countdown${gameSeconds <= 60 ? ' is-low' : ''}`}
             data-testid="game-countdown"
-            aria-label={`Thời gian ván còn lại ${formatGameTime(gameSeconds)}`}
+            aria-label={t('time.gameLeft', { time: formatGameTime(gameSeconds) })}
           >
             <Icon name="timer" size="sm" />
             {formatGameTime(gameSeconds)}
@@ -465,8 +465,8 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
         <button
           type="button"
           className="ui-btn ui-btn--icon camera-reset"
-          aria-label="Về góc nhìn mặc định"
-          data-tooltip="Reset góc quay"
+          aria-label={t('camera.reset')}
+          data-tooltip={t('camera.tooltip')}
           data-testid="camera-reset"
           onClick={() => cameraReset.current?.()}
         >
@@ -522,7 +522,7 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
               {myTurn && !paused ? (
                 <>
                   <span className="turn-full">{turnText}</span>
-                  <span className="turn-short">Bạn</span>
+                  <span className="turn-short">{t('hud.you')}</span>
                 </>
               ) : turnText}
             </p>
