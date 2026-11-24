@@ -185,6 +185,7 @@ describe('home stair clearances', () => {
   it('leaves the same gap beside the neighbouring track discs for every step', () => {
     expect(1 + TRACK_OUTSET - TREAD_WIDTH / 2 - CELL_RADIUS).toBeCloseTo(0.12, 9);
     expect(TREAD_WIDTH / 2).toBeGreaterThan(CELL_RADIUS);
+    expect(LANE_END - (6 + 0.5)).toBeCloseTo(LANE_HALF_WIDTH - TREAD_WIDTH / 2, 9);
     expect(1 + TRACK_OUTSET - CELL_RADIUS - LANE_HALF_WIDTH).toBeCloseTo(
       INLAY_HALF_WIDTH - (1 + TRACK_OUTSET + CELL_RADIUS), 9,
     );

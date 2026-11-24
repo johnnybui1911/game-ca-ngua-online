@@ -38,7 +38,7 @@ const ARM = 7;
 export const INLAY_HALF_WIDTH = 1.74;
 export const INLAY_HALF_LENGTH = 7.92;
 export const LANE_HALF_WIDTH = 0.62;
-export const LANE_END = 6.66;
+export const LANE_END = 6.56;
 /** Outward shift of track lanes from home columns, in board units. */
 export const TRACK_OUTSET = (INLAY_HALF_WIDTH + LANE_HALF_WIDTH) / 2 - 1;
 /** Centre the gate between the end of the coloured lane and the inlay edge. */

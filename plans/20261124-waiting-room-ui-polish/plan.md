@@ -35,7 +35,7 @@ Game rule changes, migration of existing rooms, deployment or merge.
 - Apply sticky styling at all widths because the shell scrolls the waiting panel on desktop too.
 - Reserve the 40px band above the match panel in board framing and move transient overlays above it. Do not animate clock urgency.
 - Run autonomously and skip E2E execution as explicitly instructed.
-- Keep all home discs and treads full-size, centre track discs between the coloured lanes and wood edges, align the three tip-row discs, and move horse poses with them. Join the central dais to the treads and retain a floating medallion; keep collision footprints consistent with the rendered geometry.
+- Keep all home discs and treads full-size, balance the coloured lane around the outer tread, centre track discs between the coloured lanes and wood edges, align the three tip-row discs, and move horse poses with them. Join the central dais to the treads and retain a floating medallion; keep collision footprints consistent with the rendered geometry.
 
 ## Phases
 
