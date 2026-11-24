@@ -77,7 +77,8 @@ Trước khi đăng: đọc nội quy nhóm (tag `#share`, ngày được đăng
 
 > 👋 Chào mọi người, em là Johnny ạ
 >
-> Cờ Cá Ngựa 3D Online: rủ nhau một ván, vui như hồi nhỏ 🐴
+> 🐴 Cờ Cá Ngựa 3D Online: rủ nhau một ván, vui như hồi nhỏ
+> 👉 Chơi thử ngay: https://cocangua3d.jblabs.me/?utm_source=facebook
 >
 > Nhân Ngày Văn hoá Việt Nam hôm nay, em xin giới thiệu game em vibe code cùng AI agent, để mình cùng chơi lại một trò tuổi thơ rất Việt Nam 🧧
 >
@@ -101,8 +102,6 @@ Trước khi đăng: đọc nội quy nhóm (tag `#share`, ngày được đăng
 >
 > ⏱️ Tùy chọn thời gian ván: 20, 30, 60 phút hay vô hạn.
 >
-> Link game em để ở phần bình luận ạ.
->
 > Vì là sản phẩm cá nhân nên chắc chắn còn nhiều điểm cần cải thiện, rất mong các bác chơi thử và góp ý về giao diện, tính năng hoặc chỗ nào chưa hợp lý để em hoàn thiện thêm ạ. Cho em hỏi luôn: hồi nhỏ nhà các bác chơi cờ cá ngựa luật thế nào, ra chuồng bằng 6 hay 1 hoặc 6? 😄
 >
 > Cảm ơn BQT đã duyệt và mọi người đã đọc bài 😍
@@ -114,7 +113,7 @@ Trước khi đăng: đọc nội quy nhóm (tag `#share`, ngày được đăng
 > 🎮 Chơi thử: https://cocangua3d.jblabs.me/?utm_source=facebook
 > Luật chơi đầy đủ + giới thiệu: https://cocangua3d.jblabs.me/gioi-thieu?utm_source=facebook
 
-Nếu nhóm cho đăng link trong bài, dán link vào ngay sau câu "Free ạ." và bỏ dòng "Link game em để ở phần bình luận ạ".
+Link nằm ở đầu bài (hiện trước chữ "Xem thêm"), và lặp lại ở bình luận đầu tiên phòng khi nhóm ẩn link hoặc bài bị chìm. Nếu nhóm cấm link trong bài: xoá dòng 👉 và thêm "Link game em để ở bình luận đầu tiên ạ".
 
 Ảnh (album, 4 ảnh đầu hiện ra ngoài, nên xếp theo thứ tự):
 1. Có clip pha đá thì clip đầu tiên; chưa có thì `ngua-truoc-sau-1600x924.jpg` (ảnh kể chuyện "trước và sau")
