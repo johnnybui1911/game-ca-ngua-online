@@ -108,15 +108,6 @@ export function WaitingView({ room, myId, send, actionError, emotes, offline }: 
     <main className="room-page">
       <section className="glass room-panel" aria-labelledby="room-name">
         <header className="room-head">
-          {isHost && (
-            <div className="start-row">
-              <button type="button" className="ui-btn ui-btn--hero" data-testid="start-button" disabled={startReason !== null} onClick={() => send({ t: 'start' })}>
-                <Icon name="dice" size="lg" />
-                Bắt đầu
-              </button>
-              {startReason && <p className="ui-muted" data-testid="start-reason">{startReason}</p>}
-            </div>
-          )}
           <p className="ui-eyebrow">
             Phòng chờ · {room.visibility === 'public' ? 'Công khai' : 'Riêng tư'}
             {room.allowTakeover && <span data-testid="allow-takeover-tag"> · Cho vào thay máy</span>}
@@ -146,6 +137,15 @@ export function WaitingView({ room, myId, send, actionError, emotes, offline }: 
             {copied === 'done' && 'Đã sao chép link phòng.'}
             {copied === 'failed' && 'Không sao chép được, hãy chép link thủ công: ' + link}
           </p>
+          {isHost && (
+            <div className="start-row">
+              <button type="button" className="ui-btn ui-btn--hero" data-testid="start-button" disabled={startReason !== null} onClick={() => send({ t: 'start' })}>
+                <Icon name="dice" size="lg" />
+                Bắt đầu
+              </button>
+              {startReason && <p className="ui-muted" data-testid="start-reason">{startReason}</p>}
+            </div>
+          )}
         </header>
 
         <div className="room-columns">
