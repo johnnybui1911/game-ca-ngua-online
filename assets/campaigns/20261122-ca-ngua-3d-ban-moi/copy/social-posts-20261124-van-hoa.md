@@ -85,7 +85,7 @@ Trước khi đăng: đọc nội quy nhóm (tag `#share`, ngày được đăng
 >
 > - Đúng luật cá ngựa Việt Nam, có bảng luật ngay trong ván.
 >
-> - Bàn cờ 3D như phòng khách ngày Tết: ngựa gỗ, bàn sơn mài, đèn lồng, câu đối, tượng "Mã đáo thành công" (con ngựa em cho AI agent vẽ lại bằng Blender, các bác góp ý để em cải thiện ạ).
+> - Bàn cờ 3D như phòng khách ngày Tết: quân ngựa gỗ, bàn sơn mài, đèn lồng, câu đối, tượng "Mã đáo thành công".
 >
 > - Pha đá ngựa điện ảnh: ngựa bật cao, đá hậu, đối thủ bay vòng về chuồng. Có Bảng đá ngựa xem ai đá nhiều nhất nhà.
 >
@@ -95,7 +95,7 @@ Trước khi đăng: đọc nội quy nhóm (tag `#share`, ngày được đăng
 >
 > - Ván Nhanh, chỉnh thời gian cả ván và thời gian mỗi lượt.
 >
-> Các bác chơi thử rồi góp ý nhiệt tình giúp em ạ! Cho em hỏi luôn: hồi nhỏ nhà các bác chơi cờ cá ngựa luật thế nào, ra chuồng bằng 6 hay 1 hoặc 6 ạ? 😄
+> Game vẫn đang hoàn thiện, các bác chơi thử rồi góp ý nhiệt tình giúp em ạ! Cho em hỏi luôn: hồi nhỏ nhà các bác chơi cờ cá ngựa luật thế nào, ra chuồng bằng 6 hay 1 hoặc 6 ạ? 😄
 >
 > Link em để trong bài viết ạ: https://ca-ngua-online.johnny-bui1911.workers.dev/?utm_source=facebook
 >
