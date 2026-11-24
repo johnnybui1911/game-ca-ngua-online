@@ -213,7 +213,8 @@
 }
 
 @media (max-width: 899px) {
-  .room-panel {
+  /* Beats `.glass { padding }` (ui.css loads later), so the header rests below the sound button instead of sticking over the player list. */
+  .room-page .room-panel {
     padding-top: calc(var(--touch) + var(--space-2) + var(--space-5));
   }
 
