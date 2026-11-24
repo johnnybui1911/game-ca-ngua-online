@@ -1,0 +1,22 @@
+/* Privacy and terms pages: one readable panel, no hero or media. */
+.lp-legal main {
+  padding: var(--space-5) 0 var(--space-7);
+}
+
+.lp-legal h1 {
+  font-size: var(--text-2xl);
+}
+
+.lp-legal h2 {
+  margin-top: var(--space-6);
+}
+
+.lp-legal p {
+  margin: 0 0 var(--space-3);
+}
+
+.lp-legal .lp-legal-nav {
+  margin: var(--space-6) 0 0;
+  color: var(--color-text-subtle);
+  font-size: var(--text-sm);
+}
