@@ -72,6 +72,8 @@ export interface GameState {
   /** Horse indices of `turn` that may move with `dice`. Empty unless phase is 'move'. */
   legalHorses: number[];
   winner: Color | null;
+  /** Opponent horses kicked by each colour in this game. Absent in older stored games: all counts start at zero. */
+  kicks?: Record<Color, number>;
   /**
    * Rule variant of this game. Absent in games stored before variants existed: classic.
    * `quick` is the quick match: see the "Quick variant" block below.

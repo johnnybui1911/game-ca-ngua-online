@@ -12,6 +12,8 @@ interface Props {
   testId: string;
   /** Escape calls this; omit when the dialog has no dismiss action (the win dialog). */
   onClose?: () => void;
+  /** Allow clicking outside this panel to dismiss it. */
+  closeOnBackdrop?: boolean;
   /** Renders the panel as a form so Enter submits. */
   onSubmit?: (e: FormEvent) => void;
   className?: string;
@@ -22,7 +24,7 @@ interface Props {
  * Glass modal over the board. Focus moves to `[data-autofocus]` (or the first control), stays
  * inside while open, and returns to the opener when the dialog closes.
  */
-export function Modal({ labelledBy, testId, onClose, onSubmit, className, children }: Props) {
+export function Modal({ labelledBy, testId, onClose, closeOnBackdrop = false, onSubmit, className, children }: Props) {
   const ref = useRef<HTMLDivElement & HTMLFormElement>(null);
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
@@ -84,7 +86,9 @@ export function Modal({ labelledBy, testId, onClose, onSubmit, className, childr
   // Rendered on `body`: a `.glass` ancestor (backdrop-filter) would otherwise become the containing
   // block of the fixed backdrop and clip the dialog inside it.
   return createPortal(
-    <div className="dialog-backdrop">
+    <div className="dialog-backdrop" onClick={(e) => {
+      if (closeOnBackdrop && e.target === e.currentTarget) onClose?.();
+    }}>
       {onSubmit ? (
         <form {...shared} onSubmit={onSubmit}>
           {children}
