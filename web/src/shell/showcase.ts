@@ -21,6 +21,8 @@ function showcaseRoom(step: ShowcaseStep, quick: boolean): RoomSnapshot {
     seats: step.game.colors.map((color) => ({ color, occupant: null, horseNames: ['', '', '', ''], auto: false })),
     game: step.game,
     turnDeadline: null,
+    allowTakeover: false,
+    joinRequests: [],
     paused: false,
     cpuLevel: DEFAULT_CPU_LEVEL,
     settings: { ...DEFAULT_ROOM_SETTINGS, quick },
