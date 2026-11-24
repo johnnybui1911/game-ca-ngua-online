@@ -116,7 +116,6 @@ Link nằm ngay trong bài (theo bài mẫu của anh). Muốn đưa xuống bì
 8. `truoc-sau-1080x1248.jpg`
 
 Cần anh xác nhận trước khi đăng:
-- Bài không nhắc "Fable 5.2", "1 prompt" và bản 21/11. Viết như bài giới thiệu đầu tiên.
-- "Mâm ngũ quả → dưa hấu → tượng ngựa": lấy từ lịch sử PR #50–#56; xoá nếu không muốn kể.
-- Poly Haven CC0, Blender script: lấy từ `plans/reports/20261124-sumup-3d-wood-redesign.md`.
-- Bài này chưa nhắc "Bảng đá ngựa" và "xin vào giữa ván, chủ phòng duyệt" (hai tính năng mới có trên bản live); thêm một dòng mỗi cái nếu anh muốn.
+- Bài viết theo kiểu giới thiệu sản phẩm mới, không kể chuyện làm hay vẽ lại; không nhắc "Fable 5.2", "1 prompt", bản 21/11.
+- Mọi tính năng trong bài đều có trên bản live (đã quay và chụp trong bộ ảnh/video).
+- Link worker.dev sẽ đổi khi có domain mới; thay link trong bài trước khi đăng.
