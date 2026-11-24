@@ -43,6 +43,12 @@ h1 {
   box-shadow: 0 0 0 2px var(--color-bg);
 }
 
+/* A screen's heading takes focus on arrival (`focusScreen`) only for screen readers; it shows no ring. */
+[tabindex='-1']:focus {
+  outline: none;
+  box-shadow: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
