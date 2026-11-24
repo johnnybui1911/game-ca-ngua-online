@@ -73,43 +73,53 @@ Link: `https://ca-ngua-online.johnny-bui1911.workers.dev/?utm_source=facebook`
 
 Link: `https://ca-ngua-online.johnny-bui1911.workers.dev/?utm_source=facebook`
 
-Trước khi đăng: đọc nội quy nhóm (tag `#share`, ngày được đăng link); mỗi nhóm cách nhau vài giờ và đổi nhẹ câu mở; trả lời bình luận nhanh trong giờ đầu.
+Trước khi đăng: đọc nội quy nhóm (tag `#share`, ngày được đăng link, có cho đăng link trong bài không); mỗi nhóm cách nhau vài giờ và đổi nhẹ câu mở; trả lời bình luận nhanh trong giờ đầu.
 
-> **[Chia sẻ dự án] Cờ Cá Ngựa 3D chơi ngay trên trình duyệt, làm cùng đội AI agent. Mong anh chị em chơi thử và góp ý 🙏**
+> **[Chia sẻ dự án] Nhân Ngày Văn hoá Việt Nam, tui cho AI agent làm lại cờ cá ngựa thành game 3D. Đêm qua nó vẽ lại con ngựa bằng Blender 🐴**
 >
-> Chào cả nhà, xin phép admin cho tui chia sẻ một dự án nhỏ ạ. Nhân Ngày Văn hoá Việt Nam, tui muốn mời mọi người chơi thử một trò chơi rất Việt Nam: cờ cá ngựa.
+> Chào cả nhà, xin phép admin cho tui chia sẻ một dự án nhỏ ạ.
 >
-> Tui là Johnny. Mấy ngày nay tui cho một đội AI agent làm game cờ cá ngựa 3D chạy trên trình duyệt (điện thoại và máy tính): nhiều người chơi chung một phòng, có máy chơi cùng. Đêm qua đội vừa làm lại toàn bộ phần nhìn (vẽ lại ngựa bằng Blender, làm lại HUD, làm animation đá ngựa), nên tui xin mời mọi người chơi thử:
+> Hôm nay 24/11 là Ngày Văn hoá Việt Nam, nên tui muốn mời mọi người chơi lại một trò tuổi thơ rất Việt Nam: cờ cá ngựa 🧧
 >
-> 🎮 https://ca-ngua-online.johnny-bui1911.workers.dev/?utm_source=facebook
-> Không cài app, không đăng ký, nhập tên là chơi. Free, không quảng cáo.
+> Tui là Johnny. Mấy ngày nay tui cho một đội AI agent làm game cờ cá ngựa 3D chạy ngay trên trình duyệt (điện thoại và máy tính): đúng luật cá ngựa Việt Nam, nhiều người chơi chung một phòng, thiếu người thì có máy chơi cùng. Không cài app, không đăng ký, Free, không quảng cáo.
 >
-> 🐴 **Game có gì**
-> - **Con ngựa:** dựng bằng hình khối ghép bằng code thì mãi trông như quân cờ vua nhựa, nên đêm qua tui cho agent làm lại bằng mô hình ngựa gỗ (nguồn CC0 từ Poly Haven), chạy Blender không giao diện bằng script để dọn mesh, giảm số tam giác (~2.600), xuất glb. Mỗi màu nhuộm lên cùng một vân gỗ óc chó.
-> - **Bàn cờ sơn mài, chuồng đích dạng bậc thang**, giữa phòng là tượng ngựa chồm mạ vàng "Mã đáo thành công". Phòng chơi có đèn lồng, câu đối đỏ, hoa văn.
-> - **Làm lại HUD cho điện thoại:** thanh điều khiển gọn, biểu tượng ghế, hộp thắng hiện sau pháo hoa.
-> - **Pha đá ngựa:** bật cao, đá hậu vào sườn ngựa kia, camera zoom cận; ngựa bị đá nhấc lên rồi bay vòng cung xoay hai vòng, camera lùi theo tới chuồng; có bụi, chớp sáng, khói hoạt hình, vòng sáng vàng, sao chóng mặt, tiếng gió. Chạy ở mức đồ hoạ cao/trung bình; máy yếu tự hạ cho mượt.
-> - Vẫn đúng luật cá ngựa Việt Nam, phòng nhiều người rủ bằng link, thêm máy 3 mức Dễ/Thường/Khó, ván nhanh, đồng hồ lượt, rớt mạng thì máy giữ chỗ.
+> Đêm qua tui bảo agent làm lại toàn bộ phần nhìn:
+> 🐴 **Con ngựa:** dựng bằng hình khối ghép bằng code thì mãi trông như quân cờ vua nhựa. Giờ là mô hình ngựa gỗ (nguồn CC0 từ Poly Haven), chạy Blender không giao diện bằng script để dọn mesh, nhuộm theo từng màu lên vân gỗ óc chó
+> 💥 **Pha đá ngựa:** ngựa bật cao, đá hậu, camera zoom cận; ngựa bị đá bay vòng cung xoay hai vòng, camera lùi theo tới chuồng, có bụi, chớp sáng, khói hoạt hình, sao chóng mặt (máy yếu tự hạ cho mượt)
+> 🏮 **Phòng chơi như phòng khách ngày Tết:** bàn sơn mài, đèn lồng, câu đối đỏ, tượng ngựa chồm mạ vàng "Mã đáo thành công"
 >
-> 🛠️ **Vài dòng cho anh chị em cùng vibe code**
-> - Cách làm: tui chốt hướng thiết kế trước, chia việc theo mảng, mỗi mảng một nhánh riêng chạy song song, review rồi mới gộp.
-> - Bài học: AI làm rất nhanh nhưng "đẹp hay chưa" vẫn phải người quyết. Món giữa bàn tui đổi qua mâm ngũ quả → dưa hấu → tượng ngựa vàng; riêng con ngựa phải làm lại bằng mô hình thật, vì dựng bằng hình khối thì mãi không ra ngựa.
-> - Stack: React Three Fiber + Cloudflare Workers / Durable Objects / D1, đang chạy trong gói miễn phí. Âm thanh tổng hợp bằng Web Audio, không dùng file nhạc.
+> 🛠️ **Cho anh chị em cùng vibe code:** tui chốt hướng thiết kế trước, chia việc theo mảng, mỗi mảng một nhánh chạy song song rồi review mới gộp. AI làm rất nhanh, nhưng "đẹp hay chưa" vẫn phải người quyết (món giữa bàn tui đổi qua mâm ngũ quả → dưa hấu → tượng ngựa vàng). Stack: React Three Fiber + Cloudflare Workers / Durable Objects / D1, đang chạy trong gói miễn phí.
 >
-> 🙏 **Tui rất mong góp ý**
-> 1. Máy anh chị chạy có mượt không? Cho tui xin tên máy và trình duyệt.
-> 2. Pha đá ngựa có "đã" không, hay hơi dài, hơi rườm?
-> 3. Lần đầu vào có chỗ nào khó hiểu?
-> 4. Gặp lỗi thì bấm nút "Góp ý" trong game hoặc bình luận giúp tui.
+> 👉 Link chơi thử tui để ở bình luận đầu tiên ạ.
 >
-> Hôm nay Ngày Văn hoá, ai có tuổi thơ gắn với bàn cờ cá ngựa thì rủ người nhà chơi một ván nha. Cảm ơn mọi người đã đọc và chơi thử ạ!
+> Tui xin hỏi cả nhà hai chuyện:
+> 1️⃣ Hồi nhỏ nhà mình chơi cờ cá ngựa luật thế nào? Ra chuồng bằng 6 hay 1 hoặc 6, có được đá ngựa, phải đi đủ vòng mới lên chuồng không? Nghe nói mỗi nhà mỗi luật, tui muốn nghe thử 😄
+> 2️⃣ Ai chơi thử cho tui xin tên máy và trình duyệt, pha đá có mượt không, chỗ nào khó hiểu thì bấm "Góp ý" trong game hoặc bình luận giúp tui.
+>
+> Hôm nay Ngày Văn hoá, ai còn cả nhà ở gần nhau thì bỏ điện thoại xuống chơi một ván cờ cá ngựa thật nha. Cảm ơn mọi người đã đọc và chơi thử ạ 🙏
 >
 > #CoCaNgua #CoCaNguaOnline #NgayVanHoaVietNam #VibeCoding #AIAgent #Claude #ClaudeCode #BuildInPublic #Blender #ThreeJS
 
-Ảnh: clip pha đá (đầu; chưa có thì `da-ngua-2-khung-1600x884.jpg`) → `ngua-truoc-sau-1600x924.jpg` → `truoc-sau-1080x1248.jpg` → `og-1200x630.jpg`.
+**Bình luận đầu tiên (anh tự đăng ngay sau khi đăng bài):**
+
+> 🎮 Chơi thử: https://ca-ngua-online.johnny-bui1911.workers.dev/?utm_source=facebook
+> Luật chơi đầy đủ + giới thiệu: https://ca-ngua-online.johnny-bui1911.workers.dev/gioi-thieu?utm_source=facebook
+
+Nếu nhóm cho đăng link trong bài thì dán link vào ngay sau câu "Free, không quảng cáo" và bỏ dòng "Link chơi thử tui để ở bình luận đầu tiên ạ".
+
+Ảnh (album, 4 ảnh đầu hiện ra ngoài, nên xếp theo thứ tự):
+1. Có clip pha đá thì clip đầu tiên; chưa có thì `ngua-truoc-sau-1600x924.jpg` (ảnh kể chuyện "trước và sau")
+2. `da-ngua-2-khung-1600x884.jpg`
+3. `tuong-ma-dao-thanh-cong-2400x1600.jpg`
+4. `trang-chu-desktop-2400x1500.jpg` (thấy nút "Chơi ngay")
+5. `4-ngua-4-mau-2000x1333.jpg`
+6. `trang-chu-mobile-1170x2532.jpg`
+7. `gioi-thieu-desktop-2400x1500.jpg`
+8. `truoc-sau-1080x1248.jpg`
 
 Cần anh xác nhận trước khi đăng:
-- Em đã bỏ "Fable 5.2" và "1 prompt". Bài viết như bài giới thiệu đầu tiên ở nhóm, không nhắc bản 21/11.
-- "Mâm ngũ quả → dưa hấu → tượng ngựa": lấy từ lịch sử PR #50–#56; nếu anh không muốn kể thì xoá câu đó.
-- "~2.600 tam giác", Poly Haven CC0, Blender script: lấy từ `plans/reports/20261124-sumup-3d-wood-redesign.md`.
-- Câu "Chạy ở mức đồ hoạ cao/trung bình" đúng theo README, nhưng em chưa mở production bằng mắt sau deploy 11:49; anh mở thử pha đá trước khi đăng.
+- Bài không nhắc "Fable 5.2", "1 prompt" và bản 21/11. Viết như bài giới thiệu đầu tiên.
+- "Mâm ngũ quả → dưa hấu → tượng ngựa": lấy từ lịch sử PR #50–#56; xoá nếu không muốn kể.
+- Poly Haven CC0, Blender script: lấy từ `plans/reports/20261124-sumup-3d-wood-redesign.md`.
+- "Nghe nói mỗi nhà mỗi luật": là câu hỏi mở để kéo bình luận, không phải khẳng định; em không có nguồn thống kê.
+- Câu "máy yếu tự hạ cho mượt" đúng theo README; em chưa mở production bằng mắt sau deploy 11:49, anh mở thử pha đá trước khi đăng.
