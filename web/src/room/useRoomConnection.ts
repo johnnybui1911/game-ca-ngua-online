@@ -22,6 +22,7 @@ export interface RoomFailure {
     | 'not_found'
     | 'room_full'
     | 'game_in_progress'
+    | 'no_cpu_seat'
     | 'room_closed'
     | 'closed_by_host'
     | 'left'
@@ -46,15 +47,21 @@ export interface RoomConnection {
   emotes: EmoteBySeat;
   /** The last error the server sent for an action of ours (cleared by the next state). */
   actionError: string | null;
+  /** Why the server dropped our request for a CPU seat (turned down, lapsed, seat taken, game over); cleared by asking again. */
+  joinNotice: string | null;
   send: (msg: RoomClientMessage) => void;
 }
 
 /** At most one emote sound per this many ms, however many arrive. */
 const EMOTE_SOUND_GAP_MS = 400;
 
+/** Errors that end our request for a CPU seat but keep the socket open. */
+const JOIN_NOTICE_CODES = new Set(['join_rejected', 'join_expired', 'join_seat_taken', 'join_ended']);
+
 const FAILURE_TEXT: Record<string, string> = {
   room_full: 'Phòng đã đầy.',
-  game_in_progress: 'Ván đấu đang diễn ra và không còn chỗ máy để vào thay.',
+  game_in_progress: 'Ván đấu đang diễn ra, bạn không thể vào phòng này.',
+  no_cpu_seat: 'Ván đấu đang diễn ra và không còn chỗ máy để vào thay.',
   room_closed: 'Phòng đã đóng.',
   closed_by_host: 'Chủ phòng đã đóng phòng.',
   left: 'Bạn đã rời phòng.',
@@ -70,6 +77,7 @@ export function useRoomConnection(code: string): RoomConnection {
   const [clockOffset, setClockOffset] = useState(0);
   const [failure, setFailure] = useState<RoomFailure | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [joinNotice, setJoinNotice] = useState<string | null>(null);
   const [emotes, setEmotes] = useState<EmoteBySeat>({});
   const emoteCount = useRef(0);
   const lastEmoteSound = useRef(0);
@@ -87,6 +95,7 @@ export function useRoomConnection(code: string): RoomConnection {
     setClockOffset(0);
     setFailure(null);
     setActionError(null);
+    setJoinNotice(null);
     setEmotes({});
     // Show the notice, then re-read the session: signed out, the page routes away; still (or again)
     // signed in, reconnect under the live session.
@@ -140,6 +149,8 @@ export function useRoomConnection(code: string): RoomConnection {
           setActionError(null);
           setClockOffset(msg.serverNow - Date.now());
           setBatches((prev) => appendBatch(prev, { room: msg.room, events: msg.events }));
+        } else if (JOIN_NOTICE_CODES.has(msg.code)) {
+          setJoinNotice(msg.message);
         } else if (msg.code in FAILURE_TEXT) {
           // The server ends the socket after these; do not wait for the close, which a proxy may swallow.
           if (msg.code === SIGNED_OUT_CODE) {
@@ -162,10 +173,11 @@ export function useRoomConnection(code: string): RoomConnection {
   }, [code, epoch, refresh]);
 
   const send = useCallback((msg: RoomClientMessage) => {
+    if (msg.t === 'requestSeat') setJoinNotice(null);
     socket.current?.send(JSON.stringify(msg));
   }, []);
 
   const room = batches[batches.length - 1]?.room ?? null;
   latestRoom.current = room;
-  return { status, room, batches, clockOffset, failure, emotes, actionError, send };
+  return { status, room, batches, clockOffset, failure, emotes, actionError, joinNotice, send };
 }

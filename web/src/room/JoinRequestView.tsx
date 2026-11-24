@@ -1,0 +1,103 @@
+import type { CSSProperties } from 'react';
+import { Link } from 'react-router';
+import type { Color } from '../../../shared/game/types';
+import type { RoomClientMessage, RoomSnapshot } from '../../../shared/protocol';
+import { GlassPanel } from '../shell/PanelHost';
+import { COLOR_NAMES, COLOR_VARS } from './colors';
+
+interface Props {
+  room: RoomSnapshot;
+  myId: string;
+  send: (msg: RoomClientMessage) => void;
+  actionError: string | null;
+  joinNotice: string | null;
+}
+
+/**
+ * What a person with no seat sees while the room's game runs: the CPU seats they may ask for (one colour button each;
+ * a colour someone else already asked for is taken), then "waiting for the host" until the host answers.
+ */
+export function JoinRequestView({ room, myId, send, actionError, joinNotice }: Props) {
+  const playing = room.status === 'playing' && room.game !== null;
+  const cpuSeats = playing ? room.seats.filter((s) => s.occupant?.kind === 'cpu' && room.game?.colors.includes(s.color)) : [];
+  const mine = room.joinRequests.find((r) => r.user.id === myId);
+  const askedBy = (color: Color) => room.joinRequests.find((r) => r.color === color);
+  const players = room.seats.flatMap((s) => (s.occupant?.kind === 'human' ? [s.occupant.user.displayName] : []));
+
+  if (!playing) {
+    return (
+      <GlassPanel title={<span data-testid="join-ended">Ván đấu đã kết thúc</span>}>
+        <p className="ui-muted">Vào lại phòng để chơi ván sau.</p>
+        <div className="dialog-actions">
+          <button type="button" className="ui-btn ui-btn--primary" data-testid="join-reload" onClick={() => location.reload()}>
+            Vào lại phòng
+          </button>
+          <Link className="ui-btn ui-btn--secondary" to="/" data-testid="back-to-lobby">
+            Về sảnh
+          </Link>
+        </div>
+      </GlassPanel>
+    );
+  }
+
+  return (
+    <GlassPanel title={<span data-testid="join-title">{room.name}</span>}>
+      <p className="ui-muted" data-testid="join-players">
+        Đang chơi: {players.join(', ')}
+      </p>
+      {mine ? (
+        <p className="join-wait" role="status" data-testid="join-waiting">
+          Đang chờ chủ phòng duyệt cho bạn vào thay {cpuName(room, mine.color)} (màu {COLOR_NAMES[mine.color]})…
+        </p>
+      ) : (
+        <p data-testid="join-pick">
+          {cpuSeats.length > 1 ? 'Chọn màu máy bạn muốn vào thay, chủ phòng sẽ duyệt:' : 'Xin vào thay máy, chủ phòng sẽ duyệt:'}
+        </p>
+      )}
+      {cpuSeats.length === 0 && <p className="ui-muted">Không còn ghế máy nào.</p>}
+      <div className="join-colors">
+        {cpuSeats.map((s) => {
+          const other = askedBy(s.color);
+          const taken = other !== undefined && other.user.id !== myId;
+          const chosen = mine?.color === s.color;
+          return (
+            <button
+              key={s.color}
+              type="button"
+              className={`ui-btn ${chosen ? 'ui-btn--primary' : 'ui-btn--secondary'} join-color`}
+              style={{ '--seat-color': COLOR_VARS[s.color] } as CSSProperties}
+              data-testid={`join-color-${s.color}`}
+              aria-pressed={chosen}
+              disabled={taken || chosen}
+              onClick={() => send({ t: 'requestSeat', color: s.color })}
+            >
+              <span className="seat-dot" aria-hidden="true" />
+              {cpuName(room, s.color)} · {COLOR_NAMES[s.color]}
+              {taken && <small> (đang có người xin)</small>}
+            </button>
+          );
+        })}
+      </div>
+      {(joinNotice || actionError) && (
+        <p className="form-error" role="alert" data-testid="join-notice">
+          {actionError ?? joinNotice}
+        </p>
+      )}
+      <div className="dialog-actions">
+        {mine && (
+          <button type="button" className="ui-btn ui-btn--secondary" data-testid="join-cancel" onClick={() => send({ t: 'cancelRequest' })}>
+            Huỷ yêu cầu
+          </button>
+        )}
+        <Link className="ui-btn ui-btn--secondary" to="/" data-testid="back-to-lobby">
+          Về sảnh
+        </Link>
+      </div>
+    </GlassPanel>
+  );
+}
+
+function cpuName(room: RoomSnapshot, color: Color): string {
+  const occ = room.seats.find((s) => s.color === color)?.occupant;
+  return occ?.kind === 'cpu' ? occ.name : 'máy';
+}

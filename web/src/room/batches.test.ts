@@ -16,6 +16,8 @@ function batch(seq: number, events: GameEvent[] = [], code = 'ABC234'): StateBat
     seats: [],
     game: createGame(SEAT_COLORS[2]!),
     turnDeadline: null,
+    allowTakeover: false,
+    joinRequests: [],
     paused: false,
     cpuLevel: 'normal',
     settings: DEFAULT_ROOM_SETTINGS,

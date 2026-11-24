@@ -1,6 +1,6 @@
 ---
 title: Join a game in progress by taking over a CPU seat
-status: implemented
+status: implemented (revision 2)
 ---
 
 # Join a game in progress by taking over a CPU seat
@@ -76,3 +76,21 @@ Better approaches: none — the requested behaviour maps onto the existing synch
 - `feat/i18n-english` moves UI strings: this PR adds a few Vietnamese strings in `LobbyPage.tsx`, `MatchView.tsx`, `useRoomConnection.ts`; they need translating there after merge.
 - `feat/waiting-room-color-change` touches seats in the waiting room (`room-do.ts` handlers, `room-state.ts`): this PR touches `admit`, `leave`, `setOccupant`, `clearMisses`, `toSummary` only.
 - `feat/dice-no-third-bonus`: no overlap.
+
+## Revision 2 (2026-11-24, after Johnny's review)
+
+Johnny changed the product after trying the first version. These decisions replace decisions 2, 6, 8 and 11 above where they differ.
+
+| # | Decision (accepted by Johnny) |
+|---|---|
+| R1 | Takeover is opt-in per room: a switch "Cho người vào thay máy giữa ván" at creation (`CreateRoomRequest.allowTakeover`, stored `RoomState.allowTakeover`, absent = off). Visibility stays two modes (Công khai / Riêng tư). Rooms without it refuse mid-game entry as before (`game_in_progress`). Not changeable after creation. |
+| R2 | A person with no seat is admitted to a running open room **without a seat** and asks for one: they pick a CPU colour (`requestSeat`), the host approves (`approveJoin`) or rejects (`rejectJoin`). One request per colour: a colour someone already asked for cannot be asked for (button disabled, server `bad_seat`); the host sees at most one request per slot. A requester may switch colour or cancel. |
+| R3 | Requests lapse after 2 minutes (`JOIN_REQUEST_SECONDS`, alarm wakes at the oldest), and are dropped when the requester has no open socket, the seat stops being a CPU, or the game ends; the requester gets a notice (`join_rejected`, `join_expired`, `join_seat_taken`, `join_ended`). After a rejection the same person waits 30 s (`JOIN_COOLDOWN_MS`, in memory). At most 8 seatless people stay connected (`MAX_WAITING_JOINERS`). |
+| R4 | A player who left this game gets their own seat back at once, without approval, while a CPU still plays it. |
+| R5 | No CPU seat left in an open room → `no_cpu_seat` refusal. |
+| R6 | Host leaving with other people seated (waiting room or game) chooses: hand the host role to a chosen person and leave (`leave { newHost }`), or end the room for everyone (`closeRoom`). A host alone leaves as before; a host who just disconnects keeps the automatic hand-over. |
+| R7 | The lobby counts only CPU seats nobody has asked for (`takeoverSeats`), and only for open rooms. |
+
+Seatless sockets receive the room snapshot (the join screen needs the CPU seats and requests); they cannot send game messages (`not_seated`). Approval reuses `takeOverCpuSeat`, so the on-turn safety argument (decision 3) is unchanged; one-request-per-colour makes the race argument trivial: the second `requestSeat` for a colour is refused synchronously.
+
+Also fixed: `e2e/room-presence.spec.ts` still expected the old "CPU" badge text renamed to "Máy" on `main` (9e93270).

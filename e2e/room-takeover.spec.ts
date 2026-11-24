@@ -1,70 +1,109 @@
 import { expect, test, type Browser } from '@playwright/test';
 import { openLobby } from './auth-helpers';
-import { VIEWPORT, createRoom, newPlayer, startAutoPlayer, type Player } from './helpers/rooms';
+import { VIEWPORT, createRoom, newPlayer, startAutoPlayer, startTwoPlayerGame } from './helpers/rooms';
 
-/** A host alone with one CPU (seat 1, colour 2) in a started two-seat game. */
-async function startWithCpu(browser: Browser, name: string, visibility: 'public' | 'private') {
+/** A host alone with CPUs on every other seat of a started game. Seat i holds colour `colors[i]`. */
+async function startWithCpus(browser: Browser, name: string, opts: { visibility: 'public' | 'private'; seats: number; allowTakeover: boolean }) {
   const host = await newPlayer(browser, name, VIEWPORT);
-  const code = await createRoom(host, { name: `Phòng ${name}`, visibility, seats: 2 });
+  const code = await createRoom(host, { name: `Phòng ${name}`, ...opts });
   await host.page.goto(`/r/${code}`);
-  await host.page.getByTestId('add-cpu-1').click();
-  await expect(host.page.getByTestId('seat-1-name')).toContainText('Máy 1');
+  for (let i = 1; i < opts.seats; i++) {
+    await host.page.getByTestId(`add-cpu-${i}`).click();
+    await expect(host.page.getByTestId(`seat-${i}-name`)).toContainText('Máy');
+  }
   await host.page.getByTestId('start-button').click();
   await expect(host.page.getByTestId('hud')).toBeVisible();
-  await expect(host.page.getByTestId('hud-player-2')).toContainText('Máy 1');
   return { host, code };
 }
 
-/** The newcomer holds colour 2 in place of the CPU, everyone sees it, and they roll when their turn comes. */
-async function expectTakenOver(host: Player, joiner: Player) {
-  await expect(joiner.page.getByTestId('hud')).toBeVisible();
-  await expect(joiner.page.getByTestId('hud-player-2')).toContainText(joiner.name);
-  await expect(host.page.getByTestId('hud-player-2')).toContainText(joiner.name);
-  await expect(host.page.getByTestId('lobby-notice')).toContainText(`${joiner.name} đã vào thay Máy 1`);
-  await expect(joiner.page.getByTestId('lobby-notice')).toHaveCount(0);
-  await startAutoPlayer(host.page);
-  const roll = joiner.page.getByTestId('roll-button');
-  await expect(roll).toBeVisible({ timeout: 90_000 });
-  await roll.click();
-  await expect(roll).toHaveCount(0, { timeout: 10_000 });
-}
-
-test('a person opening the invite link mid-game takes the CPU seat; with none left the next is refused', async ({ browser }) => {
+test('people ask for a CPU colour by link, one per colour; the host turns one down and lets the other in', async ({ browser }) => {
   test.setTimeout(180_000);
-  const { host, code } = await startWithCpu(browser, 'Chủ Thay Máy', 'private');
-  // The in-game menu copies the invite link while a CPU seat is left.
+  // Three seats: colour 0 the host, colours 1 and 2 CPUs.
+  const { host, code } = await startWithCpus(browser, 'Chủ Duyệt', { visibility: 'private', seats: 3, allowTakeover: true });
   await host.page.getByTestId('match-menu-button').click();
   await host.page.getByTestId('menu-invite').click();
   await expect(host.page.getByTestId('lobby-notice').first()).toContainText('Đã sao chép link mời');
   expect(await host.page.evaluate(() => navigator.clipboard.readText())).toContain(`/r/${code}`);
 
-  const joiner = await newPlayer(browser, 'Người Vào Thay', VIEWPORT);
+  const joiner = await newPlayer(browser, 'Người Được Duyệt', VIEWPORT);
   await joiner.page.goto(`/r/${code}`);
-  await expectTakenOver(host, joiner);
+  await expect(joiner.page.getByTestId('join-pick')).toContainText('Chọn màu');
+  await joiner.page.getByTestId('join-color-2').click();
+  await expect(joiner.page.getByTestId('join-waiting')).toBeVisible();
 
-  const late = await newPlayer(browser, 'Người Đến Muộn', VIEWPORT);
-  await late.page.goto(`/r/${code}`);
-  await expect(late.page.getByTestId('room-error')).toHaveAttribute('data-code', 'game_in_progress');
-  await expect(late.page.getByTestId('room-error')).toHaveText('Ván đấu đang diễn ra và không còn chỗ máy để vào thay.');
-  for (const p of [host, joiner, late]) await p.context.close();
+  // The colour already asked for cannot be asked for again.
+  const other = await newPlayer(browser, 'Người Bị Từ Chối', VIEWPORT);
+  await other.page.goto(`/r/${code}`);
+  await expect(other.page.getByTestId('join-color-2')).toBeDisabled();
+  await other.page.getByTestId('join-color-1').click();
+  await expect(other.page.getByTestId('join-waiting')).toBeVisible();
+
+  await expect(host.page.getByTestId('join-request-2')).toContainText('Người Được Duyệt');
+  await expect(host.page.getByTestId('join-request-1')).toContainText('Người Bị Từ Chối');
+  await host.page.getByTestId('join-reject-1').click();
+  await expect(other.page.getByTestId('join-notice')).toHaveText('Chủ phòng đã từ chối yêu cầu vào thay máy.');
+  await other.page.getByTestId('join-color-1').click();
+  await expect(other.page.getByTestId('join-notice')).toContainText('hãy đợi');
+
+  await host.page.getByTestId('join-approve-2').click();
+  await expect(joiner.page.getByTestId('hud')).toBeVisible();
+  await expect(joiner.page.getByTestId('hud-player-2')).toContainText(joiner.name);
+  await expect(host.page.getByTestId('hud-player-2')).toContainText(joiner.name);
+  await expect(host.page.getByText(`${joiner.name} đã vào thay`)).toBeVisible();
+  await expect(host.page.getByTestId('join-requests')).toHaveCount(0);
+
+  await startAutoPlayer(host.page);
+  const roll = joiner.page.getByTestId('roll-button');
+  await expect(roll).toBeVisible({ timeout: 90_000 });
+  await roll.click();
+  await expect(roll).toHaveCount(0, { timeout: 10_000 });
+  for (const p of [host, joiner, other]) await p.context.close();
 });
 
-test('the lobby lists a public game with a CPU seat as joinable and "Vào" takes that seat', async ({ browser }) => {
+test('the lobby lists a game that lets people in as joinable; one without the option stays closed', async ({ browser }) => {
   test.setTimeout(180_000);
-  const { host, code } = await startWithCpu(browser, 'Chủ Sảnh Máy', 'public');
+  const open = await startWithCpus(browser, 'Chủ Mở Cửa', { visibility: 'public', seats: 2, allowTakeover: true });
+  const closed = await startWithCpus(browser, 'Chủ Đóng Cửa', { visibility: 'public', seats: 2, allowTakeover: false });
   const joiner = await newPlayer(browser, 'Khách Từ Sảnh', VIEWPORT);
   await openLobby(joiner.page);
-  const item = joiner.page.getByTestId(`room-item-${code}`);
-  await expect(item).toContainText('Đang chơi · còn chỗ máy');
-  await expect(joiner.page.getByTestId(`room-join-${code}`)).toBeEnabled();
-  await joiner.page.getByTestId(`room-join-${code}`).click();
-  await expectTakenOver(host, joiner);
+  await expect(joiner.page.getByTestId(`room-item-${open.code}`)).toContainText('Đang chơi · còn chỗ máy');
+  await expect(joiner.page.getByTestId(`room-item-${closed.code}`)).not.toContainText('còn chỗ máy');
+  await expect(joiner.page.getByTestId(`room-join-${closed.code}`)).toBeDisabled();
 
-  // No CPU seat left: the room reads as a game in progress again and cannot be joined.
-  const other = await newPlayer(browser, 'Người Xem Sảnh', VIEWPORT);
-  await openLobby(other.page);
-  await expect(other.page.getByTestId(`room-item-${code}`)).toContainText('Đang chơi');
-  await expect(other.page.getByTestId(`room-item-${code}`)).not.toContainText('còn chỗ máy');
-  await expect(other.page.getByTestId(`room-join-${code}`)).toBeDisabled();
-  for (const p of [host, joiner, other]) await p.context.close();
+  await joiner.page.getByTestId(`room-join-${open.code}`).click();
+  // A single CPU seat: one button, no colour choice to explain.
+  await expect(joiner.page.getByTestId('join-pick')).toHaveText('Xin vào thay máy, chủ phòng sẽ duyệt:');
+  await joiner.page.getByTestId('join-color-2').click();
+  await open.host.page.getByTestId('join-approve-2').click();
+  await expect(joiner.page.getByTestId('hud-player-2')).toContainText(joiner.name);
+
+  const late = await newPlayer(browser, 'Người Đến Muộn', VIEWPORT);
+  await late.page.goto(`/r/${open.code}`);
+  await expect(late.page.getByTestId('room-error')).toHaveAttribute('data-code', 'no_cpu_seat');
+  await late.page.goto(`/r/${closed.code}`);
+  await expect(late.page.getByTestId('room-error')).toHaveAttribute('data-code', 'game_in_progress');
+  for (const p of [open.host, closed.host, joiner, late]) await p.context.close();
+});
+
+test('a host leaving mid-game can end the room for everyone', async ({ browser }) => {
+  const { a, b } = await startTwoPlayerGame(browser, ['Chủ Kết Thúc', 'Người Ở Lại']);
+  await a.page.getByTestId('leave-room').click();
+  await expect(a.page.getByTestId('host-leave-dialog')).toBeVisible();
+  await expect(a.page.getByTestId(`host-leave-heir-${b.id}`)).toBeChecked();
+  await a.page.getByTestId('host-leave-close').click();
+  await expect(b.page.getByTestId('room-error')).toHaveAttribute('data-code', 'closed_by_host');
+  await a.context.close();
+  await b.context.close();
+});
+
+test('a host leaving mid-game hands the room to the person they choose', async ({ browser }) => {
+  const { a, b } = await startTwoPlayerGame(browser, ['Chủ Giao Phòng', 'Chủ Được Giao']);
+  await a.page.getByTestId('leave-room').click();
+  await a.page.getByTestId('host-leave-handover').click();
+  await expect(a.page).toHaveURL('/');
+  await expect(b.page.getByTestId('hud-player-0')).toContainText('Máy');
+  await b.page.getByTestId('match-menu-button').click();
+  await expect(b.page.getByTestId('pause-button')).toBeVisible();
+  await a.context.close();
+  await b.context.close();
 });

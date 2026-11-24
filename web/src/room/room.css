@@ -1349,3 +1349,60 @@ html[data-quality='low'] .hud-player {
 html[data-webgl='software'] .hud-player.is-turn .seat-dot {
   animation: none;
 }
+
+/* A person with no seat asking for a CPU seat during a game, and the host's answers. */
+.join-colors {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-block: var(--space-3);
+}
+
+.join-color .seat-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--seat-color);
+}
+
+.join-wait {
+  font-weight: var(--weight-semibold);
+}
+
+.join-requests {
+  position: absolute;
+  z-index: 7;
+  bottom: calc(100% + var(--space-2));
+  left: 50%;
+  transform: translateX(-50%);
+  display: grid;
+  gap: var(--space-2);
+  width: min(360px, calc(100vw - 2 * var(--space-4)));
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.join-request {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border-left: 4px solid var(--seat-color);
+}
+
+.join-request p {
+  margin: 0;
+}
+
+.join-request-actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.host-leave-list {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}

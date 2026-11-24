@@ -53,6 +53,8 @@ function snapshot(step: ShowcaseStep, players: number): RoomSnapshot {
     seats: colors.map((color) => ({ color, occupant: { kind: 'cpu' as const, name: `CPU ${color}` }, horseNames: ['', '', '', ''], auto: false })),
     game: step.game,
     turnDeadline: null,
+    allowTakeover: false,
+    joinRequests: [],
     paused: false,
     cpuLevel: devLevel(),
     settings: { ...DEFAULT_ROOM_SETTINGS, quick: devQuick(), pace: devPace() },

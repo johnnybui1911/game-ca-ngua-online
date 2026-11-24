@@ -70,6 +70,17 @@ export interface RoomState {
   settings?: SentRoomSettings;
   /** The dice experiment's memory of the current game (see `dice-shaping.ts`); absent before its first roll. */
   diceMemory?: DiceMemory;
+  /** "Cho người vào thay máy giữa ván", set at creation; absent (rooms created before it existed, or off) means off. */
+  allowTakeover?: boolean;
+  /** Pending requests to take over a CPU seat while the game runs, oldest first, at most one per colour; absent when none. */
+  joinRequests?: StoredJoinRequest[];
+}
+
+/** A request as stored: the requester, the colour asked for and when it lapses (epoch ms). */
+export interface StoredJoinRequest {
+  user: PublicUser;
+  color: Color;
+  expiresAt: number;
 }
 
 /** Seats a new occupant (or empties the seat); horse names belong to the previous occupant and are dropped. */
@@ -398,50 +409,118 @@ export function reconcileConnections(
   }
 }
 
-/**
- * The CPU seat a person who holds no seat would take over in the running game, or -1 when there is none.
- * Someone who left this game gets their own seat back while a CPU still plays it; otherwise the first CPU seat
- * in turn order after the colour on turn, the seat on turn last, so a newcomer rarely lands mid-turn.
- */
-export function takeoverSeatIndex(state: RoomState, userId: string): number {
-  const game = state.game;
-  if (state.status !== 'playing' || game === null) return -1;
-  const cpu = (seat: StoredSeat | undefined) => seat?.occupant?.kind === 'cpu' && game.colors.includes(seat.color);
-  const own = state.seats.findIndex((s) => s.leftBy === userId && cpu(s));
-  if (own >= 0) return own;
-  const at = game.colors.indexOf(game.turn);
-  for (let step = 1; step <= game.colors.length; step++) {
-    const color = game.colors[(at + step) % game.colors.length];
-    const i = state.seats.findIndex((s) => s.color === color);
-    if (cpu(state.seats[i])) return i;
-  }
-  return -1;
+/** True while people with no seat may ask for a CPU seat: a running game in a room created with the option on. */
+export function takeoverOpen(state: RoomState): boolean {
+  return state.status === 'playing' && state.game !== null && state.allowTakeover === true;
+}
+
+/** Index of the seat whose colour is `color` when a CPU plays it in the running game; -1 otherwise. */
+export function cpuSeatOf(state: RoomState, color: Color): number {
+  const i = state.seats.findIndex((s) => s.color === color);
+  const seat = state.seats[i];
+  return seat?.occupant?.kind === 'cpu' && state.game?.colors.includes(color) ? i : -1;
+}
+
+/** Colours of the CPU seats of the running game, in seat order. */
+export function cpuColors(state: RoomState): Color[] {
+  return state.seats.filter((s) => cpuSeatOf(state, s.color) >= 0).map((s) => s.color);
+}
+
+/** The seat a person who left this game gets back without asking, while a CPU still plays it; -1 otherwise. */
+export function formerSeatIndex(state: RoomState, userId: string): number {
+  if (!takeoverOpen(state)) return -1;
+  return state.seats.findIndex((s) => s.leftBy === userId && cpuSeatOf(state, s.color) >= 0);
 }
 
 /**
- * Seats `user` in place of a CPU in the running game (see `takeoverSeatIndex`): the colour, its horses and the
- * game carry on unchanged. A seat on turn gets a person's full turn from now; `connected` excludes `user`, whose
- * socket opens right after. A pending CPU alarm then finds nothing due, as `dueAt` has moved past it. While the
- * clocks stand still (host pause, or nobody connected) the turn is planned from the moment they stopped, so
- * resuming or reconnecting moves it on to a full turn. Returns the seat, or -1 when no CPU seat is free.
+ * Seats `user` in place of the CPU on seat `i` of the running game: the colour, its horses and the game carry on
+ * unchanged. A seat on turn gets a person's full turn from now; `connected` may exclude `user`, whose socket counts as
+ * open. A pending CPU alarm then finds nothing due, as `dueAt` has moved past it. While the clocks stand still (host
+ * pause, or nobody connected) the turn is planned from the moment they stopped, so resuming or reconnecting moves it
+ * on to a full turn. False, and nothing changes, unless a CPU plays that seat.
  */
 export function takeOverCpuSeat(
   state: RoomState,
+  i: number,
   user: PublicUser,
   connected: ReadonlySet<string>,
   now: number,
   timings: RoomTimings,
-): number {
-  const i = takeoverSeatIndex(state, user.id);
+): boolean {
   const seat = state.seats[i];
-  if (!seat) return -1;
+  if (!seat || cpuSeatOf(state, seat.color) !== i) return false;
   setOccupant(seat, { kind: 'human', user });
+  // Someone else's request for this colour is dropped (with a notice) by `pruneJoinRequests` on the commit.
+  dropRequest(state, user.id);
   if (currentSeatIndex(state) === i) {
     const from = isPaused(state) ? (state.pausedAt ?? now) : (state.noHumanConnectedSince ?? now);
     planTurn(state, new Set([...connected, user.id]), from, timings);
   }
-  return i;
+  return true;
 }
+
+/**
+ * Records `user`'s request for the CPU seat of `color`, replacing their earlier one. Null when recorded, else the
+ * reason: the room does not allow it now, the colour has no CPU, or someone else already asked for it.
+ */
+export function requestSeat(
+  state: RoomState,
+  user: PublicUser,
+  color: Color,
+  now: number,
+  waitMs: number,
+): 'closed' | 'no_cpu' | 'requested' | null {
+  if (!takeoverOpen(state) || seatIndexOfUser(state, user.id) >= 0) return 'closed';
+  if (cpuSeatOf(state, color) < 0) return 'no_cpu';
+  const others = (state.joinRequests ?? []).filter((r) => r.user.id !== user.id);
+  if (others.some((r) => r.color === color)) return 'requested';
+  state.joinRequests = [...others, { user, color, expiresAt: now + waitMs }];
+  return null;
+}
+
+/** Removes `userId`'s request; true when there was one. */
+export function dropRequest(state: RoomState, userId: string): boolean {
+  const before = state.joinRequests ?? [];
+  const after = before.filter((r) => r.user.id !== userId);
+  if (after.length === before.length) return false;
+  if (after.length === 0) delete state.joinRequests;
+  else state.joinRequests = after;
+  return true;
+}
+
+export type DropReason = 'expired' | 'seat_taken' | 'ended' | 'gone';
+
+/**
+ * Drops requests that can no longer be granted: the game is over (or the room no longer allows it), the CPU seat was
+ * taken, the host did not answer in time, or the requester has no open socket. Returns who was dropped and why.
+ */
+export function pruneJoinRequests(
+  state: RoomState,
+  connected: ReadonlySet<string>,
+  now: number,
+): { userId: string; reason: DropReason }[] {
+  const requests = state.joinRequests;
+  if (!requests || requests.length === 0) return [];
+  const dropped: { userId: string; reason: DropReason }[] = [];
+  const open = takeoverOpen(state);
+  const kept = requests.filter((r) => {
+    const reason: DropReason | null = !open
+      ? 'ended'
+      : cpuSeatOf(state, r.color) < 0
+        ? 'seat_taken'
+        : !connected.has(r.user.id)
+          ? 'gone'
+          : now >= r.expiresAt
+            ? 'expired'
+            : null;
+    if (reason) dropped.push({ userId: r.user.id, reason });
+    return reason === null;
+  });
+  if (kept.length === 0) delete state.joinRequests;
+  else state.joinRequests = kept;
+  return dropped;
+}
+
 
 /**
  * Continues a paused game. Its clocks stood still since `pausedAt`, so they move on by the pause
@@ -482,6 +561,7 @@ export function nextWake(state: RoomState, timings: Timings): number | null {
     if (since !== undefined) times.push(since + timings.waitingDisconnectMs);
   }
   if (state.noHumanConnectedSince !== null) times.push(state.noHumanConnectedSince + timings.idleCloseMs);
+  for (const r of state.joinRequests ?? []) times.push(r.expiresAt);
   return times.length === 0 ? null : Math.min(...times);
 }
 
@@ -519,6 +599,8 @@ export function toSnapshot(state: RoomState, connected: ReadonlySet<string>): Ro
     paused,
     cpuLevel: levelOf(state),
     settings: settingsOf(state),
+    allowTakeover: state.allowTakeover === true,
+    joinRequests: (state.joinRequests ?? []).map((r) => ({ user: r.user, color: r.color, expiresAt: r.expiresAt })),
     seq: state.seq,
   };
 }
@@ -532,7 +614,7 @@ export function toSummary(state: RoomState): RoomSummary {
     status: state.status,
     seatsTaken: occupiedCount(state),
     seatsTotal: state.seats.length,
-    takeoverSeats: state.status === 'playing' ? state.seats.filter((s) => s.occupant?.kind === 'cpu').length : 0,
+    takeoverSeats: takeoverOpen(state) ? cpuColors(state).filter((c) => !state.joinRequests?.some((r) => r.color === c)).length : 0,
   };
 }
 

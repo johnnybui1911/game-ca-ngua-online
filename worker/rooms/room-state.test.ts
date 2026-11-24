@@ -30,8 +30,14 @@ import {
   reconcileConnections,
   resumeGame,
   setOccupant,
+  cpuColors,
+  cpuSeatOf,
+  dropRequest,
+  formerSeatIndex,
+  pruneJoinRequests,
+  requestSeat,
   takeOverCpuSeat,
-  takeoverSeatIndex,
+  takeoverOpen,
   toSnapshot,
   toSummary,
   type RoomState,
@@ -996,12 +1002,13 @@ describe('a room at the real pace', () => {
 describe('taking over a CPU seat during a game', () => {
   const cam = { id: 'u3', displayName: 'Cam' };
   const dung = { id: 'u4', displayName: 'Dũng' };
-  /** Four colours, An on colour 0 and CPUs elsewhere unless `cpus` says otherwise; colour `turn` is on turn. */
+  /** Four colours in a room that allows takeover, An on colour 0 and CPUs on `cpus` (Bình elsewhere); colour `turn` is on turn. */
   function match(turn: Color, cpus: Color[] = [1, 2, 3], over: Partial<RoomState> = {}): RoomState {
     const game = { ...createGame([0, 1, 2, 3]), turn };
     return room({
       status: 'playing',
       game,
+      allowTakeover: true,
       seats: [0, 1, 2, 3].map((c) => ({
         color: c as Color,
         occupant: c === 0 ? { kind: 'human', user: ann } : cpus.includes(c as Color) ? { kind: 'cpu', name: `Máy ${c}` } : { kind: 'human', user: binh },
@@ -1010,18 +1017,20 @@ describe('taking over a CPU seat during a game', () => {
     });
   }
   const onlyAnn = new Set(['u1']);
+  const WAIT = 120_000;
 
-  it('picks the first CPU seat after the colour on turn, the one on turn last', () => {
-    expect(takeoverSeatIndex(match(1), 'u3')).toBe(2);
-    expect(takeoverSeatIndex(match(3), 'u3')).toBe(1);
-    expect(takeoverSeatIndex(match(0, [3]), 'u3')).toBe(3);
-    expect(takeoverSeatIndex(match(3, [3]), 'u3')).toBe(3);
+  it('is open only in a running game of a room created with the option', () => {
+    expect(takeoverOpen(match(0))).toBe(true);
+    expect(takeoverOpen(match(0, [1], { allowTakeover: undefined }))).toBe(false);
+    expect(takeoverOpen(match(0, [1], { status: 'finished' }))).toBe(false);
+    expect(cpuColors(match(0, [1, 3]))).toEqual([1, 3]);
+    expect(cpuSeatOf(match(0, [1, 3]), 2)).toBe(-1);
   });
 
   it('takes a seat off turn without touching the game or the clock', () => {
     const r = match(0, [2], { dueAt: 9_000, actionDueAt: 9_000 });
     const game = JSON.stringify(r.game);
-    expect(takeOverCpuSeat(r, cam, onlyAnn, 1_000, T)).toBe(2);
+    expect(takeOverCpuSeat(r, 2, cam, onlyAnn, 1_000, T)).toBe(true);
     expect(r.seats[2]?.occupant).toEqual({ kind: 'human', user: cam });
     expect(JSON.stringify(r.game)).toBe(game);
     expect(r.seats.map((s) => s.color)).toEqual([0, 1, 2, 3]);
@@ -1031,14 +1040,12 @@ describe('taking over a CPU seat during a game', () => {
 
   it('gives a seat on turn a full turn, so the CPU alarm already armed plays nothing', () => {
     const r = match(2, [2], { dueAt: 1_700, actionDueAt: null });
-    expect(takeOverCpuSeat(r, cam, onlyAnn, 1_000, T)).toBe(2);
+    expect(takeOverCpuSeat(r, 2, cam, onlyAnn, 1_000, T)).toBe(true);
     expect(r.actionDueAt).toBe(31_000);
     expect(r.dueAt).toBe(31_000);
     const withCam = new Set(['u1', 'u3']);
     reconcileConnections(r, withCam, 1_000, T);
     expect(r.dueAt).toBe(31_000);
-    // The alarm fires at the CPU's old time: the commit path only plays when due.
-    expect(1_700 >= (r.dueAt ?? 0)).toBe(false);
     expect(toSnapshot(r, withCam).turnDeadline).toBe(31_000);
     // Once the newcomer's own time runs out the server plays for them as for any person.
     expect(playDueAction(r, withCam, 31_000, T)).not.toBeNull();
@@ -1047,7 +1054,7 @@ describe('taking over a CPU seat during a game', () => {
 
   it('plans a turn taken over while paused from the pause, so resuming gives the full time', () => {
     const r = match(2, [2], { dueAt: 1_700, pausedAt: 1_000 });
-    takeOverCpuSeat(r, cam, onlyAnn, 50_000, T);
+    takeOverCpuSeat(r, 2, cam, onlyAnn, 50_000, T);
     resumeGame(r, new Set(['u1', 'u3']), 80_000, T);
     expect(r.actionDueAt).toBe(110_000);
     expect(r.dueAt).toBe(110_000);
@@ -1055,35 +1062,89 @@ describe('taking over a CPU seat during a game', () => {
 
   it('plans a turn taken over while nobody was connected so reconnecting lands on a full turn', () => {
     const r = match(2, [2], { dueAt: 1_700, noHumanConnectedSince: 1_000, disconnectedSince: { u1: 1_000 } });
-    takeOverCpuSeat(r, cam, new Set(), 40_000, T);
+    takeOverCpuSeat(r, 2, cam, new Set(), 40_000, T);
     reconcileConnections(r, new Set(['u3']), 40_000, T);
     expect(r.noHumanConnectedSince).toBeNull();
     expect(r.actionDueAt).toBe(70_000);
     expect(r.dueAt).toBe(70_000);
   });
 
-  it('refuses when no CPU seat is left, and outside a running game', () => {
-    const full = match(0, []);
-    const before = JSON.stringify(full);
-    expect(takeOverCpuSeat(full, cam, onlyAnn, 0, T)).toBe(-1);
-    expect(JSON.stringify(full)).toBe(before);
-    expect(takeoverSeatIndex(match(0, [1], { status: 'finished' }), 'u3')).toBe(-1);
-    expect(takeoverSeatIndex(room({ seats: [{ color: 0, occupant: { kind: 'cpu', name: 'Máy 1' } }] }), 'u3')).toBe(-1);
+  it('never takes a seat a person holds', () => {
+    const r = match(0, [3]);
+    const before = JSON.stringify(r);
+    expect(takeOverCpuSeat(r, 1, cam, onlyAnn, 0, T)).toBe(false);
+    expect(takeOverCpuSeat(r, 0, cam, onlyAnn, 0, T)).toBe(false);
+    expect(JSON.stringify(r)).toBe(before);
   });
 
-  it('gives a player who left their own seat back while a CPU still plays it', () => {
+  it('records one request per colour; asking again moves your own request', () => {
     const r = match(0, [1, 3]);
-    const seat = r.seats[3]!;
-    seat.leftBy = 'u4';
-    expect(takeoverSeatIndex(r, 'u3')).toBe(1);
-    expect(takeOverCpuSeat(r, dung, onlyAnn, 0, T)).toBe(3);
-    expect(seat.leftBy).toBeUndefined();
-    // Their seat taken by someone else, they get any other CPU seat.
-    const s = match(2, [1, 3]);
-    s.seats[3]!.leftBy = 'u4';
-    expect(takeOverCpuSeat(s, cam, onlyAnn, 0, T)).toBe(3);
-    expect(takeOverCpuSeat(s, dung, onlyAnn, 0, T)).toBe(1);
-    expect(s.seats[1]?.occupant).toEqual({ kind: 'human', user: dung });
+    expect(requestSeat(r, cam, 1, 0, WAIT)).toBeNull();
+    expect(requestSeat(r, dung, 1, 0, WAIT)).toBe('requested');
+    expect(requestSeat(r, dung, 3, 0, WAIT)).toBeNull();
+    expect(requestSeat(r, cam, 3, 0, WAIT)).toBe('requested');
+    expect(requestSeat(r, cam, 2, 0, WAIT)).toBe('no_cpu');
+    expect(r.joinRequests?.map((q) => [q.user.id, q.color, q.expiresAt])).toEqual([
+      ['u3', 1, WAIT],
+      ['u4', 3, WAIT],
+    ]);
+    // Cam withdraws and asks for nothing else: Dũng may now move to colour 1.
+    expect(dropRequest(r, 'u3')).toBe(true);
+    expect(requestSeat(r, dung, 1, 5, WAIT)).toBeNull();
+    expect(r.joinRequests?.map((q) => [q.user.id, q.color])).toEqual([['u4', 1]]);
+    expect(toSnapshot(r, onlyAnn).joinRequests).toEqual([{ user: dung, color: 1, expiresAt: 5 + WAIT }]);
+  });
+
+  it('refuses requests outside a running game, without the option, or from a seated player', () => {
+    expect(requestSeat(match(0, [1], { allowTakeover: undefined }), cam, 1, 0, WAIT)).toBe('closed');
+    expect(requestSeat(match(0, [1], { status: 'finished' }), cam, 1, 0, WAIT)).toBe('closed');
+    expect(requestSeat(match(0, [1]), ann, 1, 0, WAIT)).toBe('closed');
+  });
+
+  it('two people racing for the last CPU seat: only the first may ask, and approving seats exactly one', () => {
+    const r = match(0, [3]);
+    const asks = [cam, dung].map((u) => requestSeat(r, u, 3, 0, WAIT));
+    expect(asks).toEqual([null, 'requested']);
+    expect(takeOverCpuSeat(r, 3, cam, onlyAnn, 0, T)).toBe(true);
+    expect(r.joinRequests).toBeUndefined();
+    expect(takeOverCpuSeat(r, 3, dung, onlyAnn, 0, T)).toBe(false);
+    expect(requestSeat(r, dung, 3, 0, WAIT)).toBe('no_cpu');
+  });
+
+  it('drops requests that lapsed, whose requester left, whose seat was taken, or once the game is over', () => {
+    const r = match(0, [1, 2, 3]);
+    requestSeat(r, cam, 1, 0, WAIT);
+    requestSeat(r, dung, 2, 0, 1_000);
+    requestSeat(r, { id: 'u5', displayName: 'Em' }, 3, 0, WAIT);
+    const connected = new Set(['u1', 'u3', 'u4']);
+    expect(pruneJoinRequests(r, connected, 500)).toEqual([{ userId: 'u5', reason: 'gone' }]);
+    expect(pruneJoinRequests(r, connected, 1_000)).toEqual([{ userId: 'u4', reason: 'expired' }]);
+    // Someone who left gets their seat back without asking; Cam's request for it then goes.
+    r.seats[1]!.leftBy = 'u6';
+    expect(formerSeatIndex(r, 'u6')).toBe(1);
+    takeOverCpuSeat(r, 1, { id: 'u6', displayName: 'Giang' }, connected, 1_000, T);
+    expect(r.seats[1]?.leftBy).toBeUndefined();
+    expect(pruneJoinRequests(r, connected, 1_000)).toEqual([{ userId: 'u3', reason: 'seat_taken' }]);
+    expect(r.joinRequests).toBeUndefined();
+    requestSeat(r, cam, 2, 2_000, WAIT);
+    r.status = 'finished';
+    expect(pruneJoinRequests(r, connected, 2_000)).toEqual([{ userId: 'u3', reason: 'ended' }]);
+  });
+
+  it('wakes the room when the oldest request lapses', () => {
+    const r = match(0, [1, 3]);
+    requestSeat(r, cam, 1, 0, 50_000);
+    requestSeat(r, dung, 3, 0, 40_000);
+    expect(nextWake(r, BASE)).toBe(40_000);
+  });
+
+  it('gives back their own seat only to a player who left, and only while a CPU plays it in an open room', () => {
+    const r = match(0, [1, 3]);
+    r.seats[3]!.leftBy = 'u4';
+    expect(formerSeatIndex(r, 'u4')).toBe(3);
+    expect(formerSeatIndex(r, 'u3')).toBe(-1);
+    r.allowTakeover = undefined;
+    expect(formerSeatIndex(r, 'u4')).toBe(-1);
   });
 
   it('forgets who left a seat when a new game starts', () => {
@@ -1093,18 +1154,14 @@ describe('taking over a CPU seat during a game', () => {
     expect(r.seats[1]?.leftBy).toBeUndefined();
   });
 
-  it('lets exactly one of two people racing for the last CPU seat in', () => {
-    const r = match(0, [3]);
-    const results = [cam, dung].map((u) => takeOverCpuSeat(r, u, onlyAnn, 0, T));
-    expect(results).toEqual([3, -1]);
-    expect(r.seats[3]?.occupant).toEqual({ kind: 'human', user: cam });
-    expect(r.seats.some((s) => s.occupant?.kind === 'human' && s.occupant.user.id === 'u4')).toBe(false);
-  });
-
-  it('lists the CPU seats a person could take over only while the game runs', () => {
-    expect(toSummary(match(0, [1, 3])).takeoverSeats).toBe(2);
+  it('lists the CPU seats nobody asked for yet, only while an open game runs', () => {
+    const r = match(0, [1, 3]);
+    expect(toSummary(r).takeoverSeats).toBe(2);
+    requestSeat(r, cam, 1, 0, WAIT);
+    expect(toSummary(r).takeoverSeats).toBe(1);
     expect(toSummary(match(0, [])).takeoverSeats).toBe(0);
+    expect(toSummary(match(0, [1], { allowTakeover: undefined })).takeoverSeats).toBe(0);
     expect(toSummary(match(0, [1], { status: 'finished' })).takeoverSeats).toBe(0);
-    expect(toSummary(room({ seats: [{ color: 0, occupant: { kind: 'human', user: ann } }, { color: 2, occupant: { kind: 'cpu', name: 'Máy 1' } }] })).takeoverSeats).toBe(0);
+    expect(toSnapshot(match(0, [1], { allowTakeover: undefined }), onlyAnn)).toMatchObject({ allowTakeover: false, joinRequests: [] });
   });
 });
