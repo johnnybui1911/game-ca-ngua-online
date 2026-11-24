@@ -56,7 +56,7 @@ Link: `https://ca-ngua-online.johnny-bui1911.workers.dev/?utm_source=facebook`
 >
 > 📱 **Làm lại màn chơi**: thanh điều khiển gọn lại cho điện thoại, ghế người chơi có biểu tượng riêng (chủ phòng có vương miện 👑), thắng thì xem pháo hoa xong mới hiện bảng kết quả 🎆
 >
-> 🧧 Hôm nay nhà nào còn cả nhà gần nhau thì bỏ điện thoại xuống chơi một ván thật. Nhà ở xa thì gửi link vào nhóm Zalo gia đình, mỗi người một nơi vẫn đá nhau được. Thiếu người thì thêm máy (Dễ / Thường / Khó).
+> 🧧 Nhân Ngày Văn hoá Việt Nam, hôm nay nhà nào còn cả nhà gần nhau thì bỏ điện thoại xuống chơi một ván cờ cá ngựa thật. Nhà ở xa thì gửi link vào nhóm Zalo gia đình, mỗi người một nơi vẫn đá nhau được. Thiếu người thì thêm máy (Dễ / Thường / Khó).
 >
 > ✅ Free, No Ads. Nhập tên là chơi, không cần đăng ký, không cần cài app.
 >
