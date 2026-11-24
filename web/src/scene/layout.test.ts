@@ -11,14 +11,28 @@ import {
   trackCell,
 } from '../../../shared/game/types';
 import {
+  CELL_RADIUS,
+  DAIS_WIDTH,
   DIE_REST,
+  GATE_DISTANCE,
+  HUB_RING_RADIUS,
   HOME,
+  INLAY_HALF_LENGTH,
+  INLAY_HALF_WIDTH,
+  INLAY_TOP,
+  LANE_END,
+  LANE_HALF_WIDTH,
   STABLE,
   STABLE_CENTERS,
   STABLE_TRAY_SIZE,
+  STAIR_RISE,
   TRACK,
+  TRACK_OUTSET,
+  TREAD_WIDTH,
   armDirection,
+  groundHeight,
   horseGround,
+  obstacleHeight,
   restYaw,
   type Vec2,
 } from './layout';
@@ -32,11 +46,17 @@ describe('track', () => {
     expect(new Set(TRACK.map(key)).size).toBe(TRACK_LENGTH);
   });
 
-  it('is a closed loop with unit spacing between consecutive cells', () => {
+  it('is a closed loop with aligned tip rows and evenly spaced inner lanes', () => {
     for (let i = 0; i < TRACK_LENGTH; i++) {
       const a = TRACK[i];
       const b = TRACK[(i + 1) % TRACK_LENGTH];
-      expect(a && b && dist(a, b)).toBeCloseTo(1, 9);
+      const k = i % CELLS_PER_COLOR;
+      const spacing = k === 0 || k === CELLS_PER_COLOR - 3
+        ? 1 + GATE_DISTANCE - 7 - TRACK_OUTSET
+        : k >= CELLS_PER_COLOR - 2 ? 1 + TRACK_OUTSET : 1;
+      expect(a && b && dist(a, b)).toBeCloseTo(
+        spacing, 9,
+      );
     }
   });
 
@@ -53,20 +73,27 @@ describe('track', () => {
 
 describe('gates, entries and home columns', () => {
   for (const c of COLORS) {
-    it(`colour ${c}: entry follows the previous gate, gate touches home step 1`, () => {
+    it(`colour ${c}: entry follows the previous gate, gate precedes home step 1`, () => {
       const entry = horseGround(c, 0, POS_START);
       expect(entry).toBe(TRACK[trackCell(c, POS_START)]);
       expect(trackCell(c, POS_START)).toBe(c * CELLS_PER_COLOR);
 
       const gate = horseGround(c, 0, POS_GATE);
       expect(gate).toBe(TRACK[(c * CELLS_PER_COLOR + TRACK_LENGTH - 1) % TRACK_LENGTH]);
-      expect(dist(gate, HOME[c]![0]!)).toBeCloseTo(1, 9);
+      expect(dist(gate, HOME[c]![0]!)).toBeCloseTo(GATE_DISTANCE - 6, 9);
 
-      // The gate is a colour's own arm tip, on the arm axis: its entry cell is
-      // the next cell in travel direction and lies in the same tip row.
+      // The gate is on the arm axis; the next cell is the outward-offset entry.
       const dir = armDirection(c);
       expect(gate.x * dir.z - gate.z * dir.x).toBeCloseTo(0, 9);
-      expect(dist(gate, entry)).toBeCloseTo(1, 9);
+      expect(dist(gate, entry)).toBeCloseTo(1 + TRACK_OUTSET, 9);
+      const gateIndex = (c * CELLS_PER_COLOR + TRACK_LENGTH - 1) % TRACK_LENGTH;
+      const otherSide = TRACK[(gateIndex + TRACK_LENGTH - 1) % TRACK_LENGTH]!;
+      expect(entry.x * dir.x + entry.z * dir.z).toBeCloseTo(GATE_DISTANCE, 9);
+      expect(otherSide.x * dir.x + otherSide.z * dir.z).toBeCloseTo(GATE_DISTANCE, 9);
+      expect(dist(gate, otherSide)).toBeCloseTo(1 + TRACK_OUTSET, 9);
+      expect(GATE_DISTANCE - CELL_RADIUS - LANE_END).toBeCloseTo(
+        INLAY_HALF_LENGTH - GATE_DISTANCE - CELL_RADIUS, 9,
+      );
     });
 
     it(`colour ${c}: home column is six unit steps from the gate towards the centre`, () => {
@@ -151,5 +178,44 @@ describe('horse placement', () => {
 
   it('rejects positions outside the model', () => {
     expect(() => horseGround(0, 0, 62)).toThrow(RangeError);
+  });
+});
+
+describe('home stair clearances', () => {
+  it('leaves the same gap beside the neighbouring track discs for every step', () => {
+    expect(1 + TRACK_OUTSET - TREAD_WIDTH / 2 - CELL_RADIUS).toBeCloseTo(0.12, 9);
+    expect(TREAD_WIDTH / 2).toBeGreaterThan(CELL_RADIUS);
+    expect(LANE_END - (6 + 0.5)).toBeCloseTo(LANE_HALF_WIDTH - TREAD_WIDTH / 2, 9);
+    expect(1 + TRACK_OUTSET - CELL_RADIUS - LANE_HALF_WIDTH).toBeCloseTo(
+      INLAY_HALF_WIDTH - (1 + TRACK_OUTSET + CELL_RADIUS), 9,
+    );
+    for (const color of COLORS) {
+      const dir = armDirection(color);
+      for (const step of HOME[color]!) {
+        for (const side of [-1, 1]) {
+          const neighbour = {
+            x: step.x + side * dir.z * (1 + TRACK_OUTSET) + dir.x * TRACK_OUTSET,
+            z: step.z - side * dir.x * (1 + TRACK_OUTSET) + dir.z * TRACK_OUTSET,
+          };
+          expect(TRACK.some((cell) => dist(cell, neighbour) < 1e-9)).toBe(true);
+          expect(dist(step, neighbour) - 2 * CELL_RADIUS).toBeGreaterThan(TRACK_OUTSET);
+        }
+      }
+    }
+  });
+
+  it('joins the sixth treads to the dais while preserving the disc and horse centres', () => {
+    expect(1 - DAIS_WIDTH / 2 - 0.5).toBeCloseTo(0, 9);
+    expect(1 - HUB_RING_RADIUS - CELL_RADIUS).toBeCloseTo(0.071, 9);
+    for (const color of COLORS) {
+      for (let step = 1; step <= HOME_STEPS; step++) {
+        const centre = HOME[color]![step - 1]!;
+        expect(horseGround(color, 0, POS_GATE + step)).toEqual(centre);
+        expect(groundHeight(POS_GATE + step)).toBeCloseTo(step * STAIR_RISE, 9);
+        expect(obstacleHeight(centre.x, centre.z, 0)).toBeCloseTo(INLAY_TOP + step * STAIR_RISE, 9);
+      }
+    }
+    expect(obstacleHeight(DAIS_WIDTH / 2 - 0.001, 0, 0)).toBeCloseTo(INLAY_TOP + 7 * STAIR_RISE, 9);
+    expect(obstacleHeight(0.501, 0, 0)).toBeCloseTo(INLAY_TOP + HOME_STEPS * STAIR_RISE, 9);
   });
 });

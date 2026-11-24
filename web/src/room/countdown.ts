@@ -7,6 +7,8 @@ export function secondsLeft(deadline: number, localNow: number, offset: number):
 }
 
 export function formatGameTime(seconds: number): string {
-  const minutes = Math.floor(seconds / 60);
-  return `${minutes}:${String(seconds % 60).padStart(2, '0')}`;
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const time = `${String(minutes).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
+  return hours > 0 ? `${hours}:${time}` : time;
 }

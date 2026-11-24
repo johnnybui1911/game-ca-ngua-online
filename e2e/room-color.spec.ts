@@ -23,25 +23,30 @@ test('the host changes colour in the waiting room, the guest sees it and cannot 
   await host.page.goto(`/r/${code}`);
   await guest.page.goto(`/r/${code}`);
   await expect(host.page.getByTestId('seat-1-name')).toContainText('Khách Đổi Màu');
+  await expect(host.page.getByTestId('add-cpu-2').locator('.lucide-bot')).toBeVisible();
+  await expect(host.page.getByTestId('add-cpu-2').locator('.lucide-plus')).toBeVisible();
   await host.page.getByTestId('add-cpu-2').click();
   await expect(guest.page.getByTestId('seat-2-name')).toContainText('Máy');
+  await expect(host.page.getByTestId('remove-cpu-2').locator('.lucide-bot')).toBeVisible();
+  await expect(host.page.getByTestId('remove-cpu-2').locator('.lucide-minus')).toBeVisible();
 
-  // Everyone holds a colour: the host's own is checked, the guest's and the CPU's are unavailable to the host.
-  await expect(host.page.getByTestId('color-0')).toHaveAttribute('aria-checked', 'true');
-  await expect(host.page.getByTestId('color-1')).toBeDisabled();
-  await expect(host.page.getByTestId('color-2')).toBeDisabled();
+  // Only free seats have a colour action; adding the CPU did not move the host.
+  await expect(host.page.getByTestId('seat-0-name')).toContainText('Chủ Đổi Màu');
+  await expect(host.page.getByTestId('color-0')).toHaveCount(0);
+  await expect(host.page.getByTestId('color-1')).toHaveCount(0);
+  await expect(host.page.getByTestId('color-2')).toHaveCount(0);
   await expect(host.page.getByTestId('color-3')).toBeEnabled();
-  await expect(guest.page.getByTestId('color-2')).toBeDisabled();
+  await expect(guest.page.getByTestId('color-2')).toHaveCount(0);
 
   await host.page.getByTestId('color-3').click();
-  await expect(host.page.getByTestId('color-3')).toHaveAttribute('aria-checked', 'true');
+  await expect(host.page.getByTestId('color-3')).toHaveCount(0);
   await expect(host.page.getByTestId('seat-0-name')).toHaveText('Chỗ trống');
   await expect(guest.page.getByTestId('seat-3-name')).toContainText('Chủ Đổi Màu');
   // The host is still the host: crown, start button, and the freed colour is open to the guest.
   await expect(host.page.getByTestId('seat-3-state')).toContainText('Chủ phòng');
   await expect(host.page.getByTestId('start-button')).toBeEnabled();
   await expect(guest.page.getByTestId('color-0')).toBeEnabled();
-  await expect(guest.page.getByTestId('color-3')).toBeDisabled();
+  await expect(guest.page.getByTestId('color-3')).toHaveCount(0);
 
   // A guest asking for held colours is refused by the server, even without the button.
   const raw = await openRawSocket(guest, code);

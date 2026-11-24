@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { CLASSIC_RULES, CLASSIC_MODE_SUMMARY, QUICK_DIFFERENCES, QUICK_MODE_SUMMARY, QUICK_WIN_TEXT } from '../shared/rules-text';
+import { CLASSIC_RULES, QUICK_DIFFERENCES, QUICK_WIN_TEXT } from '../shared/rules-text';
 import { DEFAULT_ROOM_SETTINGS } from '../shared/protocol';
 import {
   GAME_TIMEOUT,
@@ -44,7 +44,7 @@ test('the host sets the turn time and Ván nhanh; others see them read-only', as
   await expect(host.page.getByTestId('game-settings')).not.toContainText('Nhịp ván');
   await expect(guest.page.getByTestId('game-settings')).not.toContainText('Nhịp ván');
   await expect(host.page.getByTestId('auto-roll-toggle')).not.toBeChecked();
-  await expect(host.page.getByTestId('mode-summary')).toContainText(CLASSIC_MODE_SUMMARY);
+  await expect(host.page.getByTestId('mode-rules')).toHaveText('Xem luật');
   await expect(guest.page.getByTestId('turn-seconds')).toHaveText('30 giây');
   await expect(host.page.getByTestId('game-settings')).toContainText('Máy đổ giúp sau 1,5 giây.');
   await host.page.getByTestId('game-time-0').click();
@@ -55,12 +55,12 @@ test('the host sets the turn time and Ván nhanh; others see them read-only', as
   await host.page.getByTestId('mode-quick').click();
   await expect(host.page.getByTestId('mode-quick')).toHaveAttribute('aria-checked', 'true');
   await expect(host.page.getByTestId('turn-seconds')).toHaveValue('20');
-  await expect(host.page.getByTestId('mode-summary')).toContainText(QUICK_MODE_SUMMARY);
+  await expect(host.page.getByTestId('mode-rules')).toHaveText('Xem luật');
   await expect(guest.page.getByTestId('turn-seconds')).toHaveText('20 giây');
   await expect(guest.page.getByTestId('mode-label')).toHaveText('Ván Nhanh');
   await expect(guest.page.getByTestId('mode-quick')).toHaveCount(0);
   await expect(guest.page.getByTestId('auto-roll-toggle')).toBeDisabled();
-  await expect(guest.page.getByTestId('mode-summary')).toContainText(QUICK_MODE_SUMMARY);
+  await expect(guest.page.getByTestId('mode-rules')).toHaveText('Xem luật');
   await expect(guest.page.locator('select')).toHaveCount(0);
 
   // Another time is kept when quick goes off and on again; auto-roll is a separate switch.

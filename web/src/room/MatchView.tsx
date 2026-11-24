@@ -207,7 +207,7 @@ function useHudInsets(active: boolean) {
     const root = topEl?.parentElement;
     if (!active || !topEl || !bottomEl || !root) return;
     const measure = () => {
-      const measured = { top: topEl.offsetHeight, bottom: bottomEl.offsetHeight };
+      const measured = { top: topEl.offsetHeight, bottom: bottomEl.offsetHeight + 48 };
       setInsets((prev) => reserveInsets(prev, measured, root.clientWidth, root.clientHeight));
     };
     measure();
@@ -453,6 +453,16 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
 
       <section className={`glass hud-bottom${myTurn && !paused ? ' is-my-turn' : ''}`} aria-label="Điều khiển" ref={hud.bottomRef}>
         <CreatorBadge />
+        {!finished && gameSeconds !== null && (
+          <span
+            className={`game-countdown${gameSeconds <= 60 ? ' is-low' : ''}`}
+            data-testid="game-countdown"
+            aria-label={`Thời gian ván còn lại ${formatGameTime(gameSeconds)}`}
+          >
+            <Icon name="timer" size="sm" />
+            {formatGameTime(gameSeconds)}
+          </span>
+        )}
         <button
           type="button"
           className="ui-btn ui-btn--icon camera-reset"
@@ -510,14 +520,13 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
               aria-live="polite"
               style={turnSeat && !finished ? ({ '--seat-color': COLOR_VARS[turnSeat.color] } as CSSProperties) : undefined}
             >
-              {turnText}
+              {myTurn && !paused ? (
+                <>
+                  <span className="turn-full">{turnText}</span>
+                  <span className="turn-short">Bạn</span>
+                </>
+              ) : turnText}
             </p>
-            {!finished && (
-              <span className="game-countdown" data-testid="game-countdown" aria-label="Thời gian còn lại của ván">
-                <Icon name="timer" size="sm" />
-                {gameSeconds === null ? '∞' : formatGameTime(gameSeconds)}
-              </span>
-            )}
           </div>
           {seconds !== null && !finished && (
             <span className={`countdown${lowTime ? ' is-low' : ''}`} data-testid="countdown">

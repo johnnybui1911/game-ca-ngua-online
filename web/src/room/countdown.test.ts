@@ -18,6 +18,7 @@ describe('secondsLeft', () => {
   });
 
   it('formats a whole-game clock without losing hours', () => {
-    expect([0, 9, 61, 3600].map(formatGameTime)).toEqual(['0:00', '0:09', '1:01', '60:00']);
+    expect([0, 9, 61, 3599, 3600, 3661].map(formatGameTime))
+      .toEqual(['00:00', '00:09', '01:01', '59:59', '1:00:00', '1:01:01']);
   });
 });

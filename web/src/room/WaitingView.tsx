@@ -6,7 +6,6 @@ import { inviteLink, reportInviteShared } from '../analytics';
 import { useLobby } from '../lobby/LobbyProvider';
 import { Icon } from '../ui/Icon';
 import { COLOR_NAMES, COLOR_VARS } from './colors';
-import { ColorPicker } from './ColorPicker';
 import { CPU_LEVEL_LABELS, cpuLevelOf } from './cpu-levels';
 import { EmoteBubble, EmoteLive } from './EmoteBubble';
 import { EmotePicker } from './EmotePicker';
@@ -109,6 +108,15 @@ export function WaitingView({ room, myId, send, actionError, emotes, offline }: 
     <main className="room-page">
       <section className="glass room-panel" aria-labelledby="room-name">
         <header className="room-head">
+          {isHost && (
+            <div className="start-row">
+              <button type="button" className="ui-btn ui-btn--hero" data-testid="start-button" disabled={startReason !== null} onClick={() => send({ t: 'start' })}>
+                <Icon name="dice" size="lg" />
+                Bắt đầu
+              </button>
+              {startReason && <p className="ui-muted" data-testid="start-reason">{startReason}</p>}
+            </div>
+          )}
           <p className="ui-eyebrow">
             Phòng chờ · {room.visibility === 'public' ? 'Công khai' : 'Riêng tư'}
             {room.allowTakeover && <span data-testid="allow-takeover-tag"> · Cho vào thay máy</span>}
@@ -123,14 +131,14 @@ export function WaitingView({ room, myId, send, actionError, emotes, offline }: 
                 {room.code}
               </strong>
             </span>
-            <button type="button" className="ui-btn ui-btn--secondary" data-testid="copy-link" onClick={() => void copy()}>
+            <button type="button" className="ui-btn ui-btn--secondary room-share-action" aria-label="Sao chép link" title="Sao chép link" data-testid="copy-link" onClick={() => void copy()}>
               <Icon name={copied === 'done' ? 'check' : 'copy-link'} />
-              Sao chép link
+              <span>Sao chép link</span>
             </button>
             {canShare && (
-              <button type="button" className="ui-btn ui-btn--secondary" data-testid="share-button" onClick={() => void share()}>
+              <button type="button" className="ui-btn ui-btn--secondary room-share-action" aria-label="Chia sẻ" title="Chia sẻ" data-testid="share-button" onClick={() => void share()}>
                 <Icon name="share" />
-                Chia sẻ
+                <span>Chia sẻ</span>
               </button>
             )}
           </div>
@@ -158,6 +166,17 @@ export function WaitingView({ room, myId, send, actionError, emotes, offline }: 
                     data-testid={`seat-${i}`}
                     style={{ '--seat-color': COLOR_VARS[seat.color] } as CSSProperties}
                   >
+                    {occ === null && mySeat && (
+                      <button
+                        type="button"
+                        className="seat-select"
+                        aria-label={`Đổi sang màu ${COLOR_NAMES[seat.color]}`}
+                        title={`Đổi sang màu ${COLOR_NAMES[seat.color]}`}
+                        data-testid={`color-${seat.color}`}
+                        disabled={offline}
+                        onClick={() => send({ t: 'color', color: seat.color })}
+                      />
+                    )}
                     <span className="seat-dot" title={COLOR_NAMES[seat.color]}>
                       {occ !== null && <Icon name={occ.kind === 'cpu' ? 'bot' : host ? 'crown' : 'knight'} size="sm" label={host ? 'Chủ phòng' : undefined} />}
                     </span>
@@ -170,7 +189,7 @@ export function WaitingView({ room, myId, send, actionError, emotes, offline }: 
                         className={`seat-state${occ?.kind === 'human' && !occ.connected ? ' seat-state-off' : ''}`}
                         data-testid={`seat-${i}-state`}
                       >
-                        {occ === null && 'Chờ người chơi'}
+                        {occ === null && (mySeat && !offline ? 'Chờ người chơi · Đổi màu' : 'Chờ người chơi')}
                         {occ?.kind === 'cpu' && `Máy · ${CPU_LEVEL_LABELS[cpuLevelOf(room)]}`}
                         {occ?.kind === 'human' && (occ.connected ? 'Đang kết nối' : 'Mất kết nối')}
                         {host && ' · Chủ phòng'}
@@ -190,13 +209,19 @@ export function WaitingView({ room, myId, send, actionError, emotes, offline }: 
                     )}
                     {isHost && occ === null && (
                       <button type="button" className="ui-btn ui-btn--secondary seat-action" aria-label="Thêm máy" data-testid={`add-cpu-${i}`} onClick={() => send({ t: 'addCpu', seat: i })}>
-                        <Icon name="user-plus" size="sm" />
+                        <span className="seat-cpu-icon" aria-hidden="true">
+                          <Icon name="bot" size="sm" />
+                          <Icon name="plus" size="sm" />
+                        </span>
                         <span className="seat-action-label">Thêm máy</span>
                       </button>
                     )}
                     {isHost && occ?.kind === 'cpu' && (
                       <button type="button" className="ui-btn ui-btn--ghost seat-action" aria-label="Bỏ máy" data-testid={`remove-cpu-${i}`} onClick={() => send({ t: 'removeCpu', seat: i })}>
-                        <Icon name="user-minus" size="sm" />
+                        <span className="seat-cpu-icon" aria-hidden="true">
+                          <Icon name="bot" size="sm" />
+                          <Icon name="minus" size="sm" />
+                        </span>
                         <span className="seat-action-label">Bỏ máy</span>
                       </button>
                     )}
@@ -204,27 +229,13 @@ export function WaitingView({ room, myId, send, actionError, emotes, offline }: 
                 );
               })}
             </ul>
-            {mySeat && <ColorPicker room={room} myColor={mySeat.color} offline={offline} send={send} />}
-
             {actionError && (
               <p className="form-error" role="alert" data-testid="action-error">
                 {actionError}
               </p>
             )}
 
-            {isHost ? (
-              <div className="start-row">
-                <button type="button" className="ui-btn ui-btn--hero" data-testid="start-button" disabled={startReason !== null} onClick={() => send({ t: 'start' })}>
-                  <Icon name="dice" size="lg" />
-                  Bắt đầu
-                </button>
-                {startReason && (
-                  <p className="ui-muted" data-testid="start-reason">
-                    {startReason}
-                  </p>
-                )}
-              </div>
-            ) : (
+            {!isHost && (
               <p className="await-host" data-testid="await-host">
                 Chờ chủ phòng bắt đầu…
               </p>

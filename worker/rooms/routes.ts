@@ -69,7 +69,7 @@ roomRoutes.post('/rooms', requireSameOrigin, async (c) => {
   if (input.allowTakeover !== undefined && typeof input.allowTakeover !== 'boolean') {
     return fail(c, 400, 'invalid_option', 'Tuỳ chọn phòng không hợp lệ.');
   }
-  const allowTakeover = input.allowTakeover === true;
+  const allowTakeover = input.allowTakeover ?? true;
   const allowed = await c.env.LOBBY.getByName('lobby').allowCreate(user.id);
   if (allowed === 'too_many_rooms') {
     return fail(c, 429, 'too_many_rooms', 'Bạn đang có quá nhiều phòng đang mở. Hãy rời bớt phòng trước khi tạo phòng mới.');
