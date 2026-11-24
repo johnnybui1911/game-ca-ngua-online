@@ -75,38 +75,44 @@ Link: `https://ca-ngua-online.johnny-bui1911.workers.dev/?utm_source=facebook`
 
 Trước khi đăng: đọc nội quy nhóm (tag `#share`, ngày được đăng link, có cho đăng link trong bài không); mỗi nhóm cách nhau vài giờ và đổi nhẹ câu mở; trả lời bình luận nhanh trong giờ đầu.
 
-> Làm game cờ cá ngựa online, nhưng làm sao để người chơi đầu tiên chịu vào chơi khi xung quanh... chưa có ai?
+> 👋 Chào mọi người, em là Johnny ạ
 >
-> Đó là bài toán "con gà - quả trứng" mà em đang khá đau đầu ạ.
+> Nhân Ngày Văn hoá Việt Nam hôm nay, em xin giới thiệu Cờ Cá Ngựa 3D online, game em vibe code cùng AI agent, để mình cùng chơi lại một trò tuổi thơ rất Việt Nam 🧧
 >
-> 🎲 Chuyện bắt đầu từ một cảnh chắc nhà nào cũng gặp: Tết sắp tới, cả nhà mỗi người một nơi, ai cũng muốn ngồi chơi một ván cờ cá ngựa như hồi nhỏ, nhưng không có bàn cờ, cũng không đủ người.
+> Ý tưởng rất đơn giản: nhóm bạn hay cả gia đình, đi cafe hay ở nhà, đều có thể chơi ngay một ván cờ cá ngựa ngay trên điện thoại hoặc tablet, với thiết kế 3D đồ họa đậm chất Việt, chỉ bằng một đường link. Khỏi phải đi tìm mua bộ cờ cá ngựa ở ngoài. Nhanh lẹ, free, giải trí nhanh cho anh chị em hội nhóm.
 >
-> 🐴 Thế là Cờ Cá Ngựa 3D online ra đời, nhân Ngày Văn hoá Việt Nam hôm nay em xin giới thiệu cùng các bác:
+> Điểm nổi bật:
 >
-> 🎮 Chơi ngay trên trình duyệt (điện thoại và máy tính), nhập tên là chơi, không cần đăng ký. Free ạ.
+> 🎮 Chơi ngay trên trình duyệt, nhập tên là chơi, không cần cài app, không cần đăng ký. Free ạ.
+>
 > 📜 Đúng luật cá ngựa Việt Nam, có bảng luật ngay trong ván.
+>
 > 🏮 Bàn cờ 3D như phòng khách ngày Tết: quân ngựa gỗ, bàn sơn mài, đèn lồng, câu đối, tượng "Mã đáo thành công".
+>
 > 💥 Pha đá ngựa điện ảnh: ngựa bật cao, đá hậu, đối thủ bay vòng về chuồng.
+>
 > 📊 Bảng đá ngựa: xem ai đá nhiều nhất nhà.
-> 🔗 Rủ bạn bằng một đường link, thiếu người thì có máy chơi cùng (Dễ, Thường, Khó).
-> 🙋 Đang chơi dở vẫn xin vào thay máy được, chủ phòng bấm duyệt.
+>
+> 👨‍👩‍👧 Rủ bạn bằng link, phòng công khai hoặc riêng tư, thiếu người thì có máy chơi cùng (Dễ, Thường, Khó).
+>
+> 🚪 Đang chơi dở vẫn xin vào thay máy được, chủ phòng bấm duyệt.
+>
 > ⚡ Ván Nhanh, chỉnh được thời gian cả ván và thời gian mỗi lượt.
 >
-> Cứ ngỡ làm xong game là xong, giờ mới thấm phần khó nhất không nằm ở tính năng. Phòng vắng thì không ai muốn ở lại, mà không ai ở lại thì phòng mãi vắng 🥲
+> Link game em để ở phần bình luận ạ.
 >
-> ❓ Các bác đi trước từng vượt qua cái ải cold-start này như thế nào, cho em xin ít kinh nghiệm kéo những người chơi đầu tiên với ạ 🙏 Mọi người thường dùng kênh nào hay mẹo gì ở giai đoạn số 0 này?
->
-> Tiện thể bác nào rảnh chơi thử rồi chê thật lòng giúp em phần giao diện và trải nghiệm với, vào chơi ngay không bắt đăng nhập lằng nhằng đâu ạ 👇
-> 👉 https://ca-ngua-online.johnny-bui1911.workers.dev/?utm_source=facebook
+> Vì là sản phẩm cá nhân nên chắc chắn còn nhiều điểm cần cải thiện, rất mong các bác chơi thử và góp ý về giao diện, tính năng hoặc chỗ nào chưa hợp lý để em hoàn thiện thêm ạ. Cho em hỏi luôn: hồi nhỏ nhà các bác chơi cờ cá ngựa luật thế nào, ra chuồng bằng 6 hay 1 hoặc 6? 😄
 >
 > Cảm ơn BQT đã duyệt và mọi người đã đọc bài 😍
 >
-> #bipvn_ask #bipvn #buildinpublicvn #CoCaNgua #NgayVanHoaVietNam
+> #bipvn #buildinpublicvn #buildinpublic #CoCaNgua #NgayVanHoaVietNam
 
-Link nằm ngay trong bài (theo bài mẫu của anh). Nếu nhóm không cho đăng link trong bài: xoá dòng link, thêm "Link game em để ở bình luận đầu tiên ạ" và dán link vào bình luận đầu tiên:
+**Bình luận đầu tiên (anh tự đăng ngay sau khi đăng bài):**
 
 > 🎮 Chơi thử: https://ca-ngua-online.johnny-bui1911.workers.dev/?utm_source=facebook
 > Luật chơi đầy đủ + giới thiệu: https://ca-ngua-online.johnny-bui1911.workers.dev/gioi-thieu?utm_source=facebook
+
+Nếu nhóm cho đăng link trong bài, dán link vào ngay sau câu "Free ạ." và bỏ dòng "Link game em để ở phần bình luận ạ".
 
 Ảnh (album, 4 ảnh đầu hiện ra ngoài, nên xếp theo thứ tự):
 1. Có clip pha đá thì clip đầu tiên; chưa có thì `ngua-truoc-sau-1600x924.jpg` (ảnh kể chuyện "trước và sau")
@@ -119,7 +125,7 @@ Link nằm ngay trong bài (theo bài mẫu của anh). Nếu nhóm không cho �
 8. `truoc-sau-1080x1248.jpg`
 
 Cần anh xác nhận trước khi đăng:
-- Câu hỏi cold-start ("kéo người chơi đầu tiên") là em viết theo bài mẫu Laca vì game cũng cần người chơi; nếu anh muốn hỏi chuyện khác (ví dụ chỉ xin góp ý giao diện) thì sửa.
-- Cảnh mở "Tết sắp tới, cả nhà mỗi người một nơi, không có bàn cờ, không đủ người" là tình huống chung em dựng, không phải chuyện riêng của anh; sửa nếu anh có lý do thật khác.
+- Đoạn "Ý tưởng rất đơn giản" viết theo ý anh; chỗ "chỉ bằng ..." anh bỏ trống, em điền "một đường link". Sửa nếu anh muốn từ khác.
+- "Điện thoại hoặc tablet": em chỉ kiểm điện thoại và máy tính; tablet chưa kiểm.
 - Mọi tính năng trong bài đều có trên bản live (đã quay và chụp trong bộ ảnh/video). Không nhắc Fable 5.2, 1 prompt, bản 21/11.
-- Link worker.dev sẽ đổi khi có domain mới; thay link trong bài trước khi đăng.
+- Link worker.dev sẽ đổi khi có domain mới; thay link trong bình luận trước khi đăng.
