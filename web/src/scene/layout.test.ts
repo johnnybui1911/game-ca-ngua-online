@@ -14,10 +14,14 @@ import {
   CELL_RADIUS,
   DAIS_WIDTH,
   DIE_REST,
+  GATE_DISTANCE,
   HUB_RING_RADIUS,
   HOME,
+  INLAY_HALF_LENGTH,
   INLAY_HALF_WIDTH,
   INLAY_TOP,
+  LANE_END,
+  LANE_HALF_WIDTH,
   STABLE,
   STABLE_CENTERS,
   STABLE_TRAY_SIZE,
@@ -42,14 +46,16 @@ describe('track', () => {
     expect(new Set(TRACK.map(key)).size).toBe(TRACK_LENGTH);
   });
 
-  it('is a closed loop with unit spacing along each lane and a gap at the gates', () => {
+  it('is a closed loop with aligned tip rows and evenly spaced inner lanes', () => {
     for (let i = 0; i < TRACK_LENGTH; i++) {
       const a = TRACK[i];
       const b = TRACK[(i + 1) % TRACK_LENGTH];
-      const gapAtGate = i % CELLS_PER_COLOR === CELLS_PER_COLOR - 2 ||
-        i % CELLS_PER_COLOR === CELLS_PER_COLOR - 1;
+      const k = i % CELLS_PER_COLOR;
+      const spacing = k === 0 || k === CELLS_PER_COLOR - 3
+        ? 1 + GATE_DISTANCE - 7 - TRACK_OUTSET
+        : k >= CELLS_PER_COLOR - 2 ? 1 + TRACK_OUTSET : 1;
       expect(a && b && dist(a, b)).toBeCloseTo(
-        gapAtGate ? Math.hypot(1 + TRACK_OUTSET, TRACK_OUTSET) : 1, 9,
+        spacing, 9,
       );
     }
   });
@@ -67,19 +73,27 @@ describe('track', () => {
 
 describe('gates, entries and home columns', () => {
   for (const c of COLORS) {
-    it(`colour ${c}: entry follows the previous gate, gate touches home step 1`, () => {
+    it(`colour ${c}: entry follows the previous gate, gate precedes home step 1`, () => {
       const entry = horseGround(c, 0, POS_START);
       expect(entry).toBe(TRACK[trackCell(c, POS_START)]);
       expect(trackCell(c, POS_START)).toBe(c * CELLS_PER_COLOR);
 
       const gate = horseGround(c, 0, POS_GATE);
       expect(gate).toBe(TRACK[(c * CELLS_PER_COLOR + TRACK_LENGTH - 1) % TRACK_LENGTH]);
-      expect(dist(gate, HOME[c]![0]!)).toBeCloseTo(1, 9);
+      expect(dist(gate, HOME[c]![0]!)).toBeCloseTo(GATE_DISTANCE - 6, 9);
 
       // The gate is on the arm axis; the next cell is the outward-offset entry.
       const dir = armDirection(c);
       expect(gate.x * dir.z - gate.z * dir.x).toBeCloseTo(0, 9);
-      expect(dist(gate, entry)).toBeCloseTo(Math.hypot(1 + TRACK_OUTSET, TRACK_OUTSET), 9);
+      expect(dist(gate, entry)).toBeCloseTo(1 + TRACK_OUTSET, 9);
+      const gateIndex = (c * CELLS_PER_COLOR + TRACK_LENGTH - 1) % TRACK_LENGTH;
+      const otherSide = TRACK[(gateIndex + TRACK_LENGTH - 1) % TRACK_LENGTH]!;
+      expect(entry.x * dir.x + entry.z * dir.z).toBeCloseTo(GATE_DISTANCE, 9);
+      expect(otherSide.x * dir.x + otherSide.z * dir.z).toBeCloseTo(GATE_DISTANCE, 9);
+      expect(dist(gate, otherSide)).toBeCloseTo(1 + TRACK_OUTSET, 9);
+      expect(GATE_DISTANCE - CELL_RADIUS - LANE_END).toBeCloseTo(
+        INLAY_HALF_LENGTH - GATE_DISTANCE - CELL_RADIUS, 9,
+      );
     });
 
     it(`colour ${c}: home column is six unit steps from the gate towards the centre`, () => {
@@ -169,8 +183,10 @@ describe('horse placement', () => {
 
 describe('home stair clearances', () => {
   it('leaves the same gap beside the neighbouring track discs for every step', () => {
-    expect(1 + TRACK_OUTSET - TREAD_WIDTH / 2 - CELL_RADIUS).toBeCloseTo(0.17, 9);
-    expect(TRACK_OUTSET).toBeCloseTo(INLAY_HALF_WIDTH - (1 + TRACK_OUTSET + CELL_RADIUS), 9);
+    expect(1 + TRACK_OUTSET - TREAD_WIDTH / 2 - CELL_RADIUS).toBeCloseTo(0.23, 9);
+    expect(1 + TRACK_OUTSET - CELL_RADIUS - LANE_HALF_WIDTH).toBeCloseTo(
+      INLAY_HALF_WIDTH - (1 + TRACK_OUTSET + CELL_RADIUS), 9,
+    );
     for (const color of COLORS) {
       const dir = armDirection(color);
       for (const step of HOME[color]!) {

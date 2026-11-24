@@ -16,7 +16,7 @@ import {
 } from 'three';
 import type { Color } from '../../../shared/game/types';
 import type { HorseModel } from './horse-model';
-import { CELL_RADIUS } from './layout';
+import { CELL_RADIUS, LANE_END, LANE_HALF_WIDTH } from './layout';
 import { BOARD, HORSE_COLORS, HORSE_STAIN } from './palette';
 import { TextureKit } from './textures';
 
@@ -87,7 +87,7 @@ export class Assets {
   readonly cellRimMat = this.own(new MeshStandardMaterial({ color: BOARD.cellRim, roughness: 0.6 }));
   readonly decalGeometry = this.own(new PlaneGeometry(0.96, 0.96));
   // Arms span 0.62..6.66 from the centre so neighbouring translucent lanes never overlap (coplanar overlap z-fights).
-  readonly laneGeometry = this.own(new BoxGeometry(1.24, 0.016, 6.04));
+  readonly laneGeometry = this.own(new BoxGeometry(LANE_HALF_WIDTH * 2, 0.016, LANE_END - LANE_HALF_WIDTH));
   readonly laneMat = this.perColor((c) =>
     this.own(new MeshStandardMaterial({ color: HORSE_COLORS[c], roughness: 0.8, transparent: true, opacity: 0.4 })),
   );

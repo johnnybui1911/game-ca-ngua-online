@@ -35,6 +35,14 @@ export interface Vec2 {
 
 /** Arm length: lane cells from the centre block to the tip. */
 const ARM = 7;
+export const INLAY_HALF_WIDTH = 1.74;
+export const INLAY_HALF_LENGTH = 7.92;
+export const LANE_HALF_WIDTH = 0.62;
+export const LANE_END = 6.66;
+/** Outward shift of track lanes from home columns, in board units. */
+export const TRACK_OUTSET = (INLAY_HALF_WIDTH + LANE_HALF_WIDTH) / 2 - 1;
+/** Centre the gate between the end of the coloured lane and the inlay edge. */
+export const GATE_DISTANCE = (INLAY_HALF_LENGTH + LANE_END) / 2;
 /** Half extent of the playable cross, in cells, measured to the tip row centre. */
 export const BOARD_HALF = ARM + 0.5;
 /** Half side of the wooden slab. */
@@ -56,13 +64,12 @@ function toWorld(color: number, armX: number, armY: number): Vec2 {
 
 /** Colour 0's track cell k (0..13) in arm space. */
 function armTrackCell(k: number): [number, number] {
+  if (k === 0) return [-GATE_DISTANCE, 1 + TRACK_OUTSET];
   if (k < 6) return [-ARM + k - TRACK_OUTSET, 1 + TRACK_OUTSET];
+  if (k === 12) return [-1 - TRACK_OUTSET, GATE_DISTANCE];
   if (k < 13) return [-1 - TRACK_OUTSET, 1 + (k - 6) + TRACK_OUTSET];
-  return [0, ARM];
+  return [0, GATE_DISTANCE];
 }
-
-/** Outward shift of the track lanes from the home columns, in board units. */
-export const TRACK_OUTSET = 0.12;
 
 export const TRACK: readonly Vec2[] = Array.from({ length: TRACK_LENGTH }, (_, i) => {
   // Cells c*14 .. c*14+13 end at the tip of the next colour's arm (its gate).
@@ -158,7 +165,6 @@ export const CELL_RADIUS = 0.5;
 
 /** Top of the inlay and the footprints of the stairs and centre dais, in board units. */
 export const INLAY_TOP = 0.04;
-export const INLAY_HALF_WIDTH = 1.74;
 export const TREAD_WIDTH = 0.9;
 export const DAIS_WIDTH = 0.88;
 /** Scale of the floating medallion, keeping it clear of the full-size home discs. */

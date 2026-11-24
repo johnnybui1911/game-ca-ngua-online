@@ -27,8 +27,11 @@ import {
   HOME,
   DAIS_WIDTH,
   HUB_SCALE,
+  INLAY_HALF_LENGTH,
   INLAY_HALF_WIDTH,
   INLAY_TOP,
+  LANE_END,
+  LANE_HALF_WIDTH,
   SLAB_HALF,
   STABLE,
   STABLE_CENTERS,
@@ -196,7 +199,7 @@ export default function Board({ assets, state, colors }: Props) {
       assets.own(new ExtrudeGeometry(crossShape(half, length), { depth, bevelEnabled: false }));
     const frame = extrude(1.95, 8.12, 0.03);
     const frameMat = lacquered(frameWood, '#e8d4c0');
-    const inlay = extrude(INLAY_HALF_WIDTH, 7.92, INLAY_TOP);
+    const inlay = extrude(INLAY_HALF_WIDTH, INLAY_HALF_LENGTH, INLAY_TOP);
     const inlayMat = assets.own(new MeshStandardMaterial({ map: felt, roughness: 0.92 }));
 
     const trayGeo = assets.own(new RoundedBoxGeometry(STABLE_TRAY_SIZE, 0.1, STABLE_TRAY_SIZE, 3, 0.04));
@@ -287,7 +290,11 @@ export default function Board({ assets, state, colors }: Props) {
             key={`lane${c}`}
             geometry={assets.laneGeometry}
             material={assets.laneMat[c]}
-            position={[dir.x * 3.64, INLAY_TOP + 0.012, dir.z * 3.64]}
+            position={[
+              dir.x * (LANE_HALF_WIDTH + LANE_END) / 2,
+              INLAY_TOP + 0.012,
+              dir.z * (LANE_HALF_WIDTH + LANE_END) / 2,
+            ]}
             rotation={[0, yawBetween({ x: 0, z: 0 }, dir), 0]}
           />
         );

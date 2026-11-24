@@ -6,7 +6,7 @@
 
 ## Steps
 
-1. Narrow the treads and shift track lanes outward, keeping home discs full-size and horses centred; inset the centre dais and medallion to create a visible gap.
+1. Narrow the treads and centre track discs between coloured lanes and wood, keeping home discs full-size and horses centred; inset the centre dais and medallion to create a visible gap.
 2. Keep obstacle clearance calculations aligned with the new dais and tread dimensions and add geometry/placement tests.
 3. Inspect `scene-dev.html` before and after at device scale factor 2 from top-down and angled views, including the centre and neighbouring track discs.
 4. Run scene tests, typecheck, Vitest, and build; update PR #77 with measurements and commit the change separately.
