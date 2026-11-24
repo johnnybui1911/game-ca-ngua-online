@@ -61,6 +61,8 @@ Link: `https://ca-ngua-online.johnny-bui1911.workers.dev/?utm_source=facebook`
 > ✅ Free, No Ads. Nhập tên là chơi, không cần đăng ký, không cần cài app.
 >
 > Ván nào bị đá ngay trước cửa chuồng thì comment kể cho tui nghe nha 😆 Thấy chỗ nào dở bấm "Góp ý" trong game, tui sửa liền 🙏
+>
+> #CoCaNgua #CoCaNguaOnline #NgayVanHoaVietNam #TroChoiTuoiTho #GameViet #AI #Blender #VibeCoding
 
 Ảnh: `truoc-sau-1080x1248.jpg` (ảnh đầu) → `ngua-truoc-sau-1600x924.jpg` → clip pha đá (hoặc `da-ngua-2-khung-1600x884.jpg`) → `tet-board-780x1560.jpg`.
 **Sau khi đăng:** bình luận vào bài 21/11: "Bản mới lên rồi nè: [link bài mới]".
@@ -101,6 +103,8 @@ Trước khi đăng: đọc nội quy nhóm (tag `#share`, ngày được đăng
 > 4. Gặp lỗi thì bấm nút "Góp ý" trong game hoặc bình luận giúp tui.
 >
 > Hôm nay Ngày Văn hoá, ai có tuổi thơ gắn với bàn cờ cá ngựa thì rủ người nhà chơi một ván nha. Cảm ơn mọi người đã đọc và chơi thử ạ!
+>
+> #CoCaNgua #CoCaNguaOnline #NgayVanHoaVietNam #VibeCoding #AIAgent #BuildInPublic #Blender #ThreeJS
 
 Ảnh: clip pha đá (đầu; chưa có thì `da-ngua-2-khung-1600x884.jpg`) → `ngua-truoc-sau-1600x924.jpg` → `truoc-sau-1080x1248.jpg` → `og-1200x630.jpg`.
 
