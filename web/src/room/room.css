@@ -1191,6 +1191,55 @@ html[data-quality='low'] .hud-player {
   text-align: center;
 }
 
+.glass.dialog.kick-stats {
+  max-height: calc(100dvh - 2 * var(--space-4));
+  overflow-y: auto;
+  text-align: left;
+}
+
+.kick-stats-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.kick-stats-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.kick-stats-table th,
+.kick-stats-table td {
+  padding: var(--space-2);
+  border-bottom: 1px solid var(--color-border);
+  text-align: left;
+}
+
+.kick-stats-table th:last-child,
+.kick-stats-table td:last-child {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.kick-stats-player {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.kick-stats-swatch {
+  flex: 0 0 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--seat-color);
+}
+
+.kick-stats-name {
+  overflow-wrap: anywhere;
+}
+
 .menu-settings {
   padding: 0 var(--space-4);
   text-align: left;
@@ -1343,4 +1392,161 @@ html[data-quality='low'] .hud-player {
 /* A software renderer composites the whole page on the CPU for every animated frame: the turn stays marked by the card's ring. */
 html[data-webgl='software'] .hud-player.is-turn .seat-dot {
   animation: none;
+}
+
+/* A person with no seat asking for a CPU seat during a game, and the host's answers. */
+.join-colors {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-block: var(--space-3);
+}
+
+.join-color .seat-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--seat-color);
+}
+
+.join-wait {
+  font-weight: var(--weight-semibold);
+}
+
+.join-requests {
+  position: absolute;
+  z-index: 7;
+  bottom: calc(100% + var(--space-2));
+  left: 50%;
+  transform: translateX(-50%);
+  display: grid;
+  gap: var(--space-2);
+  width: min(440px, calc(100vw - 2 * var(--space-3)));
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.join-request {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-2) var(--space-2) var(--space-3);
+  color: var(--color-text);
+  background: color-mix(in srgb, var(--glass-fill-solid) 94%, transparent);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  border: 1px solid var(--glass-stroke);
+  border-left: 3px solid var(--seat-color);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--glass-specular), var(--glass-shadow);
+}
+
+.join-request-text {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+  line-height: 1.25;
+}
+
+.join-request-text strong,
+.join-request-text span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.join-request-text strong {
+  font-size: var(--text-md);
+  font-weight: var(--weight-bold);
+}
+
+.join-request-text span {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+
+.join-request-actions {
+  flex: none;
+  display: flex;
+  gap: var(--space-2);
+}
+
+.join-request-actions .ui-btn {
+  min-height: 38px;
+  padding: 0 var(--space-4);
+  font-size: var(--text-sm);
+}
+
+/* Phones: the text keeps the full width and the two answers sit on their own row below it. */
+@media (max-width: 480px) {
+  .join-request {
+    flex-wrap: wrap;
+    padding: var(--space-3);
+  }
+
+  .join-request-actions {
+    flex-basis: 100%;
+  }
+
+  .join-request-actions .ui-btn {
+    flex: 1;
+  }
+}
+
+.host-leave-list {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+/* Waiting room: pick another free colour. Wraps on narrow phones; each swatch is a full touch target. */
+.color-picker {
+  display: grid;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+
+.color-picker-swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.color-swatch {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--touch);
+  padding: 0 var(--space-3);
+  font: inherit;
+  font-size: var(--text-sm);
+  color: var(--color-text);
+  background: rgb(245 234 210 / 5%);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+
+.color-swatch::before {
+  content: '';
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--swatch-color);
+  box-shadow: inset 0 -3px 0 rgb(0 0 0 / 28%), 0 0 0 2px rgb(255 240 210 / 22%);
+}
+
+.color-swatch-mine {
+  border-color: var(--color-border-strong);
+  background: rgb(230 194 122 / 14%);
+}
+
+.color-swatch:disabled:not(.color-swatch-mine) {
+  opacity: 0.4;
+  cursor: not-allowed;
+  text-decoration: line-through;
 }

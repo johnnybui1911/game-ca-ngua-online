@@ -168,3 +168,17 @@ describe('listRoom', () => {
     expect(pending.has('u1')).toBe(false);
   });
 });
+
+describe('playing rooms with a CPU seat', () => {
+  it('lists public playing rooms with the seats a person can take over, never private ones', () => {
+    const withCpu = (code: string, visibility: StoredRoom['visibility']): StoredRoom => {
+      const r = room(code, { status: 'playing', visibility });
+      return { ...r, summary: { ...r.summary, takeoverSeats: 1 } };
+    };
+    const list = publicRoomList({ A: withCpu('A', 'public'), B: withCpu('B', 'private'), C: room('C', { status: 'playing' }) }, 10);
+    expect(list.map((r) => [r.code, r.takeoverSeats ?? 0])).toEqual([
+      ['A', 1],
+      ['C', 0],
+    ]);
+  });
+});

@@ -33,23 +33,71 @@ function roll(state: RoomState, dice: DiceValue): readonly DiceValue[] {
     offered = faces;
     return dice;
   });
-  state.game = result.state.phase === 'move' ? applyMove(result.state, result.state.legalHorses[0]!).state : result.state;
+  state.game =
+    result.state.phase === 'move' ? applyMove(result.state, result.state.legalHorses[0]!).state : result.state;
   return offered;
 }
 
 const yellowTurn = (): GameState => ({ ...createGame([0, 2]), turn: 2 });
 
 describe.runIf(DICE_SHAPING)('dice shaping', () => {
-  it('never gives a CPU the same 1 or 6 twice in a row, and allows 6-1-6', () => {
+  it('never gives a CPU the same 1 or 6 twice in a row, and allows 6-1 but no third 1 or 6', () => {
     const r = room(createGame([0, 2]));
     expect(roll(r, 6)).toEqual(ALL_FACES);
     expect(roll(r, 1)).toEqual([1, 2, 3, 4, 5]);
-    expect(roll(r, 6)).toEqual([2, 3, 4, 5, 6]);
-    expect(roll(r, 3)).toEqual([1, 2, 3, 4, 5]);
+    expect(roll(r, 3)).toEqual([2, 3, 4, 5]);
     // The turn passed on the 3; red's next turn starts with every face.
     expect(r.game!.turn).toBe(2);
     roll(r, 2);
     expect(facesFor(r, r.game!)).toEqual(ALL_FACES);
+  });
+
+  it.each([
+    [6, 1],
+    [1, 6],
+    [6, 6],
+    [1, 1],
+  ] as [DiceValue, DiceValue][])('forces 2..5 on the third roll after %i-%i, for a person', (a, b) => {
+    const r = room(yellowTurn());
+    roll(r, a);
+    roll(r, b);
+    expect(r.game!.turn).toBe(2);
+    expect(facesFor(r, r.game!)).toEqual([2, 3, 4, 5]);
+    expect(roll(r, 4)).toEqual([2, 3, 4, 5]);
+    // The turn passed; the counter is gone.
+    expect(r.diceMemory?.bonus).toBeUndefined();
+  });
+
+  it.each([
+    [6, 1],
+    [1, 6],
+  ] as [DiceValue, DiceValue][])('forces 2..5 on the third roll after %i-%i, for a CPU', (a, b) => {
+    const r = room(createGame([0, 2]));
+    roll(r, a);
+    roll(r, b);
+    expect(facesFor(r, r.game!)).toEqual([2, 3, 4, 5]);
+    roll(r, 3);
+    expect(r.game!.turn).toBe(2);
+    expect(r.diceMemory?.bonus).toBeUndefined();
+  });
+
+  it('counts from 1 again on the next turn', () => {
+    const r = room(yellowTurn());
+    roll(r, 6);
+    roll(r, 3);
+    r.game = { ...r.game!, turn: 2 };
+    roll(r, 6);
+    expect(r.diceMemory?.bonus?.count).toBe(1);
+    expect(facesFor(r, r.game!)).toEqual(ALL_FACES);
+  });
+
+  it('treats a stored bonus without a count as one roll', () => {
+    const r = room(yellowTurn());
+    r.diceMemory = { bonus: { color: 2, dice: 6 } };
+    expect(facesFor(r, r.game!)).toEqual(ALL_FACES);
+    roll(r, 1);
+    expect(r.diceMemory?.bonus?.count).toBe(2);
+    expect(facesFor(r, r.game!)).toEqual([2, 3, 4, 5]);
   });
 
   it('leaves a person rolling 6 after 6', () => {

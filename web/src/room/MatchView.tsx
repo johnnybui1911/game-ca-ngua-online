@@ -4,6 +4,7 @@ import { isLocked } from '../../../shared/game/engine';
 import { longestBatchSeconds, paceTimings } from '../../../shared/game/pace';
 import { HORSES_PER_COLOR, POS_GATE, type Color, type GameState } from '../../../shared/game/types';
 import { LOCKED_LABEL, NEED_KICK_HINT, QUICK_WIN_TEXT, UNLOCKED_LABEL } from '../../../shared/rules-text';
+import { inviteLink, reportInviteShared } from '../analytics';
 import { SaveAccountBlock } from '../auth/SaveAccountBlock';
 import { useSession } from '../auth/session-context';
 import type { RoomClientMessage, RoomSnapshot, Seat } from '../../../shared/protocol';
@@ -11,11 +12,13 @@ import { sound } from '../audio/sound';
 import { CreatorBadge } from '../chrome/CreatorBadge';
 import { FeedbackModal } from '../chrome/FeedbackModal';
 import { SoundSwitches, useMusic } from '../audio/SoundControls';
+import { useLobby } from '../lobby/LobbyProvider';
 import { unconsumed, type StateBatch } from './batches';
 import { secondsLeft } from './countdown';
 import { lastRollAfter, type LastRoll } from './last-roll';
 import { needKickAfter } from './need-kick';
 import { FORFEIT_TOAST_MS, FORFEIT_TOAST_TEXT, forfeitsAfter } from './forfeit-toast';
+import { takeoversAfter } from './takeover-notice';
 import { QuickIntroCard } from './QuickIntroCard';
 import { quickIntro } from './quick-intro';
 import { COLOR_NAMES, COLOR_VARS } from './colors';
@@ -24,6 +27,7 @@ import { EmoteBubble, EmoteLive } from './EmoteBubble';
 import { EmotePicker } from './EmotePicker';
 import type { EmoteBySeat } from './emote-feed';
 import { HorseNamesDialog } from './HorseNamesDialog';
+import { HostLeaveDialog } from './HostLeaveDialog';
 import { Modal } from './Modal';
 import { MotionLevelControl } from './MotionLevelControl';
 import { RulesButton, RulesSheet } from './RulesSheet';
@@ -167,6 +171,16 @@ function useForfeitToast(batches: StateBatch[], color: Color | null): number | n
   return shown;
 }
 
+/** A notice for every person who takes a CPU's seat while this page is open (not for the local player's own). */
+function useTakeoverNotices(batches: StateBatch[], myId: string, notify: (text: string) => void) {
+  const consumed = useRef<number | null>(null);
+  useEffect(() => {
+    const from = consumed.current;
+    consumed.current = batches[batches.length - 1]?.room.seq ?? from;
+    for (const text of takeoversAfter(batches, from, myId)) notify(text);
+  }, [batches, myId, notify]);
+}
+
 function useCountdown(deadline: number | null, offset: number): number | null {
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
@@ -237,7 +251,9 @@ function useGameSounds(batches: StateBatch[], myTurn: boolean, seconds: number |
 export function MatchView({ room, batches, clockOffset, myId, send, actionError, emotes, offline }: Props) {
   const navigate = useNavigate();
   const [confirmLeave, setConfirmLeave] = useState(false);
+  const [hostLeave, setHostLeave] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [statsOpen, setStatsOpen] = useState(false);
   const [renaming, setRenaming] = useState(false);
   const [rulesOpen, setRulesOpen] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
@@ -247,6 +263,8 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
     () => room.settings.quick && room.game !== null && room.game.phase !== 'finished' && quickIntro.shouldShow(),
   );
   const { guest } = useSession();
+  const { notify } = useLobby();
+  useTakeoverNotices(batches, myId, notify);
   // Decided once per visit: stays on screen as a confirmation after the guest registers.
   const [offerSave] = useState(guest);
   const [saveDismissed, setSaveDismissed] = useState(false);
@@ -285,7 +303,7 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
   const canRoll = myTurn && !paused && game?.phase === 'roll' && !board.held;
   useMusic('game');
   useGameSounds(batches, myTurn && !paused && !board.held, seconds, room.turnDeadline);
-  const dialogOpen = menuOpen || renaming || rulesOpen || confirmLeave || confirmClose || (introOpen && !finished);
+  const dialogOpen = menuOpen || statsOpen || renaming || rulesOpen || confirmLeave || hostLeave || confirmClose || (introOpen && !finished);
   // Changes with every roll the server reports, so each roll chance allows one shake-roll.
   const lastRolledSeq = [...batches].reverse().find((b) => b.events.some((e) => e.type === 'rolled'))?.room.seq ?? null;
   const shake = useShakeToRoll(canRoll && !dialogOpen, lastRolledSeq, () => send({ t: 'roll' }));
@@ -293,6 +311,23 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
 
   const turnSeat = room.seats.find((s) => s.color === game.turn);
   const isHost = room.hostId === myId;
+  // In a room that allows it, a person who opens the link asks the host for a CPU seat.
+  const canInvite = room.allowTakeover && !finished && room.seats.some((s) => s.occupant?.kind === 'cpu');
+  const others = room.seats.flatMap((s) => (s.occupant?.kind === 'human' && s.occupant.user.id !== myId ? [s.occupant.user] : []));
+  const startLeave = () => (isHost && others.length > 0 ? setHostLeave(true) : setConfirmLeave(true));
+  const handover = (newHost: string) => {
+    send({ t: 'leave', newHost });
+    void navigate('/');
+  };
+  const copyInvite = async () => {
+    try {
+      await navigator.clipboard.writeText(inviteLink(room.code));
+      notify('Đã sao chép link mời. Người vào sẽ chơi thay máy.');
+      reportInviteShared();
+    } catch {
+      notify('Không sao chép được link mời.');
+    }
+  };
   const winnerSeat = game.winner === null ? undefined : room.seats.find((s) => s.color === game.winner);
   const turnNames = turnSeat?.horseNames;
   const quickGame = game.variant === 'quick';
@@ -403,6 +438,34 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
 
       <section className={`glass hud-bottom${myTurn && !paused ? ' is-my-turn' : ''}`} aria-label="Điều khiển" ref={hud.bottomRef}>
         <CreatorBadge />
+        {isHost && !finished && room.joinRequests.length > 0 && (
+          <ul className="join-requests" aria-label="Người xin vào thay máy" data-testid="join-requests">
+            {room.joinRequests.map((r) => (
+              <li
+                key={r.user.id}
+                className="join-request"
+                style={{ '--seat-color': COLOR_VARS[r.color] } as CSSProperties}
+                data-testid={`join-request-${r.color}`}
+              >
+                <span className="seat-dot" aria-hidden="true">
+                  <Icon name="knight" size="sm" />
+                </span>
+                <span className="join-request-text">
+                  <strong>{r.user.displayName}</strong>
+                  <span>xin vào thay {seatName(room.seats.find((s) => s.color === r.color))}</span>
+                </span>
+                <span className="join-request-actions">
+                  <button type="button" className="ui-btn ui-btn--primary" data-testid={`join-approve-${r.color}`} onClick={() => send({ t: 'approveJoin', userId: r.user.id })}>
+                    Duyệt
+                  </button>
+                  <button type="button" className="ui-btn ui-btn--secondary" data-testid={`join-reject-${r.color}`} onClick={() => send({ t: 'rejectJoin', userId: r.user.id })}>
+                    Từ chối
+                  </button>
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
         {forfeitToast !== null && !finished && (
           <p key={forfeitToast} className="forfeit-toast" role="status" data-testid="forfeit-toast">
             {FORFEIT_TOAST_TEXT}
@@ -488,7 +551,7 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
             <button type="button" className="ui-btn ui-btn--icon" aria-label="Menu" data-testid="match-menu-button" onClick={() => setMenuOpen(true)}>
               <Icon name="menu" />
             </button>
-            <button type="button" className="ui-btn ui-btn--icon btn-leave" aria-label="Rời phòng" data-testid="leave-room" onClick={() => setConfirmLeave(true)}>
+            <button type="button" className="ui-btn ui-btn--icon btn-leave" aria-label="Rời phòng" data-testid="leave-room" onClick={startLeave}>
               <Icon name="leave" />
             </button>
           </span>
@@ -535,6 +598,15 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
             <button
               type="button"
               className="ui-btn ui-btn--secondary"
+              data-testid="menu-kick-stats"
+              onClick={() => setStatsOpen(true)}
+            >
+              <Icon name="win" />
+              Bảng đá ngựa
+            </button>
+            <button
+              type="button"
+              className="ui-btn ui-btn--secondary"
               data-testid="menu-rules"
               onClick={() => {
                 setMenuOpen(false);
@@ -568,6 +640,20 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
               >
                 <Icon name="pencil" />
                 Đặt tên quân
+              </button>
+            )}
+            {canInvite && (
+              <button
+                type="button"
+                className="ui-btn ui-btn--secondary"
+                data-testid="menu-invite"
+                onClick={() => {
+                  setMenuOpen(false);
+                  void copyInvite();
+                }}
+              >
+                <Icon name="share" />
+                Mời người vào thay máy
               </button>
             )}
             {isHost && !finished && (
@@ -605,6 +691,38 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
         </Modal>
       )}
 
+      {statsOpen && room.game && (
+        <Modal labelledBy="kick-stats-title" testId="kick-stats" className="kick-stats" onClose={() => setStatsOpen(false)} closeOnBackdrop>
+          <div className="kick-stats-head">
+            <h2 id="kick-stats-title" className="ui-title dialog-title">Bảng đá ngựa</h2>
+            <button type="button" className="ui-btn ui-btn--icon" aria-label="Đóng" data-testid="kick-stats-close" data-autofocus onClick={() => setStatsOpen(false)}>
+              <Icon name="close" />
+            </button>
+          </div>
+          <table className="kick-stats-table">
+            <thead><tr><th scope="col">Người chơi</th><th scope="col">Đã đá</th></tr></thead>
+            <tbody>
+              {[...room.game.colors]
+                .sort((a, b) => (room.game?.kicks?.[b] ?? 0) - (room.game?.kicks?.[a] ?? 0) || a - b)
+                .map((color) => {
+                  const seat = room.seats.find((s) => s.color === color);
+                  return (
+                    <tr key={color} data-testid={`kick-stats-${color}`}>
+                      <td>
+                        <span className="kick-stats-player">
+                          <span className="kick-stats-swatch" style={{ '--seat-color': COLOR_VARS[color] } as CSSProperties} />
+                          <span className="kick-stats-name">{seatName(seat) || 'Máy'} <span className="ui-muted">({COLOR_NAMES[color]})</span></span>
+                        </span>
+                      </td>
+                      <td>{room.game?.kicks?.[color] ?? 0}</td>
+                    </tr>
+                  );
+                })}
+            </tbody>
+          </table>
+        </Modal>
+      )}
+
       {rulesOpen && <RulesSheet settings={room.settings} secondsLeft={myTurn && !finished ? seconds : null} onClose={() => setRulesOpen(false)} />}
 
       {feedbackOpen && <FeedbackModal onClose={() => setFeedbackOpen(false)} />}
@@ -638,6 +756,16 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
             </button>
           </div>
         </Modal>
+      )}
+
+      {hostLeave && !finished && (
+        <HostLeaveDialog
+          others={others}
+          seatNote="Máy sẽ chơi thay bạn đến hết ván."
+          onHandover={handover}
+          onCloseRoom={closeRoom}
+          onCancel={() => setHostLeave(false)}
+        />
       )}
 
       {confirmLeave && !finished && (

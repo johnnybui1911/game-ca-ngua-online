@@ -36,7 +36,7 @@ test('leaving mid-game turns the seat into a CPU that keeps playing', async ({ b
   await b.page.getByTestId('leave-confirm').click();
   await expect(b.page).toHaveURL('/');
 
-  await expect(a.page.getByTestId('hud-player-2')).toContainText('CPU');
+  await expect(a.page.getByTestId('hud-player-2')).toContainText('Máy ·');
   await expect(a.page.getByTestId('hud-player-2')).not.toContainText('Offline');
   const before = await horsesOf(a.page, 2);
   await expect.poll(() => horsesOf(a.page, 2), { timeout: 60_000, intervals: [500] }).not.toBe(before);
@@ -55,6 +55,10 @@ test('when the host leaves a waiting room the next player becomes host', async (
   await expect(guest.page.getByTestId('start-button')).toHaveCount(0);
 
   await host.page.getByTestId('leave-room').click();
+  // With someone else in the room the host chooses: hand the room over, or end it for everyone.
+  await expect(host.page.getByTestId('host-leave-dialog')).toBeVisible();
+  await host.page.getByTestId(`host-leave-heir-${guest.id}`).check();
+  await host.page.getByTestId('host-leave-handover').click();
   await expect(host.page).toHaveURL('/');
   await expect(guest.page.getByTestId('seat-0-name')).toHaveText('Chỗ trống');
   await expect(guest.page.getByTestId('start-button')).toBeVisible();

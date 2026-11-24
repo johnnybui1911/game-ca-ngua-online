@@ -141,6 +141,17 @@ export function horseLabel(names: readonly string[] | undefined, index: number):
   return names?.[index] || String(index + 1);
 }
 
+/** A person asking the host to let them take over the CPU playing `color` in a running game. */
+export interface JoinRequest {
+  user: PublicUser;
+  color: Color;
+  /** Epoch ms (server clock) at which the request lapses unless the host answered. */
+  expiresAt: number;
+}
+
+/** How long a request to take over a CPU seat waits for the host. */
+export const JOIN_REQUEST_SECONDS = 120;
+
 export interface RoomSnapshot {
   code: string;
   name: string;
@@ -158,6 +169,10 @@ export interface RoomSnapshot {
   cpuLevel: CpuLevel;
   /** Host-chosen settings (turn time, quick match, auto-roll). */
   settings: RoomSettings;
+  /** Chosen at creation: people with no seat may ask to take over a CPU seat while a game runs. */
+  allowTakeover: boolean;
+  /** Pending requests to take over a CPU seat, oldest first; at most one per colour. Empty outside a running game. */
+  joinRequests: JoinRequest[];
   /** Increases by one with every snapshot the room broadcasts. */
   seq: number;
 }
@@ -170,6 +185,11 @@ export interface RoomSummary {
   status: RoomStatus;
   seatsTaken: number;
   seatsTotal: number;
+  /**
+   * CPU seats a person can ask to take over right now: playing rooms that allow it, seats nobody has asked for yet.
+   * Absent in entries listed before it existed: 0.
+   */
+  takeoverSeats?: number;
 }
 
 /** POST /api/rooms -> 201 CreateRoomResponse | 4xx ApiError. Requires a session. */
@@ -177,6 +197,8 @@ export interface CreateRoomRequest {
   name: string;
   visibility: RoomVisibility;
   seats: number;
+  /** "Cho người vào thay máy giữa ván"; absent means off. */
+  allowTakeover?: boolean;
 }
 export interface CreateRoomResponse {
   code: string;
@@ -206,8 +228,18 @@ export type RoomClientMessage =
   | { t: 'move'; horse: number }
   /** Host only, after a finished game: back to 'waiting' with the same seats. */
   | { t: 'rematch' }
-  /** Give up the seat. During a game a CPU takes it over. */
-  | { t: 'leave' }
+  /** Give up the seat. During a game a CPU takes it over. A leaving host may name the seated person who becomes host. */
+  | { t: 'leave'; newHost?: string }
+  /** No seat, game running in a room that allows it: ask the host for the CPU seat of `color` (replaces an earlier ask). */
+  | { t: 'requestSeat'; color: Color }
+  /** Withdraw the sender's own request. */
+  | { t: 'cancelRequest' }
+  /** Host only: let the requester take over the CPU seat they asked for. */
+  | { t: 'approveJoin'; userId: string }
+  /** Host only: turn the request down; the requester waits a while before asking again. */
+  | { t: 'rejectJoin'; userId: string }
+  /** Any seated player, while waiting: move to another colour nobody (person or CPU) holds. */
+  | { t: 'color'; color: Color }
   /** Name the four horses of the sender's own colour ('' resets one to its number). */
   | { t: 'horseNames'; names: string[] }
   /** Host only, while playing: stop the game (no rolls, moves, CPU turns or turn clock) until resumed. */

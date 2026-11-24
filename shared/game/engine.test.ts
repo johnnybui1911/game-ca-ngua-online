@@ -47,12 +47,57 @@ describe('createGame', () => {
     expect(g.turn).toBe(0);
     expect(g.phase).toBe('roll');
     expect(g.horses.flat().every((p) => p === S)).toBe(true);
+    expect(g.kicks).toEqual({ 0: 0, 1: 0, 2: 0, 3: 0 });
   });
   it('rejects bad colour sets', () => {
     expect(() => createGame([0])).toThrow();
     expect(() => createGame([0, 0])).toThrow();
     expect(() => createGame([0, 1, 2, 3, 0])).toThrow();
     expect(() => createGame([0, 7 as Color])).toThrow();
+  });
+});
+
+describe('kick counts', () => {
+  it('counts a kick for the kicker without mutating the previous state, and ignores non-kicks', () => {
+    const g = make([0, 1], { 0: [10, S, S, S], 1: [0, S, S, S] });
+    const moved = applyMove(applyRoll(g, 4).state, 0).state;
+    expect(moved.kicks).toEqual({ 0: 1, 1: 0, 2: 0, 3: 0 });
+    expect(g.kicks?.[0]).toBe(0);
+    const ordinary = applyMove(applyRoll(g, 2).state, 0).state;
+    expect(ordinary.kicks).toEqual(g.kicks);
+  });
+
+  it('counts multiple kicks during one turn with bonus rolls', () => {
+    const g = make([0, 1], { 0: [10, S, S, S], 1: [53, 54, S, S] });
+    const first = applyMove(applyRoll(g, 1).state, 0).state;
+    expect(first.turn).toBe(0);
+    const second = applyMove(applyRoll(first, 1).state, 0).state;
+    expect(second.kicks?.[0]).toBe(2);
+    expect(first.kicks?.[0]).toBe(1);
+  });
+
+  it('counts a quick-mode forced kick and unlocks the kicker', () => {
+    const g = makeQuick([0, 1], { 0: [10, S, S, S], 1: [0, S, S, S] });
+    const moved = rollAndSettle(g, 4, true).state;
+    expect(moved.kicks?.[0]).toBe(1);
+    expect(moved.unlocked?.[0]).toBe(true);
+  });
+
+  it('treats missing legacy counts as zero on the next kick', () => {
+    const g = make([0, 1], { 0: [10, S, S, S], 1: [0, S, S, S] });
+    delete g.kicks;
+    const ordinary = applyMove(applyRoll(g, 2).state, 0).state;
+    expect(ordinary.kicks).toBeUndefined();
+    const moved = applyMove(applyRoll(g, 4).state, 0).state;
+    expect(moved.kicks).toEqual({ 0: 1, 1: 0, 2: 0, 3: 0 });
+    expect(g.kicks).toBeUndefined();
+  });
+
+  it('credits a different kicker without changing other colours', () => {
+    const g = make([0, 1], { 0: [20, S, S, S], 1: [3, S, S, S] }, 1);
+    g.kicks = { 0: 2, 1: 0, 2: 0, 3: 0 };
+    const moved = applyMove(applyRoll(g, 3).state, 0).state;
+    expect(moved.kicks).toEqual({ 0: 2, 1: 1, 2: 0, 3: 0 });
   });
 });
 

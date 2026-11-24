@@ -69,6 +69,10 @@ export const LOBBY_BROADCAST_DELAY_MS = 80;
 export const MAX_ROOM_NAME = 40;
 /** Sockets one user may hold open on one room; the oldest are closed beyond it. */
 export const MAX_SOCKETS_PER_USER = 4;
+/** After the host turns a request for a CPU seat down, the same person waits this long before asking again. */
+export const JOIN_COOLDOWN_MS = 30_000;
+/** People with no seat a running room keeps connected while they ask for a CPU seat; more are refused. */
+export const MAX_WAITING_JOINERS = 8;
 /** Every open page of the site holds one lobby socket, so the lobby allows more per user. */
 export const MAX_LOBBY_SOCKETS_PER_USER = 12;
 /** Per-socket message budget: a burst of this many, refilled at the rate below. Normal play sends a few a second. */

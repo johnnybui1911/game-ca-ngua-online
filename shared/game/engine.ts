@@ -123,9 +123,10 @@ export function createGame(colors: Color[], variant: RuleVariant = 'classic', ho
     if (i > 0 && sorted[i] === sorted[i - 1]) throw new Error('Colours must be distinct');
   }
   const horses = COLORS.map(() => new Array<HorsePos>(HORSES_PER_COLOR).fill(POS_STABLE));
+  const kicks: Record<Color, number> = { 0: 0, 1: 0, 2: 0, 3: 0 };
   const house = houseRules?.tripleBonusForfeit ? { houseRules: { ...houseRules }, bonusStreak: 0 } : {};
   if (variant === 'classic') {
-    return { colors: sorted, horses, turn: at(sorted, 0), phase: 'roll', dice: null, legalHorses: [], winner: null, ...house };
+    return { colors: sorted, horses, turn: at(sorted, 0), phase: 'roll', dice: null, legalHorses: [], winner: null, kicks, ...house };
   }
   // Quick: one horse per playing colour starts on its entry cell, and every home column starts locked.
   for (const color of sorted) at(horses, color)[0] = POS_START;
@@ -137,6 +138,7 @@ export function createGame(colors: Color[], variant: RuleVariant = 'classic', ho
     dice: null,
     legalHorses: [],
     winner: null,
+    kicks,
     variant,
     unlocked: COLORS.map(() => false),
     ...house,
@@ -207,6 +209,9 @@ export function applyMove(state: GameState, horse: number): StepResult {
     { type: 'moved', color, horse, from, to: landing.to, kicked: landing.kicked },
   ];
   const moved: GameState = { ...state, horses };
+  if (landing.kicked) {
+    moved.kicks = { 0: 0, 1: 0, 2: 0, 3: 0, ...state.kicks, [color]: (state.kicks?.[color] ?? 0) + 1 };
+  }
   if (state.variant === 'quick' && landing.kicked) {
     moved.unlocked = COLORS.map((c) => state.unlocked?.[c] === true || c === color);
   }
