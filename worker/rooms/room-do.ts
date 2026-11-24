@@ -64,6 +64,7 @@ import {
   reconcileConnections,
   resumeGame,
   seatIndexOfUser,
+  changeColor,
   setOccupant,
   cpuColors,
   cpuSeatOf,
@@ -152,6 +153,11 @@ function parseClientMessage(text: string): RoomClientMessage {
     case 'leave':
       if (msg.newHost !== undefined && typeof msg.newHost !== 'string') throw new RoomError('bad_message', 'Tin nhắn không hợp lệ.');
       return msg.newHost === undefined ? { t: 'leave' } : { t: 'leave', newHost: msg.newHost };
+    case 'color': {
+      const color = int(msg.color);
+      if (color < 0 || color > 3) throw new RoomError('bad_color', 'Màu không hợp lệ.');
+      return { t: 'color', color: color as Color };
+    }
     case 'horseNames': {
       const names = cleanHorseNames(msg.names);
       if (!names) throw new RoomError('bad_name', `Tên quân tối đa ${MAX_HORSE_NAME} ký tự và ${MAX_HORSE_NAME_WORDS} từ.`);
@@ -194,6 +200,8 @@ export class RoomDO extends DurableObject<Env> {
   private readonly hostBudget = new KeyedTokenBuckets(HOST_ACTION_BURST, HOST_ACTION_REFILL_PER_SEC);
   /** Same budget for renaming horses, which any seated player can do. */
   private readonly nameBudget = new KeyedTokenBuckets(HOST_ACTION_BURST, HOST_ACTION_REFILL_PER_SEC);
+  /** Same budget for changing colour in the waiting room, which any seated player can do. */
+  private readonly colorBudget = new KeyedTokenBuckets(HOST_ACTION_BURST, HOST_ACTION_REFILL_PER_SEC);
   /** Emotes are broadcast only; in memory like `hostBudget`, per user across sockets and reconnects. */
   private readonly emoteBudget = new KeyedTokenBuckets(EMOTE_BURST, EMOTE_REFILL_PER_SEC);
   /** userId -> until when they may not ask for a CPU seat again after the host turned them down. In memory only. */
@@ -564,6 +572,17 @@ export class RoomDO extends DurableObject<Env> {
         if (!seat) throw new RoomError('not_seated', 'Bạn không có chỗ trong phòng này.');
         if (msg.names.every((n) => n === '')) delete seat.horseNames;
         else seat.horseNames = msg.names;
+        await this.commit([]);
+        return;
+      }
+      case 'color': {
+        if (!this.colorBudget.take(user.userId, now)) throw new RoomError('too_fast', 'Bạn thao tác quá nhanh, vui lòng chậm lại.');
+        const before = seatIndexOfUser(room, user.userId);
+        const error = changeColor(room, user.userId, msg.color);
+        if (error === 'bad_state') throw new RoomError(error, 'Chỉ đổi màu khi đang chờ.');
+        if (error === 'color_taken') throw new RoomError(error, 'Màu này đã có người hoặc máy chọn.');
+        if (error) throw new RoomError(error, 'Màu không hợp lệ.');
+        if (seatIndexOfUser(room, user.userId) === before) return;
         await this.commit([]);
         return;
       }

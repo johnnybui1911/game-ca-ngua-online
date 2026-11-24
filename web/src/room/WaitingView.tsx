@@ -6,6 +6,7 @@ import { inviteLink, reportInviteShared } from '../analytics';
 import { useLobby } from '../lobby/LobbyProvider';
 import { Icon } from '../ui/Icon';
 import { COLOR_NAMES, COLOR_VARS } from './colors';
+import { ColorPicker } from './ColorPicker';
 import { CPU_LEVEL_LABELS, cpuLevelOf } from './cpu-levels';
 import { EmoteBubble, EmoteLive } from './EmoteBubble';
 import { EmotePicker } from './EmotePicker';
@@ -203,6 +204,7 @@ export function WaitingView({ room, myId, send, actionError, emotes, offline }: 
                 );
               })}
             </ul>
+            {mySeat && <ColorPicker room={room} myColor={mySeat.color} offline={offline} send={send} />}
 
             {actionError && (
               <p className="form-error" role="alert" data-testid="action-error">
