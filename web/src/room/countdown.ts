@@ -5,3 +5,8 @@
 export function secondsLeft(deadline: number, localNow: number, offset: number): number {
   return Math.max(0, Math.ceil((deadline - (localNow + offset)) / 1000));
 }
+
+export function formatGameTime(seconds: number): string {
+  const minutes = Math.floor(seconds / 60);
+  return `${minutes}:${String(seconds % 60).padStart(2, '0')}`;
+}

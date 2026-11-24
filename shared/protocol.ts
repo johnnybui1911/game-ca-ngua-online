@@ -94,6 +94,9 @@ export interface Seat {
 /** Turn time choices the host has, in seconds per action. */
 export const TURN_SECONDS_OPTIONS = [10, 15, 20, 30, 60] as const;
 export type TurnSeconds = (typeof TURN_SECONDS_OPTIONS)[number];
+/** Whole-game duration in minutes; 0 means unlimited. */
+export const GAME_MINUTES_OPTIONS = [0, 20, 30, 60] as const;
+export type GameMinutes = (typeof GAME_MINUTES_OPTIONS)[number];
 
 /** Host-chosen settings of a room, changed only while it is waiting. */
 export interface RoomSettings {
@@ -106,6 +109,7 @@ export interface RoomSettings {
   quick: boolean;
   /** The server rolls for a human on turn after a short pause. */
   autoRoll: boolean;
+  gameMinutes: GameMinutes;
   /** Nhịp ván: how long the board animates a roll and a move, and how long the server waits for it. */
   pace: PaceName;
   /** Luật: optional house rules the game starts with. */
@@ -116,13 +120,18 @@ export const DEFAULT_ROOM_SETTINGS: RoomSettings = {
   turnSeconds: 30,
   quick: false,
   autoRoll: false,
+  gameMinutes: 60,
   pace: DEFAULT_PACE,
   // On unless the host turns it off: without it 1s and 6s in a row hand one colour long runs of extra rolls.
   // Off while the dice experiment shapes those runs instead (see `shared/experiments.ts`).
   rules: { tripleBonusForfeit: !DICE_SHAPING },
 };
-/** Settings as a client sends them: `pace` and `rules` are missing from tabs loaded before those settings existed. */
-export type SentRoomSettings = Omit<RoomSettings, 'pace' | 'rules'> & { pace?: PaceName; rules?: HouseRules };
+/** Settings as a client sends them: newer fields may be missing from older tabs. */
+export type SentRoomSettings = Omit<RoomSettings, 'pace' | 'rules' | 'gameMinutes'> & {
+  pace?: PaceName;
+  rules?: HouseRules;
+  gameMinutes?: GameMinutes;
+};
 /** Time preselected when the host turns Ván nhanh on while the turn time is still the default. */
 export const QUICK_TURN_SECONDS: TurnSeconds = 20;
 
@@ -163,6 +172,10 @@ export interface RoomSnapshot {
   game: GameState | null;
   /** Epoch ms at which the server plays for the current human seat; null when not applicable (or paused). */
   turnDeadline: number | null;
+  /** Whole-game deadline in server epoch ms; null for unlimited or finished games. */
+  gameDeadline: number | null;
+  /** Frozen remaining milliseconds while the host has paused; otherwise null. */
+  gamePausedRemaining: number | null;
   /** True while the host has paused the running game. */
   paused: boolean;
   /** CPU difficulty of the whole room; changed by the host while waiting. */

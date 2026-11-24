@@ -14,7 +14,7 @@ import { FeedbackModal } from '../chrome/FeedbackModal';
 import { SoundSwitches, useMusic } from '../audio/SoundControls';
 import { useLobby } from '../lobby/LobbyProvider';
 import { unconsumed, type StateBatch } from './batches';
-import { secondsLeft } from './countdown';
+import { formatGameTime, secondsLeft } from './countdown';
 import { lastRollAfter, type LastRoll } from './last-roll';
 import { needKickAfter } from './need-kick';
 import { FORFEIT_TOAST_MS, FORFEIT_TOAST_TEXT, forfeitsAfter } from './forfeit-toast';
@@ -278,6 +278,10 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
   const lastRoll = useLastRoll(shownBatches);
   // The clock of an action starts once the board has shown what led to it; until then it reads the full time.
   const left = useCountdown(room.turnDeadline, clockOffset);
+  const gameTime = useCountdown(room.paused ? null : (room.gameDeadline ?? null), clockOffset);
+  const gameSeconds = room.paused && room.gamePausedRemaining != null
+    ? Math.ceil(room.gamePausedRemaining / 1000)
+    : gameTime;
   const seconds = left === null ? null : Math.min(left, room.settings.turnSeconds);
   const hud = useHudInsets(room.game !== null);
 
@@ -487,6 +491,12 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
             >
               {turnText}
             </p>
+            {!finished && (
+              <span className="game-countdown" data-testid="game-countdown" aria-label="Thời gian còn lại của ván">
+                <Icon name="timer" size="sm" />
+                {gameSeconds === null ? '∞' : formatGameTime(gameSeconds)}
+              </span>
+            )}
           </div>
           {seconds !== null && !finished && (
             <span className={`countdown${lowTime ? ' is-low' : ''}`} data-testid="countdown">
@@ -797,7 +807,16 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
           <h2 id="win-title" className="ui-title dialog-title win-title" data-testid="win-title">
             {seatName(winnerSeat)} thắng!
           </h2>
-          {quickGame && <p data-testid="win-condition">{QUICK_WIN_TEXT}</p>}
+          {game.timeWinReason ? (
+            <p data-testid="win-condition">
+              Hết thời gian. {({
+                'home-count': 'Có nhiều quân trong cột đích nhất.',
+                'home-steps': 'Có tổng bậc trong cột đích cao nhất.',
+                kicks: 'Đá nhiều quân đối thủ nhất.',
+                random: 'Các chỉ số hòa nhau, người thắng được chọn ngẫu nhiên.',
+              })[game.timeWinReason]}
+            </p>
+          ) : quickGame && <p data-testid="win-condition">{QUICK_WIN_TEXT}</p>}
           <div className="dialog-actions">
             {isHost ? (
               <button type="button" className="ui-btn ui-btn--hero" data-testid="rematch-button" data-autofocus onClick={() => send({ t: 'rematch' })}>

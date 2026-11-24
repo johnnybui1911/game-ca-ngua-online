@@ -72,6 +72,8 @@ export interface GameState {
   /** Horse indices of `turn` that may move with `dice`. Empty unless phase is 'move'. */
   legalHorses: number[];
   winner: Color | null;
+  /** Present only when the whole-game clock selected the winner. */
+  timeWinReason?: 'home-count' | 'home-steps' | 'kicks' | 'random';
   /** Opponent horses kicked by each colour in this game. Absent in older stored games: all counts start at zero. */
   kicks?: Record<Color, number>;
   /**

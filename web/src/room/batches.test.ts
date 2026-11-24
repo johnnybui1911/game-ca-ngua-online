@@ -18,6 +18,8 @@ function batch(seq: number, events: GameEvent[] = [], code = 'ABC234'): StateBat
     turnDeadline: null,
     allowTakeover: false,
     joinRequests: [],
+    gameDeadline: null,
+    gamePausedRemaining: null,
     paused: false,
     cpuLevel: 'normal',
     settings: DEFAULT_ROOM_SETTINGS,

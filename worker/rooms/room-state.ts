@@ -1,9 +1,10 @@
-import { HORSES_PER_COLOR, type Color, type DiceValue, type HouseRules } from '../../shared/game/types';
+import { HORSES_PER_COLOR, POS_GATE, type Color, type DiceValue, type HouseRules } from '../../shared/game/types';
 import {
   DEFAULT_ROOM_SETTINGS,
   MAX_HORSE_NAME,
   MAX_HORSE_NAME_WORDS,
   countWords,
+  GAME_MINUTES_OPTIONS,
   TURN_SECONDS_OPTIONS,
   type RoomSettings,
   type PublicUser,
@@ -55,6 +56,10 @@ export interface RoomState {
    * begins and never moved later, so reconnecting cannot buy more time. Null while a CPU is on turn.
    */
   actionDueAt: number | null;
+  /** Whole-game deadline; absent in games started before this setting existed. */
+  gameDeadline?: number | null;
+  /** Test-only override, used only while ROOM_FAST_TIMERS is enabled. */
+  testGameDurationMs?: number;
   /** userId -> when their last socket closed (or the seat was created without one). */
   disconnectedSince: Record<string, number>;
   /** Since when no seated human has an open socket; null while at least one has. */
@@ -65,7 +70,7 @@ export interface RoomState {
   cpuLevel?: CpuLevel;
   /**
    * Absent in rooms stored before the settings existed, and in rooms whose host never changed them: the defaults.
-   * `pace` and `rules` are absent in settings stored before they existed: Vừa, and no house rule.
+   * Fields absent in older settings retain their legacy behavior, including unlimited game time.
    */
   settings?: SentRoomSettings;
   /** The dice experiment's memory of the current game (see `dice-shaping.ts`); absent before its first roll. */
@@ -92,14 +97,14 @@ export function setOccupant(seat: StoredSeat, occupant: StoredOccupant | null): 
 }
 
 /**
- * The room's settings; an absent stored value reads as the defaults, as does an absent pace or set of rules.
+ * The room's settings; an absent duration is unlimited, while absent older fields use their defaults.
  * While the dice experiment is on, the house rules are the defaults (off) whatever is stored.
  */
 export function settingsOf(state: RoomState): RoomSettings {
   const stored = state.settings;
-  if (!stored) return DEFAULT_ROOM_SETTINGS;
+  if (!stored) return { ...DEFAULT_ROOM_SETTINGS, gameMinutes: 0 };
   const rules = DICE_SHAPING ? DEFAULT_ROOM_SETTINGS.rules : (stored.rules ?? DEFAULT_ROOM_SETTINGS.rules);
-  return { ...stored, pace: isPaceName(stored.pace) ? stored.pace : DEFAULT_PACE, rules };
+  return { ...stored, gameMinutes: stored.gameMinutes ?? 0, pace: isPaceName(stored.pace) ? stored.pace : DEFAULT_PACE, rules };
 }
 
 /** House rules from a client message, or null unless exactly `{tripleBonusForfeit}` with a boolean. */
@@ -110,11 +115,11 @@ function parseHouseRules(raw: unknown): HouseRules | null {
   return { tripleBonusForfeit: o.tripleBonusForfeit };
 }
 
-const SETTINGS_KEYS: readonly string[] = ['turnSeconds', 'quick', 'autoRoll', 'pace', 'rules'];
+const SETTINGS_KEYS: readonly string[] = ['turnSeconds', 'quick', 'autoRoll', 'pace', 'rules', 'gameMinutes'];
 
 /**
- * Settings from a client message, or null unless it is exactly `{turnSeconds, quick, autoRoll, pace, rules}` with
- * allowed values. `pace` and `rules` may be missing (a tab loaded before the setting existed): the room then keeps its own.
+ * Settings from a client message with allowed values. Newer fields may be missing from older tabs;
+ * the room then keeps its own values.
  */
 export function parseRoomSettings(raw: unknown): SentRoomSettings | null {
   if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return null;
@@ -124,6 +129,11 @@ export function parseRoomSettings(raw: unknown): SentRoomSettings | null {
   const turn = TURN_SECONDS_OPTIONS.find((n) => n === turnSeconds);
   if (turn === undefined || typeof quick !== 'boolean' || typeof autoRoll !== 'boolean') return null;
   const out: SentRoomSettings = { turnSeconds: turn, quick, autoRoll };
+  if ('gameMinutes' in o) {
+    const minutes = GAME_MINUTES_OPTIONS.find((n) => n === o.gameMinutes);
+    if (minutes === undefined) return null;
+    out.gameMinutes = minutes;
+  }
   if ('pace' in o) {
     if (!isPaceName(pace)) return null;
     out.pace = pace;
@@ -204,6 +214,45 @@ export function parseCpuLevel(raw: unknown): CpuLevel | null {
 
 export function isPaused(state: RoomState): boolean {
   return state.status === 'playing' && state.pausedAt != null;
+}
+
+export function startGameClock(state: RoomState, now: number, testDurationMs?: number): void {
+  const minutes = settingsOf(state).gameMinutes;
+  state.gameDeadline = minutes === 0 ? null : now + (testDurationMs ?? minutes * 60_000);
+}
+
+/** Finish a running game if its whole-game clock is due; no action may beat an already expired clock. */
+export function finishExpiredGame(
+  state: RoomState,
+  now: number,
+  draw: (colors: readonly Color[]) => Color = drawFrom,
+): GameEvent[] | null {
+  const game = state.game;
+  if (state.status !== 'playing' || !game || game.phase === 'finished' || isPaused(state) ||
+      state.noHumanConnectedSince !== null || state.gameDeadline == null || now < state.gameDeadline) return null;
+
+  let candidates = game.colors.slice();
+  let reason: NonNullable<GameState['timeWinReason']> = 'random';
+  const criteria: Array<[NonNullable<GameState['timeWinReason']>, (color: Color) => number]> = [
+    ['home-count', (color) => (game.horses[color] ?? []).filter((pos) => pos > POS_GATE).length],
+    ['home-steps', (color) => (game.horses[color] ?? []).reduce((sum, pos) => sum + Math.max(0, pos - POS_GATE), 0)],
+    ['kicks', (color) => game.kicks?.[color] ?? 0],
+  ];
+  for (const [criterion, score] of criteria) {
+    const best = Math.max(...candidates.map(score));
+    candidates = candidates.filter((color) => score(color) === best);
+    if (candidates.length === 1) {
+      reason = criterion;
+      break;
+    }
+  }
+  const winner = candidates.length === 1 ? candidates[0]! : draw(candidates);
+  state.game = { ...game, phase: 'finished', dice: null, legalHorses: [], winner, timeWinReason: reason };
+  state.status = 'finished';
+  state.dueAt = null;
+  state.actionDueAt = null;
+  state.gameDeadline = null;
+  return [{ type: 'won', color: winner }];
 }
 
 export function seatIndexOfUser(state: RoomState, userId: string): number {
@@ -370,6 +419,7 @@ export function playDueAction(
     state.status = 'finished';
     state.dueAt = null;
     state.actionDueAt = null;
+    state.gameDeadline = null;
     return { events: result.events, finished: true };
   }
   planTurn(state, connected, now, timings, result.events);
@@ -403,6 +453,7 @@ export function reconcileConnections(
     const paused = now - pausedSince;
     if (state.dueAt !== null) state.dueAt += paused;
     if (state.actionDueAt != null) state.actionDueAt += paused;
+    if (state.gameDeadline != null) state.gameDeadline += paused;
   }
   state.noHumanConnectedSince = anyConnected ? null : (pausedSince ?? now);
 
@@ -557,6 +608,7 @@ export function resumeGame(state: RoomState, connected: ReadonlySet<string>, now
   const paused = Math.max(0, now - since);
   if (state.dueAt !== null) state.dueAt += paused;
   if (state.actionDueAt != null) state.actionDueAt += paused;
+  if (state.gameDeadline != null) state.gameDeadline += paused;
   const turnSeat = state.seats[currentSeatIndex(state)]?.occupant;
   if (turnSeat?.kind !== 'human') return;
   if (connected.has(turnSeat.user.id)) {
@@ -576,6 +628,7 @@ export function nextWake(state: RoomState, timings: Timings): number | null {
   const attended = state.noHumanConnectedSince === null;
   const paused = isPaused(state);
   if (state.status === 'playing' && state.dueAt !== null && attended && !paused) times.push(state.dueAt);
+  if (state.status === 'playing' && state.gameDeadline != null && attended && !paused) times.push(state.gameDeadline);
   if (state.status === 'waiting') {
     for (const since of Object.values(state.disconnectedSince)) times.push(since + timings.waitingDisconnectMs);
   }
@@ -619,6 +672,10 @@ export function toSnapshot(state: RoomState, connected: ReadonlySet<string>): Ro
     seats,
     game: state.game,
     turnDeadline,
+    gameDeadline: state.status === 'playing' ? (state.gameDeadline ?? null) : null,
+    gamePausedRemaining: paused && state.gameDeadline != null && state.pausedAt != null
+      ? Math.max(0, state.gameDeadline - state.pausedAt)
+      : null,
     paused,
     cpuLevel: levelOf(state),
     settings: settingsOf(state),

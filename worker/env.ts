@@ -47,6 +47,6 @@ export interface Env {
   /** Live sessions kept per user, oldest removed first (positive integer; default 10). Local `.dev.vars.<env>` only. */
   SESSIONS_PER_USER?: string;
 
-  /** Test-only: "1" shortens room timers (CPU pacing, turn deadline, disconnect grace). Local `.dev.vars.<env>` only. */
+  /** Test-only: "1" shortens room timers and enables the host's test-only game-duration override. Local `.dev.vars.<env>` only. */
   ROOM_FAST_TIMERS?: string;
 }

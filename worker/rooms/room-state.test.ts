@@ -629,7 +629,7 @@ describe('room settings', () => {
   const both = new Set(['u1', 'u2']);
 
   it('reads a room without settings as the defaults', () => {
-    expect(settingsOf(room())).toEqual({ turnSeconds: 30, quick: false, autoRoll: false, pace: 'vua', rules: DEFAULT_ROOM_SETTINGS.rules });
+    expect(settingsOf(room())).toEqual({ turnSeconds: 30, quick: false, autoRoll: false, gameMinutes: 0, pace: 'vua', rules: DEFAULT_ROOM_SETTINGS.rules });
     // Settings stored before the rules existed read as the default rules.
     expect(settingsOf(room({ settings: { turnSeconds: 20, quick: true, autoRoll: false } })).rules).toEqual(DEFAULT_ROOM_SETTINGS.rules);
     // A host's choice to turn the rule off is kept; while the dice experiment runs the rule is off whatever is stored.
@@ -737,12 +737,12 @@ describe('room settings', () => {
     const r = playing(settings({ turnSeconds: 20, quick: true }), { dueAt: 1_700, actionDueAt: 20_000 });
     r.seats[1]!.misses = IDLE_AUTOPLAY_AFTER;
     const snap = toSnapshot(r, both);
-    expect(snap.settings).toEqual({ turnSeconds: 20, quick: true, autoRoll: false, pace: 'vua', rules: DEFAULT_ROOM_SETTINGS.rules });
+    expect(snap.settings).toEqual({ turnSeconds: 20, quick: true, autoRoll: false, gameMinutes: 60, pace: 'vua', rules: DEFAULT_ROOM_SETTINGS.rules });
     expect(snap.seats.map((s) => s.auto)).toEqual([false, true]);
     expect(snap.turnDeadline).toBe(20_000);
     r.actionDueAt = null;
     expect(toSnapshot(r, both).turnDeadline).toBeNull();
-    expect(toSnapshot(room(), both).settings).toEqual(DEFAULT_ROOM_SETTINGS);
+    expect(toSnapshot(room(), both).settings).toEqual({ ...DEFAULT_ROOM_SETTINGS, gameMinutes: 0 });
   });
 });
 
@@ -970,7 +970,7 @@ describe('rematch', () => {
     r.seats[1]!.misses = 1;
     clearMisses(r);
     expect(r.seats.map((s) => s.misses)).toEqual([undefined, undefined]);
-    expect(settingsOf(r)).toEqual({ turnSeconds: 15, quick: true, autoRoll: true, pace: 'thu-thai', rules: DEFAULT_ROOM_SETTINGS.rules });
+    expect(settingsOf(r)).toEqual({ turnSeconds: 15, quick: true, autoRoll: true, gameMinutes: 0, pace: 'thu-thai', rules: DEFAULT_ROOM_SETTINGS.rules });
   });
 });
 

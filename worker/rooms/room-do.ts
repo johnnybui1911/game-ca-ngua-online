@@ -4,6 +4,7 @@ import { applyMove, createGame } from '../../shared/game/engine';
 import type { Color, GameEvent, StepResult } from '../../shared/game/types';
 import { isEmoteId } from '../../shared/emotes';
 import {
+  DEFAULT_ROOM_SETTINGS,
   MAX_HORSE_NAME,
   MAX_HORSE_NAME_WORDS,
   CLOSE_SIGNED_OUT,
@@ -43,6 +44,7 @@ import {
 import {
   cleanHorseNames,
   clearMisses,
+  finishExpiredGame,
   currentSeatIndex,
   AlarmTracker,
   isAutopilot,
@@ -74,6 +76,7 @@ import {
   requestSeat,
   takeOverCpuSeat,
   takeoverOpen,
+  startGameClock,
   toSnapshot,
   type DropReason,
   toSummary,
@@ -122,7 +125,9 @@ const DROP_NOTICES: Record<DropReason | 'rejected', { code: string; message: str
 };
 const OPEN_STATES = new Set<number>([WebSocket.READY_STATE_CONNECTING, WebSocket.READY_STATE_OPEN]);
 
-function parseClientMessage(text: string): RoomClientMessage {
+type RoomTestMessage = { t: 'testGameDuration'; ms: number };
+
+function parseClientMessage(text: string, fastTimers: boolean): RoomClientMessage | RoomTestMessage {
   let raw: unknown;
   try {
     raw = JSON.parse(text);
@@ -136,6 +141,11 @@ function parseClientMessage(text: string): RoomClientMessage {
     return v;
   };
   switch (msg.t) {
+    case 'testGameDuration': {
+      const ms = int(msg.ms);
+      if (!fastTimers || ms < 1000 || ms > 60_000) throw new RoomError('bad_message', 'Tin nhắn không hợp lệ.');
+      return { t: 'testGameDuration', ms };
+    }
     case 'addCpu':
     case 'removeCpu':
       return { t: msg.t, seat: int(msg.seat) };
@@ -238,6 +248,7 @@ export class RoomDO extends DurableObject<Env> {
       seq: 0,
       dueAt: null,
       actionDueAt: null,
+      settings: { ...DEFAULT_ROOM_SETTINGS },
       disconnectedSince: { [init.host.id]: now },
       noHumanConnectedSince: now,
       ...(init.allowTakeover ? { allowTakeover: true } : {}),
@@ -362,7 +373,7 @@ export class RoomDO extends DurableObject<Env> {
     }
     try {
       if (typeof message !== 'string') throw new RoomError('bad_message', 'Tin nhắn không hợp lệ.');
-      const msg = parseClientMessage(message);
+      const msg = parseClientMessage(message, !this.timings.paced);
       await this.handle(user, msg);
     } catch (err) {
       if (err instanceof RoomError) this.send(ws, { t: 'error', code: err.code, message: err.message });
@@ -411,7 +422,7 @@ export class RoomDO extends DurableObject<Env> {
 
   // ------------------------------------------------------------ actions
 
-  private async handle(user: SocketUser, msg: RoomClientMessage): Promise<void> {
+  private async handle(user: SocketUser, msg: RoomClientMessage | RoomTestMessage): Promise<void> {
     const room = this.room;
     if (!room) return;
     const now = Date.now();
@@ -432,6 +443,12 @@ export class RoomDO extends DurableObject<Env> {
       return;
     }
     if (seatIndexOfUser(room, user.userId) < 0) throw new RoomError('not_seated', 'Bạn không có chỗ trong phòng này.');
+    const expired = finishExpiredGame(room, now);
+    if (expired) {
+      this.countFinished(room);
+      await this.commit(expired);
+      if (msg.t === 'roll' || msg.t === 'move' || msg.t === 'pause') return;
+    }
     const needHost = () => {
       if (room.hostId !== user.userId) throw new RoomError('not_host', 'Chỉ chủ phòng mới làm được việc này.');
     };
@@ -442,6 +459,13 @@ export class RoomDO extends DurableObject<Env> {
     };
 
     switch (msg.t) {
+      case 'testGameDuration': {
+        needHostBudget();
+        if (room.status !== 'waiting') throw new RoomError('bad_state', 'Chỉ đổi cài đặt khi đang chờ.');
+        room.testGameDurationMs = msg.ms;
+        await this.commit([]);
+        return;
+      }
       case 'addCpu': {
         needHostBudget();
         if (room.status !== 'waiting') throw new RoomError('bad_state', 'Chỉ thêm máy khi đang chờ.');
@@ -472,7 +496,12 @@ export class RoomDO extends DurableObject<Env> {
         needHostBudget();
         if (room.status !== 'waiting') throw new RoomError('bad_state', 'Chỉ đổi cài đặt khi đang chờ.');
         const current = settingsOf(room);
-        room.settings = { ...msg.settings, pace: msg.settings.pace ?? current.pace, rules: msg.settings.rules ?? current.rules };
+        room.settings = {
+          ...msg.settings,
+          gameMinutes: msg.settings.gameMinutes ?? current.gameMinutes,
+          pace: msg.settings.pace ?? current.pace,
+          rules: msg.settings.rules ?? current.rules,
+        };
         await this.commit([]);
         return;
       }
@@ -486,6 +515,7 @@ export class RoomDO extends DurableObject<Env> {
         delete room.diceMemory;
         room.status = 'playing';
         room.pausedAt = null;
+        startGameClock(room, now, this.timings.paced ? undefined : room.testGameDurationMs);
         clearMisses(room);
         planTurn(room, this.connectedUsers(), now, this.roomTimings(room));
         await this.commit([]);
@@ -515,6 +545,7 @@ export class RoomDO extends DurableObject<Env> {
         delete room.diceMemory;
         room.dueAt = null;
         room.actionDueAt = null;
+        room.gameDeadline = null;
         clearMisses(room);
         // A fresh start for everyone: time spent disconnected during the game does not count against a seat.
         for (const id of Object.keys(room.disconnectedSince)) room.disconnectedSince[id] = now;
@@ -658,6 +689,7 @@ export class RoomDO extends DurableObject<Env> {
       this.countFinished(room);
       room.dueAt = null;
       room.actionDueAt = null;
+      room.gameDeadline = null;
     } else {
       planTurn(room, this.connectedUsers(), Date.now(), this.roomTimings(room), result.events);
     }
@@ -750,9 +782,11 @@ export class RoomDO extends DurableObject<Env> {
   private async onConnectionChange(before: string, closing?: WebSocket): Promise<boolean> {
     const room = this.room;
     if (!room) return false;
+    const expired = finishExpiredGame(room, Date.now());
+    if (expired) this.countFinished(room);
     const dropped = this.settle(room, this.connectedUsers(closing), Date.now());
     if (JSON.stringify(room) === before) return false;
-    await this.commit([], closing);
+    await this.commit(expired ?? [], closing);
     this.notifyDropped(dropped);
     return true;
   }
@@ -873,6 +907,8 @@ export class RoomDO extends DurableObject<Env> {
     // The room may have closed or been replaced while the lookup was in flight.
     if (this.room !== room) return;
     const before = JSON.stringify(room);
+    const expired = finishExpiredGame(room, now);
+    if (expired) this.countFinished(room);
     const connected = this.connectedUsers();
     const dropped = this.settle(room, connected, now);
 
@@ -881,7 +917,7 @@ export class RoomDO extends DurableObject<Env> {
       return;
     }
 
-    let events: GameEvent[] = [];
+    let events: GameEvent[] = expired ?? [];
 
     if (room.status === 'waiting') {
       let vacated = false;
