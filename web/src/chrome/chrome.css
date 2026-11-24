@@ -74,12 +74,7 @@
   visibility: hidden;
 }
 
-.hud-bottom .camera-reset.is-tooltip-visible::after,
-.hud-bottom .camera-reset:focus-visible::after {
-  visibility: visible;
-}
-
-@media (hover: hover) {
+@media (hover: hover) and (pointer: fine) {
   .hud-bottom .camera-reset:hover::after {
     visibility: visible;
   }
