@@ -137,7 +137,6 @@ test('the first-match card appears once per device and the lock cues show in a q
   const card = host.page.getByTestId('quick-intro');
   await expect(card).toBeVisible();
   await expect(card.locator('li')).toHaveCount(3);
-  await expect(host.page.getByTestId('quick-tag')).toHaveText('Ván nhanh');
   await dismissQuickIntro(host.page);
   await expect(host.page.getByTestId('roll-button')).toBeVisible({ timeout: 15_000 });
 
@@ -167,7 +166,6 @@ test('a quick match with one human and three CPUs plays to the win dialog; setti
 
   await expect(host.page.getByTestId('hud')).toBeVisible();
   await dismissQuickIntro(host.page);
-  await expect(host.page.getByTestId('quick-tag')).toBeVisible();
   for (const color of [0, 1, 2, 3]) {
     await expect(host.page.getByTestId(`hud-player-${color}`).locator('.hud-seat-lock')).toBeVisible();
   }
@@ -184,7 +182,6 @@ test('a quick match with one human and three CPUs plays to the win dialog; setti
   await expect(host.page.getByTestId('turn-seconds')).toHaveValue('20');
   await host.page.getByTestId('start-button').click();
   await expect(host.page.getByTestId('hud')).toBeVisible();
-  await expect(host.page.getByTestId('quick-tag')).toBeVisible();
   // The card was already dismissed on this device.
   await expect(host.page.getByTestId('quick-intro')).toHaveCount(0);
   await host.context.close();
@@ -228,7 +225,6 @@ test('a normal match shows none of the quick match cues and plays no combined ro
     .poll(async () => Number(await a.page.getByTestId('hud').getAttribute('data-seq')), { timeout: 30_000 })
     .toBeGreaterThan(12);
   for (const page of [a.page, b.page]) {
-    await expect(page.getByTestId('quick-tag')).toHaveCount(0);
     await expect(page.getByTestId('quick-intro')).toHaveCount(0);
     await expect(page.getByTestId('lock-0')).toHaveCount(0);
     await expect(page.getByTestId('autopilot-banner')).toHaveCount(0);

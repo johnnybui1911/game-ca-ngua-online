@@ -58,6 +58,7 @@ import {
   firstEmptySeat,
   humanUsers,
   isPaused,
+  notPlayingError,
   nextCpuName,
   nextWake,
   occupiedCount,
@@ -668,7 +669,10 @@ export class RoomDO extends DurableObject<Env> {
   private playableGame(user: SocketUser, phase: 'roll' | 'move') {
     const room = this.room;
     const game = room?.game;
-    if (!room || !game || room.status !== 'playing') throw new RoomError('bad_state', 'Ván đấu chưa bắt đầu.');
+    if (!room || !game || room.status !== 'playing') {
+      const { code, message } = notPlayingError(room);
+      throw new RoomError(code, message);
+    }
     if (isPaused(room)) throw new RoomError('paused', 'Chủ phòng đã tạm dừng ván đấu.');
     const occupant = room.seats[currentSeatIndex(room)]?.occupant;
     if (occupant?.kind !== 'human' || occupant.user.id !== user.userId) {

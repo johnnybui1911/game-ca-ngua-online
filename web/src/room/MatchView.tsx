@@ -508,11 +508,6 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
         <div className="hud-line">
           <DieFace value={board.rolling ? null : (lastRoll?.dice ?? null)} seatColor={dieColor === undefined ? undefined : COLOR_VARS[dieColor]} />
           <div className="turn-info">
-            {room.settings.quick && (
-              <span className="badge badge-quick" data-testid="quick-tag">
-                {t('hud.quick')}
-              </span>
-            )}
             <p
               className="turn-banner"
               data-testid="turn-banner"

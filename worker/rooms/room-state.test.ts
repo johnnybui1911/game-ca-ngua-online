@@ -10,6 +10,7 @@ import { IDLE_AUTOPLAY_AFTER, timingsFor, type Timings } from './constants';
 import { generateRoomCode, isRoomCode } from './room-code';
 import {
   changeColor,
+  notPlayingError,
   cleanHorseNames,
   AlarmTracker,
   animationMs,
@@ -388,6 +389,18 @@ describe('horse names', () => {
     expect(toSnapshot(r, new Set()).seats[0]?.horseNames).toEqual(['A', 'B', 'C', 'D']);
     setOccupant(seat, { kind: 'cpu', name: 'Máy 1' });
     expect(toSnapshot(r, new Set()).seats[0]?.horseNames).toEqual(['', '', '', '']);
+  });
+});
+
+describe('notPlayingError', () => {
+  it('reports a finished match as over, not as unstarted', () => {
+    expect(notPlayingError(room({ status: 'finished' }))).toEqual({ code: 'game_over', message: 'Ván đấu đã kết thúc.' });
+  });
+
+  it('keeps the not-started message for a waiting or missing room', () => {
+    const notStarted = { code: 'bad_state', message: 'Ván đấu chưa bắt đầu.' };
+    expect(notPlayingError(room({ status: 'waiting' }))).toEqual(notStarted);
+    expect(notPlayingError(null)).toEqual(notStarted);
   });
 });
 

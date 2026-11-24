@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { isSilentActionError } from './action-error';
 import {
   CLOSE_SIGNED_OUT,
   SIGNED_OUT_CODE,
@@ -149,6 +150,8 @@ export function useRoomConnection(code: string): RoomConnection {
           setActionError(null);
           setClockOffset(msg.serverNow - Date.now());
           setBatches((prev) => appendBatch(prev, { room: msg.room, events: msg.events }));
+        } else if (isSilentActionError(msg.code)) {
+          return;
         } else if (JOIN_NOTICE_CODES.has(msg.code)) {
           setJoinNotice(msg.message);
         } else if (msg.code in FAILURE_TEXT) {

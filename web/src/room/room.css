@@ -60,12 +60,6 @@
   border-color: rgb(240 122 104 / 40%);
 }
 
-.badge-quick {
-  color: var(--color-text-on-accent);
-  background: var(--color-accent);
-  border-color: var(--color-gold);
-}
-
 .lock-badge {
   color: var(--color-success);
 }
