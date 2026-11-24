@@ -1,8 +1,8 @@
 # Mobile player HUD brainstorm
 
-Date: 2026-11-24. Status: exploration only; awaiting Johnny's choice.
+Date: 2026-11-24. Status: Initially chosen: 1b; Johnny subsequently requested up to two rows of edge-aligned chips capped at 30% viewport width with a clear center gap, without an expand button, Menu toggle or triangle marker.
 
-## Revision After Johnny's Feedback
+## Earlier Revision After Johnny's Feedback
 
 Johnny rejected the expand/collapse button beside the cards and requested an option in Menu to hide the player bar instead. The revised mobile-only prototype has four balanced cards in one row: centered avatar and text/dot group, aligned name and four progress dots, and no HUD-side button. A **Hiện người chơi** switch in Menu hides and restores the bar; the switch was exercised both ways in the prototype. The following screenshots are local and gitignored:
 
@@ -14,7 +14,7 @@ The strip is 52 px including top padding (7.0% at 360×740; 6.2% at 390×844); c
 
 This is browser-injected CSS and DOM, not production code. The switch changes visibility but does **not** reset the camera's retained maximum inset; the hidden screenshot therefore does not prove the board will enlarge. Implementing that behavior still requires an explicit camera policy. When hidden, the existing bottom panel shows the turn, and progress becomes discoverable again by turning the strip back on. CPU level, lock, offline and auto badges are not present in this revised compact view; the current app has no alternative live per-player details view. Screen-reader behavior, long names, visual contrast, real iOS/Android safe areas and touch interaction require validation. The switch label requires translation alongside i18n PR #72. Desktop CSS is outside the prototype's mobile media query.
 
-The option-3 recommendation and right-side control discussed below describe the **earlier exploration**, not Johnny's revised direction. The current direction is the compact strip plus Menu switch; no right-side expand/collapse control.
+The option-3 recommendation, right-side control and Menu switch discussed below describe **earlier exploration**. Johnny ultimately chose option 1b, without either control.
 
 ## Contract
 
@@ -102,5 +102,4 @@ Do not auto-collapse during animations: it can hide information or move a contro
 
 ## Remaining Decisions
 
-1. Should quick-mode lock or offline/auto status be available elsewhere during a match? The revised prototype omits those badges.
-2. Should the Menu switch remember its setting across reloads? Recommended: remember it on the device.
+Johnny selected a compact HUD without a Menu switch and subsequently changed its arrangement to two edge-aligned columns with a center gap. The implementation keeps small lock and offline cues; the auto-play badge and CPU level are not displayed on mobile during a match.
