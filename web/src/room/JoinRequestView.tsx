@@ -68,11 +68,12 @@ export function JoinRequestView({ room, myId, send, actionError, joinNotice }: P
               style={{ '--seat-color': COLOR_VARS[s.color] } as CSSProperties}
               data-testid={`join-color-${s.color}`}
               aria-pressed={chosen}
+              aria-label={`${cpuName(room, s.color)} (màu ${COLOR_NAMES[s.color]})`}
               disabled={taken || chosen}
               onClick={() => send({ t: 'requestSeat', color: s.color })}
             >
               <span className="seat-dot" aria-hidden="true" />
-              {cpuName(room, s.color)} · {COLOR_NAMES[s.color]}
+              {cpuName(room, s.color)}
               {taken && <small> (đang có người xin)</small>}
             </button>
           );
