@@ -1,5 +1,7 @@
 # Bài đăng social: Cờ Cá Ngựa 3D bản mới (đại tu giao diện + tính năng)
 
+> Bài 1 và bài 4 trong file này đã cũ (viết cho bản 22/11). Dùng `social-posts-20261124-van-hoa.md` thay cho hai bài đó.
+
 Ngày soạn: 2026-11-22. Xưng "tui".
 
 Bối cảnh đăng:
