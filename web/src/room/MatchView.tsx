@@ -11,7 +11,6 @@ import { LangSwitch } from '../i18n/LangSwitch';
 import { useSession } from '../auth/session-context';
 import type { RoomClientMessage, RoomSnapshot } from '../../../shared/protocol';
 import { sound } from '../audio/sound';
-import { CreatorBadge } from '../chrome/CreatorBadge';
 import { FeedbackModal } from '../chrome/FeedbackModal';
 import { SoundSwitches, useMusic } from '../audio/SoundControls';
 import { useLobby } from '../lobby/LobbyProvider';
@@ -451,7 +450,7 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
       <EmoteLive emotes={emotes} mySeat={mySeat ? room.seats.indexOf(mySeat) : -1} nameOf={(i) => seatName(t, room.seats[i])} />
 
       <section className={`glass hud-bottom${myTurn && !paused ? ' is-my-turn' : ''}`} aria-label={t('hud.controls')} ref={hud.bottomRef}>
-        <CreatorBadge />
+        <EmotePicker send={send} offline={offline} />
         {!finished && gameSeconds !== null && (
           <span
             className={`game-countdown${gameSeconds <= 60 ? ' is-low' : ''}`}
@@ -581,12 +580,8 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
               </button>
             ))}
           <span className="hud-tools">
-            <EmotePicker send={send} offline={offline} />
             <button type="button" className="ui-btn ui-btn--icon" aria-label={t('hud.menu')} data-testid="match-menu-button" onClick={() => setMenuOpen(true)}>
               <Icon name="menu" />
-            </button>
-            <button type="button" className="ui-btn ui-btn--icon btn-leave" aria-label={t('hud.leave')} data-testid="leave-room" onClick={startLeave}>
-              <Icon name="leave" />
             </button>
           </span>
         </div>
@@ -719,6 +714,18 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
                 {t('menu.closeRoom')}
               </button>
             )}
+            <button
+              type="button"
+              className="ui-btn ui-btn--secondary"
+              data-testid="leave-room"
+              onClick={() => {
+                setMenuOpen(false);
+                startLeave();
+              }}
+            >
+              <Icon name="leave" />
+              {t('hud.leave')}
+            </button>
             <button type="button" className="ui-btn ui-btn--primary" data-testid="menu-close" data-autofocus onClick={() => setMenuOpen(false)}>
               {t('menu.close')}
             </button>

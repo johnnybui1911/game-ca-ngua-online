@@ -32,6 +32,7 @@ test('a CPU plays on for a player who dropped mid-game while the other human sta
 test('leaving mid-game turns the seat into a CPU that keeps playing', async ({ browser }) => {
   const { a, b } = await startTwoPlayerGame(browser, ['Người Ở Lại', 'Người Rời Đi']);
   await startAutoPlayer(a.page);
+  await b.page.getByTestId('match-menu-button').click();
   await b.page.getByTestId('leave-room').click();
   await b.page.getByTestId('leave-confirm').click();
   await expect(b.page).toHaveURL('/');

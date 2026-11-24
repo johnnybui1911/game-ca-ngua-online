@@ -56,7 +56,7 @@ function SceneLayer() {
   );
 }
 
-/** The corner controls. A match has its own menu, bottom bar and creator badge (above the bar), so all of them step aside for it. */
+/** The corner controls. A match has its own menu, bottom bar and emote button, so all of them step aside for it. */
 function Chrome() {
   const { stage, match } = useSceneHostState();
   const style = {
