@@ -35,13 +35,13 @@ Chưa có clip thì dùng ảnh trước/sau; em không quay được pha đá v
 
 ## 1. Facebook cá nhân
 
-Link: `https://ca-ngua-online.johnny-bui1911.workers.dev/?utm_source=facebook`
+Link: `https://cocangua3d.jblabs.me/?utm_source=facebook`
 
 > Hôm qua tui share game lên nhóm chung với mấy anh em hội AI Doanh Nghiệp, được 1 đại ca feedback nâng cấp design con ngựa gỗ, dùng Blender. Đêm qua tui bảo AI triển ngay 🐴
 >
 > Có lẽ đây là task phức tạp nhất từ đầu tới giờ: phải nghiên cứu, chọn model phù hợp, review các bản vẽ, căn chỉnh độ bóng. Vẽ con ngựa xong đẹp quá nên làm tới luôn: chỉnh lại animation "đá" cho trông điện ảnh 🎬
 >
-> 🎮 Chơi thử: https://ca-ngua-online.johnny-bui1911.workers.dev/?utm_source=facebook
+> 🎮 Chơi thử: https://cocangua3d.jblabs.me/?utm_source=facebook
 >
 > 🐴 **Vẽ lại con ngựa**
 > - Không còn là khối nhựa ghép bằng code nữa: giờ là quân ngựa gỗ có vân, chạy Blender dọn model rồi nhuộm màu từng bên
@@ -71,7 +71,7 @@ Link: `https://ca-ngua-online.johnny-bui1911.workers.dev/?utm_source=facebook`
 
 ## 2. Nhóm code (Vibe Code Kiếm Cơm, Build in Public…)
 
-Link: `https://ca-ngua-online.johnny-bui1911.workers.dev/?utm_source=facebook`
+Link: `https://cocangua3d.jblabs.me/?utm_source=facebook`
 
 Trước khi đăng: đọc nội quy nhóm (tag `#share`, ngày được đăng link, có cho đăng link trong bài không); mỗi nhóm cách nhau vài giờ và đổi nhẹ câu mở; trả lời bình luận nhanh trong giờ đầu.
 
@@ -111,8 +111,8 @@ Trước khi đăng: đọc nội quy nhóm (tag `#share`, ngày được đăng
 
 **Bình luận đầu tiên (anh tự đăng ngay sau khi đăng bài):**
 
-> 🎮 Chơi thử: https://ca-ngua-online.johnny-bui1911.workers.dev/?utm_source=facebook
-> Luật chơi đầy đủ + giới thiệu: https://ca-ngua-online.johnny-bui1911.workers.dev/gioi-thieu?utm_source=facebook
+> 🎮 Chơi thử: https://cocangua3d.jblabs.me/?utm_source=facebook
+> Luật chơi đầy đủ + giới thiệu: https://cocangua3d.jblabs.me/gioi-thieu?utm_source=facebook
 
 Nếu nhóm cho đăng link trong bài, dán link vào ngay sau câu "Free ạ." và bỏ dòng "Link game em để ở phần bình luận ạ".
 
