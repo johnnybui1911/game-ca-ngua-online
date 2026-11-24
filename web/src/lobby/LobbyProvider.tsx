@@ -16,6 +16,8 @@ interface LobbyValue {
   rooms: RoomSummary[];
   online: PublicUser[];
   invite: (toUserId: string, code: string) => void;
+  /** Shows a short notice in the toast stack, on whatever page is open. */
+  notify: (text: string) => void;
 }
 
 const LobbyContext = createContext<LobbyValue | null>(null);
@@ -93,7 +95,9 @@ export function LobbyProvider({ children }: { children: ReactNode }) {
     socket.current?.send(JSON.stringify(msg));
   }, []);
 
-  const value = useMemo(() => ({ rooms, online, invite }), [rooms, online, invite]);
+  const notify = useCallback((text: string) => push({ kind: 'notice', text }, NOTICE_MS), [push]);
+
+  const value = useMemo(() => ({ rooms, online, invite, notify }), [rooms, online, invite, notify]);
 
   return (
     <LobbyContext value={value}>

@@ -1323,3 +1323,112 @@ html[data-quality='low'] .hud-player {
 html[data-webgl='software'] .hud-player.is-turn .seat-dot {
   animation: none;
 }
+
+/* A person with no seat asking for a CPU seat during a game, and the host's answers. */
+.join-colors {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-block: var(--space-3);
+}
+
+.join-color .seat-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--seat-color);
+}
+
+.join-wait {
+  font-weight: var(--weight-semibold);
+}
+
+.join-requests {
+  position: absolute;
+  z-index: 7;
+  bottom: calc(100% + var(--space-2));
+  left: 50%;
+  transform: translateX(-50%);
+  display: grid;
+  gap: var(--space-2);
+  width: min(440px, calc(100vw - 2 * var(--space-3)));
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.join-request {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-2) var(--space-2) var(--space-3);
+  color: var(--color-text);
+  background: color-mix(in srgb, var(--glass-fill-solid) 94%, transparent);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  border: 1px solid var(--glass-stroke);
+  border-left: 3px solid var(--seat-color);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--glass-specular), var(--glass-shadow);
+}
+
+.join-request-text {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+  line-height: 1.25;
+}
+
+.join-request-text strong,
+.join-request-text span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.join-request-text strong {
+  font-size: var(--text-md);
+  font-weight: var(--weight-bold);
+}
+
+.join-request-text span {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+
+.join-request-actions {
+  flex: none;
+  display: flex;
+  gap: var(--space-2);
+}
+
+.join-request-actions .ui-btn {
+  min-height: 38px;
+  padding: 0 var(--space-4);
+  font-size: var(--text-sm);
+}
+
+/* Phones: the text keeps the full width and the two answers sit on their own row below it. */
+@media (max-width: 480px) {
+  .join-request {
+    flex-wrap: wrap;
+    padding: var(--space-3);
+  }
+
+  .join-request-actions {
+    flex-basis: 100%;
+  }
+
+  .join-request-actions .ui-btn {
+    flex: 1;
+  }
+}
+
+.host-leave-list {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}

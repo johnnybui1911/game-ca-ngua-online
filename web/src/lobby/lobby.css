@@ -66,6 +66,22 @@
   width: 100%;
 }
 
+.create-switch {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  min-height: var(--touch);
+  font-weight: var(--weight-semibold);
+  cursor: pointer;
+}
+
+.create-switch small {
+  display: block;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-regular, 400);
+}
+
 
 .join-row {
   display: grid;

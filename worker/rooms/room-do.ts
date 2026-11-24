@@ -1,12 +1,13 @@
 import { DurableObject } from 'cloudflare:workers';
 import { NO_SOURCE, type ServerEvent } from '../../shared/analytics';
 import { applyMove, createGame } from '../../shared/game/engine';
-import type { GameEvent, StepResult } from '../../shared/game/types';
+import type { Color, GameEvent, StepResult } from '../../shared/game/types';
 import { isEmoteId } from '../../shared/emotes';
 import {
   MAX_HORSE_NAME,
   MAX_HORSE_NAME_WORDS,
   CLOSE_SIGNED_OUT,
+  JOIN_REQUEST_SECONDS,
   SEAT_COLORS,
   SIGNED_OUT_CODE,
   SIGNED_OUT_MESSAGE,
@@ -26,7 +27,9 @@ import {
   EMOTE_REFILL_PER_SEC,
   HOST_ACTION_BURST,
   HOST_ACTION_REFILL_PER_SEC,
+  JOIN_COOLDOWN_MS,
   MAX_MESSAGE_BYTES,
+  MAX_WAITING_JOINERS,
   MAX_SOCKETS_PER_USER,
   SESSION_HEADER,
   SESSION_RECHECK_MS,
@@ -62,7 +65,16 @@ import {
   resumeGame,
   seatIndexOfUser,
   setOccupant,
+  cpuColors,
+  cpuSeatOf,
+  dropRequest,
+  formerSeatIndex,
+  pruneJoinRequests,
+  requestSeat,
+  takeOverCpuSeat,
+  takeoverOpen,
   toSnapshot,
+  type DropReason,
   toSummary,
   type RoomState,
 } from './room-state';
@@ -80,6 +92,7 @@ export interface CreateRoomInit {
   visibility: RoomVisibility;
   seats: number;
   host: PublicUser;
+  allowTakeover?: boolean;
 }
 
 interface SocketUser extends SocketBinding {
@@ -96,6 +109,16 @@ class RoomError extends Error {
 }
 
 const STORAGE_KEY = 'room';
+const JOIN_REQUEST_MS = JOIN_REQUEST_SECONDS * 1_000;
+
+/** What a person whose request for a CPU seat was dropped is told, by reason. */
+const DROP_NOTICES: Record<DropReason | 'rejected', { code: string; message: string }> = {
+  rejected: { code: 'join_rejected', message: 'Chủ phòng đã từ chối yêu cầu vào thay máy.' },
+  expired: { code: 'join_expired', message: 'Chủ phòng chưa trả lời, yêu cầu đã hết hạn.' },
+  seat_taken: { code: 'join_seat_taken', message: 'Ghế máy này vừa có người vào, hãy chọn màu khác.' },
+  ended: { code: 'join_ended', message: 'Ván đấu đã kết thúc.' },
+  gone: { code: 'join_expired', message: 'Yêu cầu đã huỷ vì mất kết nối.' },
+};
 const OPEN_STATES = new Set<number>([WebSocket.READY_STATE_CONNECTING, WebSocket.READY_STATE_OPEN]);
 
 function parseClientMessage(text: string): RoomClientMessage {
@@ -117,6 +140,18 @@ function parseClientMessage(text: string): RoomClientMessage {
       return { t: msg.t, seat: int(msg.seat) };
     case 'move':
       return { t: 'move', horse: int(msg.horse) };
+    case 'requestSeat': {
+      const color = int(msg.color);
+      if (color < 0 || color > 3) throw new RoomError('bad_message', 'Tin nhắn không hợp lệ.');
+      return { t: 'requestSeat', color: color as Color };
+    }
+    case 'approveJoin':
+    case 'rejectJoin':
+      if (typeof msg.userId !== 'string') throw new RoomError('bad_message', 'Tin nhắn không hợp lệ.');
+      return { t: msg.t, userId: msg.userId };
+    case 'leave':
+      if (msg.newHost !== undefined && typeof msg.newHost !== 'string') throw new RoomError('bad_message', 'Tin nhắn không hợp lệ.');
+      return msg.newHost === undefined ? { t: 'leave' } : { t: 'leave', newHost: msg.newHost };
     case 'horseNames': {
       const names = cleanHorseNames(msg.names);
       if (!names) throw new RoomError('bad_name', `Tên quân tối đa ${MAX_HORSE_NAME} ký tự và ${MAX_HORSE_NAME_WORDS} từ.`);
@@ -138,7 +173,7 @@ function parseClientMessage(text: string): RoomClientMessage {
     case 'start':
     case 'roll':
     case 'rematch':
-    case 'leave':
+    case 'cancelRequest':
     case 'back':
     case 'pause':
     case 'resume':
@@ -161,6 +196,8 @@ export class RoomDO extends DurableObject<Env> {
   private readonly nameBudget = new KeyedTokenBuckets(HOST_ACTION_BURST, HOST_ACTION_REFILL_PER_SEC);
   /** Emotes are broadcast only; in memory like `hostBudget`, per user across sockets and reconnects. */
   private readonly emoteBudget = new KeyedTokenBuckets(EMOTE_BURST, EMOTE_REFILL_PER_SEC);
+  /** userId -> until when they may not ask for a CPU seat again after the host turned them down. In memory only. */
+  private readonly rejectedUntil = new Map<string, number>();
   private readonly timings: Timings;
   private readonly sessions: SessionGuard;
   private readonly inbox = new KeyedQueue<WebSocket>();
@@ -195,6 +232,7 @@ export class RoomDO extends DurableObject<Env> {
       actionDueAt: null,
       disconnectedSince: { [init.host.id]: now },
       noHumanConnectedSince: now,
+      ...(init.allowTakeover ? { allowTakeover: true } : {}),
     };
     await this.persistAndSchedule();
     this.pushLobby(true);
@@ -242,6 +280,13 @@ export class RoomDO extends DurableObject<Env> {
     return new Response(null, { status: 101, webSocket: client });
   }
 
+  /** Connected people who hold no seat: in a running game, those asking (or about to ask) for a CPU seat. */
+  private waitingJoiners(room: RoomState): Set<string> {
+    const out = new Set<string>();
+    for (const id of this.connectedUsers()) if (seatIndexOfUser(room, id) < 0) out.add(id);
+    return out;
+  }
+
   /** Closes a user's oldest sockets beyond the per-user cap. */
   private trimSockets(userId: string): void {
     const mine = this.openSockets()
@@ -254,10 +299,22 @@ export class RoomDO extends DurableObject<Env> {
     }
   }
 
-  /** Seats a connecting user or says why not. Mutates only when it admits. */
+  /**
+   * Seats a connecting user or says why not. Mutates only when it admits. Synchronous, so two upgrades racing for
+   * the last seat (or CPU seat) cannot both get it, and an alarm in flight re-reads the seat after its own await.
+   */
   private admit(room: RoomState, user: PublicUser): RoomError | null {
     if (seatIndexOfUser(room, user.id) >= 0) return null;
-    if (room.status !== 'waiting') return new RoomError('game_in_progress', 'Ván đấu đang diễn ra, bạn không thể vào phòng này.');
+    if (room.status !== 'waiting') {
+      if (!takeoverOpen(room)) return new RoomError('game_in_progress', 'Ván đấu đang diễn ra, bạn không thể vào phòng này.');
+      // Someone who left this game gets their own seat back at once while a CPU still plays it.
+      const former = formerSeatIndex(room, user.id);
+      if (former >= 0 && takeOverCpuSeat(room, former, user, this.connectedUsers(), Date.now(), this.roomTimings(room))) return null;
+      // Anyone else connects without a seat and asks the host for one (`requestSeat`).
+      if (cpuColors(room).length === 0) return new RoomError('no_cpu_seat', 'Ván đấu đang diễn ra và không còn chỗ máy để vào thay.');
+      if (this.waitingJoiners(room).size >= MAX_WAITING_JOINERS) return new RoomError('room_full', 'Phòng đang có quá nhiều người chờ vào.');
+      return null;
+    }
     const seat = firstEmptySeat(room);
     if (seat < 0) return new RoomError('room_full', 'Phòng đã đầy.');
     const target = room.seats[seat];
@@ -350,6 +407,22 @@ export class RoomDO extends DurableObject<Env> {
     const room = this.room;
     if (!room) return;
     const now = Date.now();
+    if (msg.t === 'requestSeat') {
+      const until = this.rejectedUntil.get(user.userId) ?? 0;
+      if (now < until) {
+        throw new RoomError('too_fast', `Chủ phòng vừa từ chối, hãy đợi ${Math.ceil((until - now) / 1_000)} giây rồi xin lại.`);
+      }
+      const why = requestSeat(room, { id: user.userId, displayName: user.displayName }, msg.color, now, JOIN_REQUEST_MS);
+      if (why === 'closed') throw new RoomError('bad_state', 'Phòng này không nhận người vào thay máy lúc này.');
+      if (why === 'no_cpu') throw new RoomError('bad_seat', 'Màu này không còn do máy chơi.');
+      if (why === 'requested') throw new RoomError('bad_seat', 'Đã có người đang xin vào màu này, hãy chọn màu khác.');
+      await this.commit([]);
+      return;
+    }
+    if (msg.t === 'cancelRequest') {
+      if (dropRequest(room, user.userId)) await this.commit([]);
+      return;
+    }
     if (seatIndexOfUser(room, user.userId) < 0) throw new RoomError('not_seated', 'Bạn không có chỗ trong phòng này.');
     const needHost = () => {
       if (room.hostId !== user.userId) throw new RoomError('not_host', 'Chỉ chủ phòng mới làm được việc này.');
@@ -440,9 +513,37 @@ export class RoomDO extends DurableObject<Env> {
         await this.commit([]);
         return;
       }
-      case 'leave':
+      case 'leave': {
+        if (msg.newHost !== undefined) {
+          needHost();
+          if (msg.newHost === user.userId || seatIndexOfUser(room, msg.newHost) < 0) {
+            throw new RoomError('bad_seat', 'Người này không còn trong phòng.');
+          }
+          room.hostId = msg.newHost;
+        }
         await this.leave(user.userId);
         return;
+      }
+      case 'approveJoin': {
+        needHostBudget();
+        const request = room.joinRequests?.find((r) => r.user.id === msg.userId);
+        if (!request || !this.connectedUsers().has(request.user.id)) throw new RoomError('bad_request', 'Yêu cầu này không còn.');
+        const seat = cpuSeatOf(room, request.color);
+        if (!takeOverCpuSeat(room, seat, request.user, this.connectedUsers(), now, this.roomTimings(room))) {
+          throw new RoomError('bad_seat', 'Ghế này không còn do máy chơi.');
+        }
+        await this.commit([]);
+        return;
+      }
+      case 'rejectJoin': {
+        needHostBudget();
+        if (!dropRequest(room, msg.userId)) return;
+        this.rejectedUntil.set(msg.userId, now + JOIN_COOLDOWN_MS);
+        for (const [id, until] of this.rejectedUntil) if (until <= now) this.rejectedUntil.delete(id);
+        await this.commit([]);
+        this.notifyDropped([{ userId: msg.userId, reason: 'rejected' }]);
+        return;
+      }
       case 'back': {
         const i = seatIndexOfUser(room, user.userId);
         const seat = room.seats[i];
@@ -562,6 +663,7 @@ export class RoomDO extends DurableObject<Env> {
     const seat = room.seats[i];
     if (!seat) return;
     setOccupant(seat, room.status === 'playing' ? { kind: 'cpu', name: nextCpuName(room) } : null);
+    if (room.status === 'playing') seat.leftBy = userId;
     delete room.disconnectedSince[userId];
     for (const ws of this.ctx.getWebSockets()) {
       const u = ws.deserializeAttachment() as SocketUser | null;
@@ -589,7 +691,7 @@ export class RoomDO extends DurableObject<Env> {
     const room = this.room;
     if (!room) return;
     const connected = this.connectedUsers(closing);
-    reconcileConnections(room, connected, Date.now(), this.roomTimings(room));
+    const dropped = this.settle(room, connected, Date.now());
     if (this.closeIfAbandoned(room)) return;
     room.seq += 1;
     await this.persistAndSchedule();
@@ -602,6 +704,24 @@ export class RoomDO extends DurableObject<Env> {
       }
     }
     this.pushLobby();
+    this.notifyDropped(dropped);
+  }
+
+  /** Connection bookkeeping plus dropping requests that can no longer be granted; returns who was dropped. */
+  private settle(room: RoomState, connected: ReadonlySet<string>, now: number): { userId: string; reason: DropReason }[] {
+    const dropped = pruneJoinRequests(room, connected, now);
+    reconcileConnections(room, connected, now, this.roomTimings(room));
+    return dropped;
+  }
+
+  /** Tells people whose request for a CPU seat was dropped why; their sockets stay open. */
+  private notifyDropped(dropped: readonly { userId: string; reason: DropReason | 'rejected' }[]): void {
+    for (const { userId, reason } of dropped) {
+      const notice = DROP_NOTICES[reason];
+      for (const ws of this.openSockets()) {
+        if ((ws.deserializeAttachment() as SocketUser | null)?.userId === userId) this.send(ws, { t: 'error', ...notice });
+      }
+    }
   }
 
   /**
@@ -611,9 +731,10 @@ export class RoomDO extends DurableObject<Env> {
   private async onConnectionChange(before: string, closing?: WebSocket): Promise<boolean> {
     const room = this.room;
     if (!room) return false;
-    reconcileConnections(room, this.connectedUsers(closing), Date.now(), this.roomTimings(room));
+    const dropped = this.settle(room, this.connectedUsers(closing), Date.now());
     if (JSON.stringify(room) === before) return false;
     await this.commit([], closing);
+    this.notifyDropped(dropped);
     return true;
   }
 
@@ -734,7 +855,7 @@ export class RoomDO extends DurableObject<Env> {
     if (this.room !== room) return;
     const before = JSON.stringify(room);
     const connected = this.connectedUsers();
-    reconcileConnections(room, connected, now, this.roomTimings(room));
+    const dropped = this.settle(room, connected, now);
 
     if (room.noHumanConnectedSince !== null && now >= room.noHumanConnectedSince + this.timings.idleCloseMs) {
       await this.closeRoom();
@@ -764,5 +885,6 @@ export class RoomDO extends DurableObject<Env> {
 
     if (JSON.stringify(room) !== before) await this.commit(events);
     else await this.schedule();
+    this.notifyDropped(dropped);
   }
 }

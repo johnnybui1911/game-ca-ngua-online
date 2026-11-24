@@ -12,6 +12,7 @@ import { EmotePicker } from './EmotePicker';
 import type { EmoteBySeat } from './emote-feed';
 import { GameSettings } from './GameSettings';
 import { HorseNamesDialog } from './HorseNamesDialog';
+import { HostLeaveDialog } from './HostLeaveDialog';
 import { RulesSheet } from './RulesSheet';
 
 const INVITE_SENT_MS = 10_000;
@@ -39,6 +40,7 @@ export function WaitingView({ room, myId, send, actionError, emotes, offline }: 
   const [sent, setSent] = useState<Set<string>>(new Set());
   const [renaming, setRenaming] = useState(false);
   const [rulesOpen, setRulesOpen] = useState(false);
+  const [hostLeave, setHostLeave] = useState(false);
   useMusic('lobby');
 
   const isHost = room.hostId === myId;
@@ -84,8 +86,19 @@ export function WaitingView({ room, myId, send, actionError, emotes, offline }: 
     );
   };
 
+  const others = room.seats.flatMap((s) => (s.occupant?.kind === 'human' && s.occupant.user.id !== myId ? [s.occupant.user] : []));
   const leave = () => {
     send({ t: 'leave' });
+    void navigate('/');
+  };
+  // A host with people still in the room hands it over or ends it; anyone else (or a host alone) just leaves.
+  const startLeave = () => (isHost && others.length > 0 ? setHostLeave(true) : leave());
+  const handover = (newHost: string) => {
+    send({ t: 'leave', newHost });
+    void navigate('/');
+  };
+  const closeRoom = () => {
+    send({ t: 'closeRoom' });
     void navigate('/');
   };
 
@@ -95,7 +108,10 @@ export function WaitingView({ room, myId, send, actionError, emotes, offline }: 
     <main className="room-page">
       <section className="glass room-panel" aria-labelledby="room-name">
         <header className="room-head">
-          <p className="ui-eyebrow">Phòng chờ · {room.visibility === 'public' ? 'Công khai' : 'Riêng tư'}</p>
+          <p className="ui-eyebrow">
+            Phòng chờ · {room.visibility === 'public' ? 'Công khai' : 'Riêng tư'}
+            {room.allowTakeover && <span data-testid="allow-takeover-tag"> · Cho vào thay máy</span>}
+          </p>
           <h1 id="room-name" className="ui-title room-title" data-testid="room-name">
             {room.name}
           </h1>
@@ -258,13 +274,22 @@ export function WaitingView({ room, myId, send, actionError, emotes, offline }: 
             Luật chơi
           </button>
           <EmotePicker send={send} offline={offline} />
-          <button type="button" className="ui-btn ui-btn--ghost room-leave" data-testid="leave-room" onClick={leave}>
+          <button type="button" className="ui-btn ui-btn--ghost room-leave" data-testid="leave-room" onClick={startLeave}>
             <Icon name="leave" />
             Rời phòng
           </button>
         </footer>
       </section>
       {rulesOpen && <RulesSheet settings={room.settings} secondsLeft={null} onClose={() => setRulesOpen(false)} />}
+      {hostLeave && (
+        <HostLeaveDialog
+          others={others}
+          seatNote="Chỗ của bạn sẽ thành chỗ trống."
+          onHandover={handover}
+          onCloseRoom={closeRoom}
+          onCancel={() => setHostLeave(false)}
+        />
+      )}
       {renaming && mySeat && (
         <HorseNamesDialog color={mySeat.color} names={mySeat.horseNames} send={send} onClose={() => setRenaming(false)} />
       )}
