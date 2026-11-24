@@ -3,21 +3,21 @@ import react from '@vitejs/plugin-react';
 import { resolve } from 'node:path';
 import { defineConfig, type Plugin } from 'vite';
 
-/** Public landing page, a separate static entry served at this path. */
-const LANDING_PATH = '/gioi-thieu';
+/** Public static pages, each a separate entry served at its clean path. */
+const STATIC_PAGES = ['/gioi-thieu', '/chinh-sach-bao-mat', '/dieu-khoan'];
 
 /**
- * Dev only: serve the landing entry at its clean path. In production, Workers static
- * assets map `/gioi-thieu` to `gioi-thieu.html` by themselves; the old `/co-ca-ngua-online`
- * address is redirected by the worker (`worker/index.ts`).
+ * Dev only: serve the static entries at their clean paths. In production, Workers static
+ * assets map `/gioi-thieu` to `gioi-thieu.html` (and likewise for the others) by themselves;
+ * the old `/co-ca-ngua-online` address is redirected by the worker (`worker/index.ts`).
  */
-function landingDevPath(): Plugin {
+function staticPagesDevPath(): Plugin {
   return {
-    name: 'landing-dev-path',
+    name: 'static-pages-dev-path',
     configureServer(server) {
       server.middlewares.use((req, _res, next) => {
         const [path, query] = (req.url ?? '').split('?');
-        if (path === LANDING_PATH) req.url = `${LANDING_PATH}.html${query ? `?${query}` : ''}`;
+        if (path !== undefined && STATIC_PAGES.includes(path)) req.url = `${path}.html${query ? `?${query}` : ''}`;
         next();
       });
     },
@@ -25,7 +25,7 @@ function landingDevPath(): Plugin {
 }
 
 export default defineConfig({
-  plugins: [landingDevPath(), react(), cloudflare()],
+  plugins: [staticPagesDevPath(), react(), cloudflare()],
   environments: {
     client: {
       build: {
@@ -33,6 +33,8 @@ export default defineConfig({
           input: {
             app: resolve(import.meta.dirname, 'index.html'),
             landing: resolve(import.meta.dirname, 'gioi-thieu.html'),
+            privacy: resolve(import.meta.dirname, 'chinh-sach-bao-mat.html'),
+            terms: resolve(import.meta.dirname, 'dieu-khoan.html'),
           },
         },
       },

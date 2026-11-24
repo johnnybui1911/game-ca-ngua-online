@@ -23,7 +23,8 @@ test('two guests play a match; both are offered to save, an email upgrade keeps 
     await expect(p.page.getByTestId('save-account')).toBeVisible();
     await expect(p.page.getByTestId('to-lobby')).toBeVisible();
     await expect(p.page.getByTestId('save-email')).toBeVisible();
-    for (const provider of ['google', 'facebook', 'x']) await expect(p.page.getByTestId(`oauth-${provider}`)).toBeVisible();
+    await expect(p.page.getByTestId('oauth-google')).toBeVisible();
+    for (const provider of ['facebook', 'x']) await expect(p.page.getByTestId(`oauth-${provider}`)).toHaveCount(0);
   }
   await expect(a.page.getByTestId('rematch-button')).toBeVisible();
 

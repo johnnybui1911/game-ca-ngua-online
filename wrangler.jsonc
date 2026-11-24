@@ -6,6 +6,8 @@
   "compatibility_flags": ["nodejs_compat"],
   "workers_dev": true,
   "observability": { "enabled": true },
+  // Production host. The zone for jblabs.me must be active on this Cloudflare account before deploying.
+  "routes": [{ "pattern": "cocangua3d.jblabs.me", "custom_domain": true }],
   "assets": {
     "not_found_handling": "single-page-application",
     "run_worker_first": ["/api/*", "/co-ca-ngua-online"]
