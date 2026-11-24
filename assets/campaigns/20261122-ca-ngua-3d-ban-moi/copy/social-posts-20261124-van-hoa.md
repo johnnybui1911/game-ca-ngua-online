@@ -89,15 +89,15 @@ Trước khi đăng: đọc nội quy nhóm (tag `#share`, ngày được đăng
 >
 > 🏮 Bàn cờ 3D như phòng khách ngày Tết: quân ngựa gỗ, bàn sơn mài, đèn lồng, câu đối, tượng "Mã đáo thành công".
 >
-> 💥 Pha đá ngựa điện ảnh: ngựa bật cao, đá hậu, đối thủ bay vòng về chuồng.
->
 > 📊 Bảng đá ngựa: xem ai đá nhiều nhất nhà.
 >
 > 👨‍👩‍👧 Rủ bạn bằng link, phòng công khai hoặc riêng tư, thiếu người thì có máy chơi cùng (Dễ, Thường, Khó).
 >
 > 🚪 Đang chơi dở vẫn xin vào thay máy được, chủ phòng bấm duyệt.
 >
-> ⚡ Ván Nhanh, chỉnh được thời gian cả ván và thời gian mỗi lượt.
+> ⚡ Mode "Ván Nhanh" cho anh em chơi nhanh gọn: 1 ngựa lên chuồng là thắng.
+>
+> ⏱️ Tùy chọn thời gian ván: 20, 30, 60 phút hay vô hạn.
 >
 > Link game em để ở phần bình luận ạ.
 >
