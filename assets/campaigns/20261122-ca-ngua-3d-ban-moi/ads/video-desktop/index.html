@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="fonts.css">
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+<style>
+  :root { --gold: #f2c14e; --cream: #f8e7c2; --red: #c8372d; --red-deep: #8f1d1a; --ink: #2a120f; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #000; }
+  #root { position: relative; width: 1920px; height: 1080px; overflow: hidden; background: #1a0706; font-family: 'Be Vietnam Pro', system-ui, sans-serif; color: var(--cream); }
+  video { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; object-fit: cover; z-index: 1; }
+  .chip { position: absolute; z-index: 3; display: flex; align-items: center; gap: 18px; padding: 14px 34px 14px 14px; border-radius: 34px; background: #fff8ea; color: var(--ink); font-weight: 700; font-size: 40px; white-space: nowrap; box-shadow: 0 24px 50px rgba(0,0,0,.45); }
+  .seal { width: 66px; height: 66px; border-radius: 18px; background: linear-gradient(180deg, var(--red), var(--red-deep)); color: var(--cream); display: grid; place-items: center; font-family: 'Playfair Display', serif; font-weight: 800; font-size: 36px; flex: none; }
+  .vignette { position: absolute; inset: 0; z-index: 2; background: radial-gradient(ellipse at 50% 50%, transparent 55%, rgba(10,3,3,.55) 100%); }
+  .still { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; object-fit: cover; z-index: 1; }
+  .dim { position: absolute; inset: 0; z-index: 2; background: rgba(12,4,3,.62); }
+  .kicker { position: absolute; z-index: 3; font-weight: 700; font-size: 30px; letter-spacing: .26em; text-transform: uppercase; color: var(--gold); }
+  .h1 { position: absolute; z-index: 3; font-family: 'Playfair Display', Georgia, serif; font-weight: 800; line-height: 1.04; }
+  .h1 em { font-style: normal; color: var(--gold); }
+  .brand { position: absolute; z-index: 3; display: flex; align-items: center; gap: 22px; }
+  .brand img { width: 96px; height: 96px; }
+  .brand b { font-family: 'Playfair Display', serif; font-size: 60px; }
+  .brand span { font-size: 28px; letter-spacing: .14em; opacity: .75; font-weight: 500; }
+</style>
+</head>
+<body>
+<main id="root" data-composition-id="ca-ngua-desktop" data-start="0" data-duration="45" data-width="1920" data-height="1080">
+
+  <!-- footage -->
+  <video id="v-home" src="media/home.mp4" muted playsinline data-start="0" data-duration="10" data-has-audio="false"></video>
+  <video id="v-flow" src="media/flow.mp4" muted playsinline data-start="10" data-duration="8.1" data-has-audio="false"></video>
+  <video id="v-kick" src="media/kick.mp4" muted playsinline data-start="18.1" data-duration="6.5" data-has-audio="false"></video>
+  <video id="v-finish" src="media/finish.mp4" muted playsinline data-start="24.6" data-duration="6" data-has-audio="false"></video>
+  <video id="v-stats" src="media/kickstats.mp4" muted playsinline data-start="33" data-duration="3" data-has-audio="false"></video>
+  <video id="v-join" src="media/join.mp4" muted playsinline data-start="36" data-duration="5.5" data-has-audio="false"></video>
+
+  <!-- win card on the last frame before the dialog -->
+  <img id="prewin" class="still" src="media/prewin.jpg" alt="" data-start="30.6" data-duration="2.4">
+  <div id="dim" class="dim" data-start="30.6" data-duration="2.4"></div>
+  <img id="card" src="media/win-card.png" alt="" data-start="30.6" data-duration="2.4" style="position:absolute;z-index:3;left:480px;top:200px;width:960px;border-radius:58px;box-shadow:0 50px 120px rgba(0,0,0,.7)">
+
+  <!-- overlays -->
+  <div id="c-home" class="chip" data-start="5.5" data-duration="4.5" style="left:80px;bottom:90px"><span class="seal">♞</span>Chơi ngay trên trình duyệt</div>
+  <div id="c-flow1" class="chip" data-start="11" data-duration="3.4" style="left:80px;bottom:90px"><span class="seal">1</span>Tạo phòng, rủ bạn bằng link</div>
+  <div id="c-flow2" class="chip" data-start="14.6" data-duration="3.4" style="left:80px;bottom:90px"><span class="seal">2</span>Chỉnh máy, thời gian, Ván Nhanh</div>
+  <div id="c-kick1" class="chip" data-start="18.3" data-duration="2.6" style="left:80px;bottom:90px"><span class="seal">1</span>Chuẩn bị đá</div>
+  <div id="c-kick2" class="chip" data-start="21.3" data-duration="3.2" style="left:80px;bottom:90px"><span class="seal">2</span>Hất bay, khói, sao chóng mặt</div>
+  <div id="c-fin" class="chip" data-start="25" data-duration="4.4" style="left:80px;bottom:90px"><span class="seal">🏆</span>Về đích: pháo hoa</div>
+  <div id="c-stats" class="chip" data-start="33.1" data-duration="2.8" style="left:80px;bottom:90px"><span class="seal">☰</span>Menu → Bảng đá ngựa</div>
+  <div id="c-join" class="chip" data-start="36.1" data-duration="5.3" style="left:80px;bottom:90px"><span class="seal">✓</span>Vào giữa ván: chủ phòng duyệt</div>
+
+  <!-- end card -->
+  <img id="end-img" class="still" src="media/statue.jpg" alt="" data-start="41.5" data-duration="3.5" style="object-position:62% 55%">
+  <div id="end-shade" class="dim" data-start="41.5" data-duration="3.5" style="background:linear-gradient(90deg,rgba(20,6,5,.94) 0%,rgba(20,6,5,.8) 36%,rgba(20,6,5,0) 62%)"></div>
+  <div id="end-k" class="kicker" data-start="41.5" data-duration="3.5" style="left:110px;top:330px">Nhân Ngày Văn hoá Việt Nam</div>
+  <h1 id="end-h" class="h1" data-start="41.5" data-duration="3.5" style="left:110px;top:390px;font-size:118px">Rủ cả nhà<br>một <em>ván cờ</em><br><em>cá ngựa</em></h1>
+  <div id="end-b" class="brand" data-start="41.5" data-duration="3.5" style="left:110px;top:800px"><img src="media/mark.svg" alt=""><b>Cờ Cá Ngựa</b><span>3D ONLINE</span></div>
+</main>
+<script>
+  window.__timelines = window.__timelines || {};
+  const tl = gsap.timeline({ paused: true });
+  const chip = (id, t) => tl.fromTo(id, { x: -80, opacity: 0, scale: .92 }, { x: 0, opacity: 1, scale: 1, duration: .5, ease: 'back.out(1.6)' }, t);
+  chip('#c-home', 5.6); chip('#c-flow1', 11.1); chip('#c-flow2', 14.7); chip('#c-kick1', 18.4); chip('#c-kick2', 21.4);
+  chip('#c-fin', 25.1); chip('#c-stats', 33.2); chip('#c-join', 36.2);
+  // slow push-in on the home orbit
+  tl.fromTo('#v-home', { scale: 1 }, { scale: 1.06, duration: 10, ease: 'none' }, 0);
+  // win card
+  tl.fromTo('#card', { y: 120, opacity: 0, scale: .8 }, { y: 0, opacity: 1, scale: 1, duration: .7, ease: 'back.out(1.5)' }, 30.7);
+  // scoreboard and join request: zoom to where the action is
+  tl.set('#v-stats', { transformOrigin: '50% 50%' }, 33);
+  tl.fromTo('#v-stats', { scale: 1 }, { scale: 1.55, duration: 2.6, ease: 'power2.inOut' }, 33.2);
+  tl.set('#v-join', { transformOrigin: '50% 78%' }, 36);
+  tl.fromTo('#v-join', { scale: 1 }, { scale: 1.9, duration: 1.4, ease: 'power2.inOut' }, 37.2);
+  tl.to('#v-join', { scale: 1, duration: .8, ease: 'power2.inOut' }, 39.9);
+  // end
+  tl.fromTo('#end-k', { y: 40, opacity: 0 }, { y: 0, opacity: 1, duration: .5 }, 41.6);
+  tl.fromTo('#end-h', { y: 50, opacity: 0 }, { y: 0, opacity: 1, duration: .6, ease: 'back.out(1.4)' }, 41.75);
+  tl.fromTo('#end-b', { y: 40, opacity: 0 }, { y: 0, opacity: 1, duration: .5 }, 42.3);
+  window.__timelines['ca-ngua-desktop'] = tl;
+</script>
+</body>
+</html>
