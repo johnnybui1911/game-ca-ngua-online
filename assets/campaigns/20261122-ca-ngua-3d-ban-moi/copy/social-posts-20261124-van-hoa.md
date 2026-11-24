@@ -75,35 +75,44 @@ Link: `https://ca-ngua-online.johnny-bui1911.workers.dev/?utm_source=facebook`
 
 Trước khi đăng: đọc nội quy nhóm (tag `#share`, ngày được đăng link, có cho đăng link trong bài không); mỗi nhóm cách nhau vài giờ và đổi nhẹ câu mở; trả lời bình luận nhanh trong giờ đầu.
 
-> Em vừa vibe code game Cờ Cá Ngựa 3D online, mời các bác vào chơi thử ạ 🐴
+> 👋 Chào mọi người, em là Johnny ạ
 >
-> Hôm nay 24/11 là Ngày Văn hoá Việt Nam, em xin mời các bác chơi lại trò tuổi thơ rất Việt Nam này 🧧
+> Nhân Ngày Văn hoá Việt Nam hôm nay, em xin giới thiệu Cờ Cá Ngựa 3D online, game em vibe code cùng AI agent, để mình cùng chơi lại một trò tuổi thơ rất Việt Nam 🧧
 >
-> Tính năng và điểm nổi bật chính:
+> Ý tưởng rất đơn giản: cả nhà dù ở xa vẫn rủ nhau chơi một ván cờ cá ngựa chỉ bằng một đường link, không cần cài app, không cần đăng ký.
 >
-> - Chơi ngay trên trình duyệt (điện thoại và máy tính), không cài app, không đăng ký, nhập tên là chơi. Free ạ.
+> Điểm nổi bật:
 >
-> - Đúng luật cá ngựa Việt Nam, có bảng luật ngay trong ván.
+> 🎮 Chơi ngay trên trình duyệt (điện thoại và máy tính), nhập tên là chơi. Free ạ.
 >
-> - Bàn cờ 3D như phòng khách ngày Tết: quân ngựa gỗ, bàn sơn mài, đèn lồng, câu đối, tượng "Mã đáo thành công".
+> 📜 Đúng luật cá ngựa Việt Nam, có bảng luật ngay trong ván.
 >
-> - Pha đá ngựa điện ảnh: ngựa bật cao, đá hậu, đối thủ bay vòng về chuồng. Có Bảng đá ngựa xem ai đá nhiều nhất nhà.
+> 🏮 Bàn cờ 3D như phòng khách ngày Tết: quân ngựa gỗ, bàn sơn mài, đèn lồng, câu đối, tượng "Mã đáo thành công".
 >
-> - Rủ bạn bằng link, phòng công khai hoặc riêng tư, thiếu người thì có máy chơi cùng (Dễ, Thường, Khó).
+> 💥 Pha đá ngựa điện ảnh: ngựa bật cao, đá hậu, đối thủ bay vòng về chuồng.
 >
-> - Đang chơi dở vẫn xin vào thay máy được, chủ phòng bấm duyệt.
+> 📊 Bảng đá ngựa: xem ai đá nhiều nhất nhà.
 >
-> - Ván Nhanh, chỉnh thời gian cả ván và thời gian mỗi lượt.
+> 👨‍👩‍👧 Rủ bạn bằng link, phòng công khai hoặc riêng tư, thiếu người thì có máy chơi cùng (Dễ, Thường, Khó).
 >
-> Game vẫn đang hoàn thiện, các bác chơi thử rồi góp ý nhiệt tình giúp em ạ! Cho em hỏi luôn: hồi nhỏ nhà các bác chơi cờ cá ngựa luật thế nào, ra chuồng bằng 6 hay 1 hoặc 6 ạ? 😄
+> 🚪 Đang chơi dở vẫn xin vào thay máy được, chủ phòng bấm duyệt.
 >
-> Link em để trong bài viết ạ: https://ca-ngua-online.johnny-bui1911.workers.dev/?utm_source=facebook
+> ⚡ Ván Nhanh, chỉnh được thời gian cả ván và thời gian mỗi lượt.
 >
-> Cảm ơn BQT đã duyệt 😍
+> Link game em để ở phần bình luận ạ.
 >
-> #bipvn #buildinpublicvn #buildinpublic #CoCaNgua #NgayVanHoaVietNam #VibeCoding
+> Vì là sản phẩm cá nhân nên chắc chắn còn nhiều điểm cần cải thiện, rất mong các bác chơi thử và góp ý về giao diện, tính năng hoặc chỗ nào chưa hợp lý để em hoàn thiện thêm ạ. Cho em hỏi luôn: hồi nhỏ nhà các bác chơi cờ cá ngựa luật thế nào, ra chuồng bằng 6 hay 1 hoặc 6? 😄
+>
+> Cảm ơn BQT đã duyệt và mọi người đã đọc bài 😍
+>
+> #bipvn #buildinpublicvn #buildinpublic #CoCaNgua #NgayVanHoaVietNam
 
-Link nằm ngay trong bài (theo bài mẫu của anh). Muốn đưa xuống bình luận đầu tiên thì xoá dòng link và thêm "Link em để ở bình luận đầu tiên ạ".
+**Bình luận đầu tiên (anh tự đăng ngay sau khi đăng bài):**
+
+> 🎮 Chơi thử: https://ca-ngua-online.johnny-bui1911.workers.dev/?utm_source=facebook
+> Luật chơi đầy đủ + giới thiệu: https://ca-ngua-online.johnny-bui1911.workers.dev/gioi-thieu?utm_source=facebook
+
+Nếu nhóm cho đăng link trong bài, dán link vào ngay sau câu "Free ạ." và bỏ dòng "Link game em để ở phần bình luận ạ".
 
 Ảnh (album, 4 ảnh đầu hiện ra ngoài, nên xếp theo thứ tự):
 1. Có clip pha đá thì clip đầu tiên; chưa có thì `ngua-truoc-sau-1600x924.jpg` (ảnh kể chuyện "trước và sau")
@@ -116,6 +125,7 @@ Link nằm ngay trong bài (theo bài mẫu của anh). Muốn đưa xuống bì
 8. `truoc-sau-1080x1248.jpg`
 
 Cần anh xác nhận trước khi đăng:
-- Bài viết theo kiểu giới thiệu sản phẩm mới, không kể chuyện làm hay vẽ lại; không nhắc "Fable 5.2", "1 prompt", bản 21/11.
+- Đoạn "Ý tưởng rất đơn giản" là em viết theo hướng sản phẩm; sửa nếu lý do anh làm game khác.
+- Bài kiểu giới thiệu sản phẩm, không kể chuyện làm hay vẽ lại; không nhắc "Fable 5.2", "1 prompt", bản 21/11.
 - Mọi tính năng trong bài đều có trên bản live (đã quay và chụp trong bộ ảnh/video).
-- Link worker.dev sẽ đổi khi có domain mới; thay link trong bài trước khi đăng.
+- Link worker.dev sẽ đổi khi có domain mới; thay link trong bình luận trước khi đăng.
