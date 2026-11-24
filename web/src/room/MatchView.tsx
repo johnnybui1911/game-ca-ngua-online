@@ -256,7 +256,6 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
   const [renaming, setRenaming] = useState(false);
   const [rulesOpen, setRulesOpen] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
-  const [confirmClose, setConfirmClose] = useState(false);
   // Decided once per mount: the first quick match on a device explains itself, later ones do not.
   const [introOpen, setIntroOpen] = useState(
     () => room.settings.quick && room.game !== null && room.game.phase !== 'finished' && quickIntro.shouldShow(),
@@ -307,7 +306,7 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
   const canRoll = myTurn && !paused && game?.phase === 'roll' && !board.held;
   useMusic('game');
   useGameSounds(batches, myTurn && !paused && !board.held, seconds, room.turnDeadline);
-  const dialogOpen = menuOpen || statsOpen || renaming || rulesOpen || confirmLeave || hostLeave || confirmClose || (introOpen && !finished);
+  const dialogOpen = menuOpen || statsOpen || renaming || rulesOpen || confirmLeave || hostLeave || (introOpen && !finished);
   // Changes with every roll the server reports, so each roll chance allows one shake-roll.
   const lastRolledSeq = [...batches].reverse().find((b) => b.events.some((e) => e.type === 'rolled'))?.room.seq ?? null;
   const shake = useShakeToRoll(canRoll && !dialogOpen, lastRolledSeq, () => send({ t: 'roll' }));
@@ -700,20 +699,6 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
                 {paused ? t('menu.resumeGame') : t('menu.pauseGame')}
               </button>
             )}
-            {isHost && !finished && (
-              <button
-                type="button"
-                className="ui-btn ui-btn--danger"
-                data-testid="close-room"
-                onClick={() => {
-                  setMenuOpen(false);
-                  setConfirmClose(true);
-                }}
-              >
-                <Icon name="close" />
-                {t('menu.closeRoom')}
-              </button>
-            )}
             <button
               type="button"
               className="ui-btn ui-btn--secondary"
@@ -780,24 +765,6 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
 
       {renaming && mySeat && (
         <HorseNamesDialog color={mySeat.color} names={mySeat.horseNames} send={send} onClose={() => setRenaming(false)} />
-      )}
-
-      {confirmClose && !finished && (
-        <Modal labelledBy="close-title" testId="close-dialog" onClose={() => setConfirmClose(false)}>
-          <h2 id="close-title" className="ui-title dialog-title">
-            {t('close.title')}
-          </h2>
-          <p className="ui-muted">{t('close.body')}</p>
-          <div className="dialog-actions">
-            <button type="button" className="ui-btn ui-btn--danger" data-testid="close-confirm" onClick={closeRoom}>
-              <Icon name="close" />
-              {t('menu.closeRoom')}
-            </button>
-            <button type="button" className="ui-btn ui-btn--secondary" data-testid="close-cancel" data-autofocus onClick={() => setConfirmClose(false)}>
-              {t('close.cancel')}
-            </button>
-          </div>
-        </Modal>
       )}
 
       {hostLeave && !finished && (
