@@ -81,10 +81,12 @@ describe('server-made text', () => {
     expect(errorText(en, 'Một lỗi mới.')).toBe('Một lỗi mới.');
   });
 
-  it('knows every message the worker and the shared protocol can send', () => {
+  it('knows every message the worker, the protocol and the client fallbacks can show', () => {
     const sources = {
       ...import.meta.glob('../../../worker/**/*.ts', { eager: true, query: '?raw', import: 'default' }),
       ...import.meta.glob('../../../shared/protocol.ts', { eager: true, query: '?raw', import: 'default' }),
+      // Client files that hold a server-style message and show it through `errorText`.
+      ...import.meta.glob(['../api.ts', '../room/useRoomConnection.ts'], { eager: true, query: '?raw', import: 'default' }),
     } as Record<string, string>;
     const files = Object.keys(sources).filter((f) => !f.endsWith('.test.ts'));
     // Every Vietnamese literal in the worker is a player-facing message, except these (names, labels, comments).
