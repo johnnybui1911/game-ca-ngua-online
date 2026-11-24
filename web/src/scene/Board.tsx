@@ -25,6 +25,9 @@ import type { Color } from '../../../shared/game/types';
 import type { Assets } from './assets';
 import {
   HOME,
+  DAIS_WIDTH,
+  HUB_SCALE,
+  INLAY_HALF_WIDTH,
   INLAY_TOP,
   SLAB_HALF,
   STABLE,
@@ -193,7 +196,7 @@ export default function Board({ assets, state, colors }: Props) {
       assets.own(new ExtrudeGeometry(crossShape(half, length), { depth, bevelEnabled: false }));
     const frame = extrude(1.95, 8.12, 0.03);
     const frameMat = lacquered(frameWood, '#e8d4c0');
-    const inlay = extrude(1.74, 7.92, INLAY_TOP);
+    const inlay = extrude(INLAY_HALF_WIDTH, 7.92, INLAY_TOP);
     const inlayMat = assets.own(new MeshStandardMaterial({ map: felt, roughness: 0.92 }));
 
     const trayGeo = assets.own(new RoundedBoxGeometry(STABLE_TRAY_SIZE, 0.1, STABLE_TRAY_SIZE, 3, 0.04));
@@ -241,7 +244,7 @@ export default function Board({ assets, state, colors }: Props) {
       treadMats[c] = [creamSide, creamSide, top, creamSide, creamSide, creamSide];
     }
     const daisHeight = INLAY_TOP + (HOME_STEPS + 1) * STAIR_RISE;
-    const dais = assets.own(new BoxGeometry(TREAD_WIDTH, daisHeight, TREAD_WIDTH).translate(0, daisHeight / 2, 0));
+    const dais = assets.own(new BoxGeometry(DAIS_WIDTH, daisHeight, DAIS_WIDTH).translate(0, daisHeight / 2, 0));
     const daisMat = assets.own(new MeshStandardMaterial({ color: '#f1e6c8', roughness: 0.8 }));
     const ringMat = assets.own(new MeshStandardMaterial({ color: '#d8b25a', roughness: 0.35, metalness: 0.5 }));
 
@@ -322,7 +325,7 @@ export default function Board({ assets, state, colors }: Props) {
         </group>
       ))}
 
-      <group ref={hub} position={[0, HUB_REST, 0]}>
+      <group ref={hub} position={[0, HUB_REST, 0]} scale={[HUB_SCALE, 1, HUB_SCALE]}>
         {parts.medallion.map(({ c, geo, mat }) => {
           return <mesh key={`med${c}`} geometry={geo} material={mat} position={[0, DECAL_Y, 0]} rotation={[-Math.PI / 2, 0, 0]} />;
         })}

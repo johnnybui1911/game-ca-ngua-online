@@ -13,9 +13,9 @@
  *     counter-clockwise neighbour arm's near lane (entry first), the corner
  *     and the seven cells of the up arm's left lane ending at the tip cell
  *     of the middle lane, which is the colour's gate (progress 55);
- *   - the entry cell (progress 0) is the cell right after the gate, on the
- *     tip row, and the home column runs from the gate straight to the centre.
- * Consecutive cells are exactly one unit apart, including the closed loop.
+ *   - the entry cell (progress 0) follows the gate near the tip row, and the
+ *     home column runs from the gate straight to the centre.
+ * Track lanes are offset outward for visual clearance while cell indices and game rules remain unchanged.
  */
 import {
   CELLS_PER_COLOR,
@@ -56,10 +56,13 @@ function toWorld(color: number, armX: number, armY: number): Vec2 {
 
 /** Colour 0's track cell k (0..13) in arm space. */
 function armTrackCell(k: number): [number, number] {
-  if (k < 6) return [-ARM + k, 1];
-  if (k < 13) return [-1, 1 + (k - 6)];
+  if (k < 6) return [-ARM + k - TRACK_OUTSET, 1 + TRACK_OUTSET];
+  if (k < 13) return [-1 - TRACK_OUTSET, 1 + (k - 6) + TRACK_OUTSET];
   return [0, ARM];
 }
+
+/** Outward shift of the track lanes from the home columns, in board units. */
+export const TRACK_OUTSET = 0.12;
 
 export const TRACK: readonly Vec2[] = Array.from({ length: TRACK_LENGTH }, (_, i) => {
   // Cells c*14 .. c*14+13 end at the tip of the next colour's arm (its gate).
@@ -150,9 +153,18 @@ export function armDirection(color: Color): Vec2 {
   return tip;
 }
 
-/** Top of the inlay the cells sit on, above the board top, and the width of a stair tread: the home cell with a ledge on both sides. */
+/** The base radius of a cell disc, including its outer rim. */
+export const CELL_RADIUS = 0.5;
+
+/** Top of the inlay and the footprints of the stairs and centre dais, in board units. */
 export const INLAY_TOP = 0.04;
-export const TREAD_WIDTH = 1.12;
+export const INLAY_HALF_WIDTH = 1.74;
+export const TREAD_WIDTH = 0.9;
+export const DAIS_WIDTH = 0.88;
+/** Scale of the floating medallion, keeping it clear of the full-size home discs. */
+export const HUB_SCALE = 0.78;
+/** Outer radius of the gold ring around the floating centre medallion. */
+export const HUB_RING_RADIUS = 0.55 * HUB_SCALE;
 
 /**
  * Height above the board top of the tallest stair tread, or the dais in the centre, that a disc of `radius`
@@ -161,7 +173,7 @@ export const TREAD_WIDTH = 1.12;
  */
 export function obstacleHeight(x: number, z: number, radius: number): number {
   let top = 0;
-  const daisReach = TREAD_WIDTH / 2 + radius;
+  const daisReach = DAIS_WIDTH / 2 + radius;
   if (Math.abs(x) < daisReach && Math.abs(z) < daisReach) top = INLAY_TOP + (HOME_STEPS + 1) * STAIR_RISE;
   for (const color of COLORS) {
     const dir = armDirection(color);
