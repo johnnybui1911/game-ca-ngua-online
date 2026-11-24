@@ -16,6 +16,7 @@ import {
   mixPose,
   poseOf,
   posePosition,
+  resetFlight,
   reserveInsets,
   seatCameraPosition,
   seatPose,
@@ -208,6 +209,22 @@ describe('camera poses', () => {
     for (const color of COLORS) {
       const expected = seatCameraPosition(color, 18, 0.9);
       posePosition(seatPose(color, 0.9), 18).forEach((v, i) => expect(v).toBeCloseTo(expected[i]!, 9));
+    }
+  });
+
+  it('resets every seat to its viewport-specific default and ignores an active kick', () => {
+    for (const aspect of [390 / 844, 1280 / 800]) {
+      const fit = fitCameraDistance(aspect, 40, defaultPolar(aspect), 0.7);
+      for (const color of COLORS) {
+        const from = posePosition({ azimuth: 1.1, polar: 0.7, zoom: 0.6 }, fit);
+        const reset = resetFlight(from, fit, color, aspect, false);
+        expect(reset).not.toBeNull();
+        expect(reset!.from.zoom).toBeCloseTo(0.6);
+        expect(reset!.to).toEqual(seatPose(color, defaultPolar(aspect)));
+        const destination = posePosition(mixPose(reset!.from, reset!.to, 1), fit);
+        seatCameraPosition(color, fit, defaultPolar(aspect)).forEach((v, i) => expect(destination[i]).toBeCloseTo(v, 9));
+        expect(resetFlight(from, fit, color, aspect, true)).toBeNull();
+      }
     }
   });
 

@@ -148,7 +148,7 @@ test('the first-match card appears once per device and the lock cues show in a q
   // Back on the same device the card does not return.
   await host.page.reload();
   await expect(host.page.getByTestId('hud')).toBeVisible();
-  await expect(host.page.getByTestId('lock-0')).toBeVisible();
+  await expect(host.page.getByTestId('hud-player-0').locator('.hud-seat-lock')).toBeVisible();
   await expect(host.page.getByTestId('quick-intro')).toHaveCount(0);
   await host.context.close();
 });
@@ -168,7 +168,9 @@ test('a quick match with one human and three CPUs plays to the win dialog; setti
   await expect(host.page.getByTestId('hud')).toBeVisible();
   await dismissQuickIntro(host.page);
   await expect(host.page.getByTestId('quick-tag')).toBeVisible();
-  for (const color of [0, 1, 2, 3]) await expect(host.page.getByTestId(`lock-${color}`)).toBeVisible();
+  for (const color of [0, 1, 2, 3]) {
+    await expect(host.page.getByTestId(`hud-player-${color}`).locator('.hud-seat-lock')).toBeVisible();
+  }
   await startAutoPlayer(host.page);
 
   await expect(host.page.getByTestId('win-dialog')).toBeVisible({ timeout: GAME_TIMEOUT });

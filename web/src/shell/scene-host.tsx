@@ -65,7 +65,7 @@ const DEFAULT_STAGE: SceneStage = { activity: 'dimmed', insets: { top: 0, bottom
 const ApiContext = createContext<SceneHostApi | null>(null);
 const StateContext = createContext<SceneHostState | null>(null);
 
-const MATCH_KEYS = ['room', 'batches', 'myColor', 'onBusyChange', 'eventSource'] as const;
+const MATCH_KEYS = ['room', 'batches', 'myColor', 'onBusyChange', 'eventSource', 'cameraReset'] as const;
 
 function sameInsets(a: HudInsets | undefined, b: HudInsets | undefined): boolean {
   if (a === b) return true;
