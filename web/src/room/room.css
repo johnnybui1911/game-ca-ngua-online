@@ -309,6 +309,27 @@
   margin: 0;
 }
 
+@media (max-width: 899px) {
+  /* The room page scrolls; flatten the player column so the row can stick across the whole panel. */
+  .room-panel:has(.start-row) .room-columns,
+  .room-panel:has(.start-row) .room-col:first-child {
+    display: contents;
+  }
+
+  .room-panel .start-row {
+    position: sticky;
+    z-index: 2;
+    /* Leave the shell's fixed sound control clear, including before scrolling. */
+    top: calc(var(--touch) + var(--space-2));
+    order: -1;
+    margin-top: calc(var(--touch) + var(--space-2) - var(--space-5));
+    padding: var(--space-2);
+    background: var(--glass-fill-solid);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+  }
+}
+
 .await-host {
   padding: var(--space-3) var(--space-4);
   text-align: center;
