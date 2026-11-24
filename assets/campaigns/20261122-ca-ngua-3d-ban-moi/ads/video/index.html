@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="fonts.css">
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+<style>
+  :root { --gold: #f2c14e; --cream: #f8e7c2; --red: #c8372d; --red-deep: #8f1d1a; --ink: #2a120f; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #000; }
+  #root { position: relative; width: 1080px; height: 1920px; overflow: hidden; font-family: 'Be Vietnam Pro', system-ui, sans-serif; color: var(--cream);
+    background:
+      radial-gradient(1000px 800px at 85% 5%, rgba(255,150,70,.30), transparent 60%),
+      radial-gradient(900px 800px at 5% 95%, rgba(200,55,45,.35), transparent 60%),
+      linear-gradient(180deg, #4a110e 0%, #2a0b09 55%, #1a0706 100%); }
+  .lattice { position: absolute; inset: 0; opacity: .09; background: conic-gradient(from 45deg at 50% 50%, transparent 0 25%, #f2c14e 0 50%, transparent 0 75%, #f2c14e 0) 0 0 / 100px 100px; mask-image: linear-gradient(180deg, #000, transparent 65%); }
+  .frame { position: absolute; inset: 30px; border: 2px solid rgba(242,193,78,.45); border-radius: 34px; }
+  .scene { position: absolute; inset: 0; }
+  .phone { z-index: 1; }
+  .chip { z-index: 3; }
+  .kicker { position: absolute; left: 0; right: 0; text-align: center; font-weight: 700; font-size: 30px; letter-spacing: .26em; text-transform: uppercase; color: var(--gold); }
+  .h1 { position: absolute; left: 60px; right: 60px; text-align: center; font-family: 'Playfair Display', Georgia, serif; font-weight: 800; line-height: 1.04; }
+  .h1 em { font-style: normal; color: var(--gold); }
+  .sub { position: absolute; left: 90px; right: 90px; text-align: center; font-size: 38px; line-height: 1.35; opacity: .9; }
+  .phone { position: absolute; background: linear-gradient(145deg, #2b2b2e, #0a0a0b); border-radius: 100px; padding: 22px; box-shadow: 0 0 0 3px #4a4a4e inset, 0 50px 100px rgba(0,0,0,.6); }
+  .phone img, .phone video { display: block; width: 100%; height: 100%; object-fit: cover; border-radius: 80px; }
+  .chip { position: absolute; display: flex; align-items: center; gap: 18px; padding: 16px 34px 16px 16px; border-radius: 34px; background: #fff8ea; color: var(--ink); font-weight: 700; font-size: 42px; white-space: nowrap; box-shadow: 0 24px 50px rgba(0,0,0,.4); }
+  .seal { width: 68px; height: 68px; border-radius: 18px; background: linear-gradient(180deg, var(--red), var(--red-deep)); color: var(--cream); display: grid; place-items: center; font-family: 'Playfair Display', serif; font-weight: 800; font-size: 38px; }
+  .brand { position: absolute; left: 0; right: 0; display: flex; justify-content: center; align-items: center; gap: 22px; }
+  .brand img { width: 92px; height: 92px; }
+  .brand b { font-family: 'Playfair Display', serif; font-size: 56px; }
+  .brand span { font-size: 28px; letter-spacing: .14em; opacity: .75; font-weight: 500; }
+</style>
+</head>
+<body>
+<main id="root" data-composition-id="ca-ngua-ban-moi" data-start="0" data-duration="21" data-width="1080" data-height="1920">
+  <div class="lattice"></div>
+  <div class="frame"></div>
+
+  <!-- 0: title -->
+  <section id="s0" class="scene clip" data-start="0" data-duration="2.6">
+    <img id="s0-mark" src="media/mark.svg" alt="" style="position:absolute;left:430px;top:420px;width:220px;height:220px">
+    <div class="kicker" id="s0-kick" style="top:700px">3D · Online · Free</div>
+    <h1 class="h1" id="s0-h1" style="top:770px;font-size:128px">Cờ cá ngựa<br><em>đúng luật</em><br>Việt Nam</h1>
+    <p class="sub" id="s0-sub" style="top:1330px">Chơi ngay trên trình duyệt. Nhập tên là vào.</p>
+  </section>
+
+  <!-- 1: kick -->
+  <section id="s1" class="scene clip" data-start="2.6" data-duration="6.6">
+    <div class="kicker" style="top:96px">Đá ngựa</div>
+    <h1 class="h1" id="s1-h1" style="top:150px;font-size:104px">Sắp đá rồi…<br><em id="s1-em">hất bay!</em></h1>
+    <div class="phone" id="s1-phone" style="left:210px;top:460px;width:660px;height:1428px"></div>
+    <div class="chip" id="s1-chip1" style="left:60px;top:430px"><span class="seal">1</span>Chuẩn bị đá</div>
+    <div class="chip" id="s1-chip2" style="right:60px;top:560px"><span class="seal">2</span>Khói, sao chóng mặt</div>
+  </section>
+
+  <!-- 2: win -->
+  <section id="s2" class="scene clip" data-start="9.2" data-duration="4.2">
+    <div class="kicker" style="top:96px">Về đích</div>
+    <h1 class="h1" style="top:150px;font-size:104px">Pháo hoa nổ,<br><em>Johnny thắng!</em></h1>
+    <div class="phone" id="s2-phone" style="left:210px;top:460px;width:660px;height:1428px"></div>
+    <img id="s2-card" src="media/win-card.png" alt="" style="z-index:3;position:absolute;left:150px;top:620px;width:780px;border-radius:50px;box-shadow:0 40px 90px rgba(0,0,0,.65)">
+  </section>
+
+  <!-- 3: features -->
+  <section id="s3a" class="scene clip" data-start="13.4" data-duration="1.4">
+    <div class="kicker" style="top:96px">Cài đặt ván</div>
+    <h1 class="h1" style="top:150px;font-size:104px">Chỉnh ván<br><em>theo ý bạn</em></h1>
+    <div class="phone" id="s3a-phone" style="left:210px;top:500px;width:660px;height:1428px"><img src="media/settings.png" alt=""></div>
+  </section>
+  <section id="s3b" class="scene clip" data-start="14.8" data-duration="1.4">
+    <div class="kicker" style="top:96px">Vào giữa ván</div>
+    <h1 class="h1" style="top:150px;font-size:104px">Chủ phòng<br><em>bấm Duyệt</em></h1>
+    <div class="phone" id="s3b-phone" style="left:210px;top:500px;width:660px;height:1428px"><img src="media/join-request.png" alt=""></div>
+  </section>
+  <section id="s3c" class="scene clip" data-start="16.2" data-duration="1.4">
+    <div class="kicker" style="top:96px">Bảng đá ngựa</div>
+    <h1 class="h1" style="top:150px;font-size:104px">Ai đá nhiều<br><em>nhất nhà?</em></h1>
+    <div class="phone" id="s3c-phone" style="left:210px;top:500px;width:660px;height:1428px"><img src="media/kickstats.png" alt=""></div>
+  </section>
+
+  <!-- 4: end card -->
+  <section id="s4" class="scene clip" data-start="17.6" data-duration="3.4">
+    <img src="media/statue.jpg" alt="" style="position:absolute;left:0;top:0;width:1080px;height:1100px;object-fit:cover;object-position:50% 62%">
+    <div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(26,7,6,0) 0%,rgba(26,7,6,0) 42%,rgba(26,7,6,.9) 56%,#1a0706 62%)"></div>
+    <div class="kicker" id="s4-kick" style="top:1090px">Nhân Ngày Văn hoá Việt Nam</div>
+    <h1 class="h1" id="s4-h1" style="top:1150px;font-size:96px">Rủ cả nhà một<br><em>ván cờ cá ngựa</em></h1>
+    <p class="sub" id="s4-sub" style="top:1450px;font-size:34px">Free · Không quảng cáo · Không cài app</p>
+    <div class="chip" id="s4-url" style="left:150px;top:1540px;font-size:34px;padding-right:40px">ca-ngua-online.johnny-bui1911.workers.dev</div>
+    <div class="brand" id="s4-brand" style="top:1700px"><img src="media/mark.svg" alt=""><b>Cờ Cá Ngựa</b><span>3D ONLINE</span></div>
+  </section>
+  <video id="kick-video" src="media/kick.mp4" muted playsinline data-start="2.6" data-duration="6" data-has-audio="false" style="position:absolute;left:232px;top:482px;width:616px;height:1384px;border-radius:80px;object-fit:cover;z-index:2"></video>
+  <video id="fw-video" src="media/fireworks.mp4" muted playsinline data-start="9.2" data-duration="4.2" data-has-audio="false" style="position:absolute;left:232px;top:482px;width:616px;height:1384px;border-radius:80px;object-fit:cover;z-index:2"></video>
+</main>
+<script>
+  window.__timelines = window.__timelines || {};
+  const tl = gsap.timeline({ paused: true });
+  const pop = (sel, t, from = { y: 60, opacity: 0, scale: .9 }) => tl.fromTo(sel, from, { x: 0, y: 0, opacity: 1, scale: 1, duration: .5, ease: 'back.out(1.6)' }, t);
+  // 0
+  tl.fromTo('#s0-mark', { scale: .3, opacity: 0, rotation: -12 }, { scale: 1, opacity: 1, rotation: 0, duration: .6, ease: 'back.out(2)' }, .1);
+  pop('#s0-kick', .45); pop('#s0-h1', .6); pop('#s0-sub', 1.0);
+  // 1
+  pop('#s1-h1', 2.7); pop('#s1-phone, #kick-video', 2.8, { y: 120, opacity: 0, scale: .94 });
+  pop('#s1-chip1', 3.0, { x: -80, opacity: 0, scale: .9 });
+  tl.to('#s1-chip1', { opacity: 0, y: -20, duration: .3 }, 4.9);
+  tl.fromTo('#s1-chip2', { x: 80, opacity: 0, scale: .9 }, { x: 0, opacity: 1, scale: 1, duration: .5, ease: 'back.out(1.6)' }, 5.3);
+  tl.fromTo('#s1-em', { scale: 1 }, { scale: 1.12, duration: .25, yoyo: true, repeat: 1, ease: 'power2.out' }, 5.25);
+  // 2
+  pop('#s2-phone, #fw-video', 9.25, { y: 100, opacity: 0, scale: .95 });
+  tl.fromTo('#s2-card', { y: 220, opacity: 0, scale: .85 }, { y: 0, opacity: 1, scale: 1, duration: .6, ease: 'back.out(1.5)' }, 11.2);
+  // 3
+  for (const [id, t] of [['#s3a-phone', 13.45], ['#s3b-phone', 14.85], ['#s3c-phone', 16.25]]) tl.fromTo(id, { y: 140, opacity: 0, rotation: 4 }, { y: 0, opacity: 1, rotation: 0, duration: .5, ease: 'power3.out' }, t);
+  // 4
+  pop('#s4-kick', 17.8); pop('#s4-h1', 17.95); pop('#s4-sub', 18.3); pop('#s4-url', 18.5); pop('#s4-brand', 18.7);
+  window.__timelines['ca-ngua-ban-moi'] = tl;
+</script>
+</body>
+</html>

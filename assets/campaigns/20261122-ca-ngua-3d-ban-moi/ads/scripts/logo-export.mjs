@@ -1,0 +1,11 @@
+import { chromium } from '/Users/johnny.bui/orca/projects/game-ca-ngua-online/node_modules/@playwright/test/index.mjs';
+const dir = process.argv[2];
+const browser = await chromium.launch();
+const page = await browser.newPage({ viewport: { width: 900, height: 700 }, deviceScaleFactor: 2 });
+await page.goto('file://' + dir + '/lockup.html');
+await page.evaluate(() => document.fonts.ready);
+await page.waitForTimeout(500);
+await page.locator('#a').screenshot({ path: dir + '/co-ca-ngua-lockup-for-dark.png', omitBackground: true });
+await page.locator('#b').screenshot({ path: dir + '/co-ca-ngua-lockup-for-light.png', omitBackground: true });
+await page.locator('#c').screenshot({ path: dir + '/co-ca-ngua-mark-1024.png', omitBackground: true });
+await browser.close();

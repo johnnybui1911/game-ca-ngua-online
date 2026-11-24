@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Cờ Cá Ngựa 3D: bộ ảnh quảng cáo 1080×1350</title>
+<link rel="stylesheet" href="fonts.css">
+<style>
+  :root {
+    --red: #c8372d;
+    --red-deep: #8f1d1a;
+    --ink: #2a120f;
+    --gold: #f2c14e;
+    --gold-soft: #f8e7c2;
+    --paper: #f6e9cf;
+    --display: 'Playfair Display', Georgia, serif;
+    --ui: 'Be Vietnam Pro', system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #111; display: flex; flex-direction: column; gap: 40px; align-items: center; padding: 40px 0; font-family: var(--ui); }
+
+  /* ---------- canvas ---------- */
+  .slide { position: relative; width: 1080px; height: 1350px; overflow: hidden; flex: none; }
+  .dark {
+    color: var(--gold-soft);
+    background:
+      radial-gradient(900px 700px at 80% 6%, rgba(255, 150, 70, .30), transparent 60%),
+      radial-gradient(800px 700px at 8% 96%, rgba(200, 55, 45, .35), transparent 60%),
+      linear-gradient(180deg, #4a110e 0%, #2a0b09 55%, #1a0706 100%);
+  }
+  .dark::before { /* wall lattice, as in the game's room */
+    content: ''; position: absolute; inset: 0; opacity: .10; pointer-events: none;
+    background:
+      conic-gradient(from 45deg at 50% 50%, transparent 0 25%, #f2c14e 0 50%, transparent 0 75%, #f2c14e 0) 0 0 / 90px 90px;
+    mask-image: linear-gradient(180deg, #000 0%, transparent 60%);
+  }
+  .paper {
+    color: var(--ink);
+    background:
+      radial-gradient(900px 700px at 90% 0%, rgba(255, 255, 255, .7), transparent 60%),
+      radial-gradient(700px 600px at 0% 100%, rgba(200, 55, 45, .12), transparent 60%),
+      linear-gradient(180deg, #f9eed6 0%, #efdcb8 100%);
+  }
+  .frame { position: absolute; inset: 26px; border: 2px solid rgba(242, 193, 78, .45); border-radius: 30px; pointer-events: none; }
+  .paper .frame { border-color: rgba(143, 29, 26, .28); }
+
+  /* ---------- type ---------- */
+  .copy { position: absolute; left: 76px; right: 76px; top: 84px; }
+  .kicker { display: flex; align-items: center; gap: 16px; font-weight: 700; font-size: 25px; letter-spacing: .24em; text-transform: uppercase; color: var(--gold); }
+  .paper .kicker { color: var(--red-deep); }
+  .kicker i { width: 11px; height: 11px; background: currentColor; transform: rotate(45deg); display: block; }
+  .h1 { font-family: var(--display); font-weight: 800; font-size: 104px; line-height: 1.02; margin-top: 26px; letter-spacing: -.01em; }
+  .h1 em { font-style: normal; color: var(--gold); }
+  .paper .h1 em { color: var(--red); }
+  .sub { margin-top: 26px; font-size: 35px; line-height: 1.38; font-weight: 400; opacity: .86; max-width: 860px; }
+  .center .kicker { justify-content: center; }
+  .center .h1, .center .sub { text-align: center; margin-left: auto; margin-right: auto; }
+
+  /* ---------- devices ---------- */
+  .phone {
+    --w: 400px;
+    position: absolute; width: var(--w); aspect-ratio: 390 / 844; padding: calc(var(--w) * .034);
+    background: linear-gradient(145deg, #2b2b2e, #0a0a0b); border-radius: calc(var(--w) * .15);
+    box-shadow: 0 0 0 2px #4a4a4e inset, 0 40px 80px rgba(0, 0, 0, .55), 0 10px 24px rgba(0, 0, 0, .4);
+  }
+  .phone::after { content: ''; position: absolute; top: calc(var(--w) * .012); left: 50%; width: calc(var(--w) * .035); height: calc(var(--w) * .035); border-radius: 50%; background: #000; transform: translateX(-50%); }
+  .phone img { width: 100%; height: 100%; object-fit: cover; object-position: top; display: block; border-radius: calc(var(--w) * .12); }
+  .fade-bottom img { -webkit-mask-image: linear-gradient(180deg, #000 80%, transparent 100%); mask-image: linear-gradient(180deg, #000 80%, transparent 100%); }
+
+  .browser {
+    position: absolute; background: #1a0f0d; border-radius: 22px; overflow: hidden;
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, .12) inset, 0 40px 90px rgba(0, 0, 0, .55);
+  }
+  .browser .bar { height: 54px; display: flex; align-items: center; gap: 12px; padding: 0 22px; background: #2a1613; }
+  .browser .bar b { width: 15px; height: 15px; border-radius: 50%; display: block; }
+  .browser .bar span { margin-left: 18px; flex: 1; max-width: 520px; height: 30px; border-radius: 15px; background: #3b221e; color: #d9bd93; font-size: 17px; display: flex; align-items: center; padding: 0 18px; letter-spacing: .02em; }
+  .browser img { display: block; width: 100%; }
+
+  .card { position: absolute; border-radius: 30px; overflow: hidden; z-index: 1; box-shadow: 0 0 0 2px rgba(242,193,78,.5), 0 40px 80px rgba(0,0,0,.5); background: #1a0f0d; }
+  .card img { display: block; width: 100%; }
+
+  /* ---------- chips and seals ---------- */
+  .chip {
+    position: absolute; display: flex; align-items: center; gap: 16px; padding: 14px 26px 14px 14px;
+    background: #fff8ea; color: var(--ink); border-radius: 26px; font-weight: 700; font-size: 31px; white-space: nowrap;
+    box-shadow: 0 18px 40px rgba(0, 0, 0, .35);
+  }
+  .chip .seal, .seal { width: 54px; height: 54px; border-radius: 14px; background: linear-gradient(180deg, var(--red), var(--red-deep)); color: var(--gold-soft); display: grid; place-items: center; font-family: var(--display); font-weight: 800; font-size: 30px; flex: none; }
+  .chip small { display: block; font-weight: 500; font-size: 22px; opacity: .65; margin-top: 2px; }
+  .tag { position: absolute; padding: 12px 24px; border-radius: 999px; background: rgba(0, 0, 0, .55); color: var(--gold-soft); font-weight: 700; font-size: 26px; border: 1.5px solid rgba(242, 193, 78, .6); backdrop-filter: blur(6px); }
+
+  /* ---------- footer ---------- */
+  .foot { position: absolute; left: 0; right: 0; bottom: 54px; display: flex; justify-content: center; align-items: center; gap: 20px; }
+  .foot img { width: 76px; height: 76px; }
+  .foot b { font-family: var(--display); font-size: 44px; font-weight: 700; }
+  .foot span { font-size: 24px; letter-spacing: .12em; opacity: .75; font-weight: 500; margin-left: 10px; }
+  .foot::before { content: ''; position: absolute; left: 0; right: 0; top: -150px; bottom: -54px; z-index: -1; }
+  .shade-b::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 260px; pointer-events: none; }
+  .dark.shade-b::after { background: linear-gradient(180deg, transparent, rgba(26, 7, 6, .92)); }
+  .paper.shade-b::after { background: linear-gradient(180deg, transparent, rgba(239, 220, 184, .95)); }
+  .phone, .browser { z-index: 1; }
+  .shade-b::after { z-index: 2; }
+  .chip, .foot, .tag { z-index: 3; }
+  .z { }
+  .logo-corner { position: absolute; right: 76px; top: 66px; width: 64px; height: 64px; z-index: 3; }
+  .tagline { position: absolute; z-index: 3; display: flex; align-items: center; gap: 12px; padding: 11px 22px 11px 12px; border-radius: 999px; background: #fff8ea; color: var(--ink); font-weight: 700; font-size: 27px; box-shadow: 0 12px 30px rgba(0,0,0,.35); white-space: nowrap; }
+  .tagline .seal { width: 42px; height: 42px; border-radius: 11px; font-size: 24px; }
+  .wide { width: 1600px; height: 900px; }
+  .compact .h1 { font-size: 92px; }
+  .compact .sub { font-size: 33px; max-width: none; }
+</style>
+</head>
+<body>
+
+<!-- 1. Hero -->
+<section class="slide dark shade-b" id="s1">
+  <div class="frame"></div>
+  <div class="copy">
+    <div class="kicker"><i></i>3D · Online · Chơi cùng bạn bè<i></i></div>
+    <h1 class="h1" style="font-size: 98px">Cờ cá ngựa<br><em>đúng luật</em> Việt Nam</h1>
+    <p class="sub">Bàn cờ 3D ngay trên trình duyệt. Nhập tên là chơi, gửi link rủ cả nhà.</p>
+  </div>
+  <div class="browser" style="left: -170px; top: 600px; width: 900px; transform: rotate(-4deg);">
+    <div class="bar"><b style="background:#ff5f57"></b><b style="background:#febc2e"></b><b style="background:#28c840"></b><span>ca-ngua-online.johnny-bui1911.workers.dev</span></div>
+    <img src="raw/desktop-match.png" alt="">
+  </div>
+  <div class="phone z" style="--w: 430px; left: 590px; top: 640px; transform: rotate(6deg);"><img src="raw/mobile-match.png" alt=""></div>
+  <div class="chip z" style="left: 76px; top: 520px;"><span class="seal">♞</span>Free · Không quảng cáo</div>
+  <div class="foot z"><img src="logo/co-ca-ngua-mark.svg" alt=""><b>Cờ Cá Ngựa</b><span>3D ONLINE</span></div>
+</section>
+
+<!-- 2. Tạo phòng -->
+<section class="slide paper shade-b" id="s2">
+  <div class="frame"></div>
+  <div class="copy">
+    <div class="kicker"><i></i>Tạo phòng<i></i></div>
+    <h1 class="h1">Rủ cả nhà<br>vào <em>một phòng</em></h1>
+    <p class="sub">Đặt tên phòng, chọn công khai hay riêng tư, gửi link vào nhóm Zalo.</p>
+  </div>
+  <div class="phone" style="--w: 440px; left: 90px; top: 590px; transform: rotate(-5deg);"><img src="raw/mobile-create.png" alt=""></div>
+  <div class="phone z" style="--w: 440px; left: 560px; top: 650px; transform: rotate(4deg);"><img src="raw/mobile-waiting.png" alt=""></div>
+  <div class="chip z" style="left: 330px; top: 540px;"><span class="seal">1</span>Nhập tên là chơi</div>
+  <div class="chip z" style="left: 580px; top: 960px;"><span class="seal">2</span>Sao chép link, gửi bạn</div>
+  <div class="foot z"><img src="logo/co-ca-ngua-mark.svg" alt=""><b>Cờ Cá Ngựa</b><span>3D ONLINE</span></div>
+</section>
+
+
+<!-- 3. Cài đặt ván -->
+<section class="slide paper shade-b" id="s3">
+  <div class="frame"></div>
+  <div class="copy">
+    <div class="kicker"><i></i>Cài đặt ván<i></i></div>
+    <h1 class="h1">Chỉnh ván<br><em>theo ý bạn</em></h1>
+    <p class="sub">Độ khó máy, thời gian cả ván, đồng hồ mỗi lượt, Ván Nhanh hay Cơ Bản.</p>
+  </div>
+  <div class="phone" style="--w: 430px; left: 70px; top: 600px; transform: rotate(-4deg);"><img src="raw/s-cpu.png" alt=""></div>
+  <div class="card" style="left: 560px; top: 710px; width: 440px; transform: rotate(4deg);"><img src="raw/desktop-settings-panel.png" alt=""></div>
+  <div class="chip" style="left: 300px; top: 550px;"><span class="seal">♞</span>Máy Dễ · Thường · Khó</div>
+  <div class="chip" style="left: 560px; top: 960px;"><span class="seal">💻</span>Máy tính cũng vậy</div>
+  <div class="foot"><img src="logo/co-ca-ngua-mark.svg" alt=""><b>Cờ Cá Ngựa</b><span>3D ONLINE</span></div>
+</section>
+
+<!-- 4. Luật chơi -->
+<section class="slide dark shade-b" id="s4">
+  <div class="frame"></div>
+  <div class="copy">
+    <div class="kicker"><i></i>Luật chơi<i></i></div>
+    <h1 class="h1">Quên luật?<br><em>Bấm “?” là có</em></h1>
+    <p class="sub">Bảng luật nằm ngay trong ván và ở phòng chờ, đúng luật cá ngựa Việt Nam.</p>
+  </div>
+  <div class="phone" style="--w: 440px; left: 80px; top: 630px; transform: rotate(-5deg);"><img src="raw/mobile-rules.png" alt=""></div>
+  <div class="phone" style="--w: 440px; left: 580px; top: 690px; transform: rotate(5deg);"><img src="raw/mobile-quick-intro.png" alt=""></div>
+  <div class="chip" style="left: 70px; top: 540px;"><span class="seal">1</span>Ra chuồng bằng 1 hoặc 6</div>
+  <div class="chip" style="left: 520px; top: 1010px;"><span class="seal">6</span>Không nhảy qua ngựa khác</div>
+  <div class="foot"><img src="logo/co-ca-ngua-mark.svg" alt=""><b>Cờ Cá Ngựa</b><span>3D ONLINE</span></div>
+</section>
+
+<!-- 5. Sắp đá -->
+<section class="slide dark compact" id="s5">
+  <div class="frame"></div>
+  <img class="logo-corner" src="logo/co-ca-ngua-mark.svg" alt="">
+  <div class="copy">
+    <div class="kicker"><i></i>Đá ngựa<i></i></div>
+    <h1 class="h1">Sắp đá rồi…<br><em>hất bay!</em></h1>
+    <p class="sub">Game báo trước nước đá, bấm là ngựa bật cao đá hậu.</p>
+  </div>
+  <div class="phone" style="--w: 390px; left: 70px; top: 500px; transform: rotate(-3deg);"><img src="raw/kick-prep.jpg" alt=""></div>
+  <div class="phone" style="--w: 390px; left: 610px; top: 540px; transform: rotate(3deg);"><img src="raw/kick-impact.jpg" alt=""></div>
+  <div class="tagline" style="left: 80px; top: 428px;"><span class="seal">1</span>Chuẩn bị đá</div>
+  <div class="tagline" style="left: 620px; top: 468px;"><span class="seal">2</span>Khói, sao chóng mặt</div>
+</section>
+
+<!-- 6. Bảng đá ngựa -->
+<section class="slide paper compact" id="s6">
+  <div class="frame"></div>
+  <img class="logo-corner" src="logo/co-ca-ngua-mark.svg" alt="">
+  <div class="copy">
+    <div class="kicker"><i></i>Bảng đá ngựa<i></i></div>
+    <h1 class="h1">Ai đá nhiều<br><em>nhất nhà?</em></h1>
+    <p class="sub">Xếp theo số ngựa đối thủ đã đá, mở trong Menu.</p>
+  </div>
+  <div class="phone" style="--w: 390px; left: 70px; top: 500px; transform: rotate(-3deg);"><img src="raw/mobile-kickstats.png" alt=""></div>
+  <div class="phone" style="--w: 390px; left: 610px; top: 540px; transform: rotate(3deg);"><img src="raw/kick-flung.jpg" alt=""></div>
+  <div class="tagline" style="left: 80px; top: 428px;"><span class="seal">☰</span>Menu → Bảng đá ngựa</div>
+  <div class="tagline" style="left: 620px; top: 468px;"><span class="seal">2</span>Đá xong là ghi điểm</div>
+</section>
+
+<!-- 7. Thắng -->
+<section class="slide dark compact" id="s7">
+  <div class="frame"></div>
+  <img class="logo-corner" src="logo/co-ca-ngua-mark.svg" alt="">
+  <div class="copy">
+    <div class="kicker"><i></i>Về đích<i></i></div>
+    <h1 class="h1">Ngựa đầu tiên<br><em>lên chuồng</em> thắng</h1>
+    <p class="sub">Ván Nhanh: đá được ngựa đối thủ mới mở chuồng đích.</p>
+  </div>
+  <div class="phone" style="--w: 390px; left: 70px; top: 500px; transform: rotate(-3deg);"><img src="raw/fireworks.jpg" alt=""></div>
+  <div class="card" style="left: 580px; top: 600px; width: 430px; transform: rotate(3deg);"><img src="raw/win-card.png" alt=""></div>
+  <div class="tagline" style="left: 80px; top: 428px;"><span class="seal">1</span>Pháo hoa</div>
+  <div class="tagline" style="left: 590px; top: 528px;"><span class="seal">2</span>Rồi báo thắng</div>
+</section>
+
+<!-- 8. Vào giữa ván -->
+<section class="slide paper compact" id="s8">
+  <div class="frame"></div>
+  <img class="logo-corner" src="logo/co-ca-ngua-mark.svg" alt="">
+  <div class="copy">
+    <div class="kicker"><i></i>Vào giữa ván<i></i></div>
+    <h1 class="h1">Đang chơi dở<br>vẫn <em>xin vào được</em></h1>
+    <p class="sub">Chọn ghế máy, chủ phòng bấm “Duyệt” là bạn vào thay.</p>
+  </div>
+  <div class="phone" style="--w: 390px; left: 70px; top: 500px; transform: rotate(-3deg);"><img src="raw/x-join-pick.png" alt=""></div>
+  <div class="phone" style="--w: 390px; left: 610px; top: 540px; transform: rotate(3deg);"><img src="raw/x-join-request.png" alt=""></div>
+  <div class="tagline" style="left: 80px; top: 428px;"><span class="seal">1</span>Bạn chọn ghế máy</div>
+  <div class="tagline" style="left: 620px; top: 468px;"><span class="seal">2</span>Chủ phòng duyệt</div>
+</section>
+
+<!-- 9. Mã đáo thành công -->
+<section class="slide dark" id="s9">
+  <img src="../creatives/social/tuong-ma-dao-thanh-cong-2400x1600.jpg" alt="" style="position:absolute;left:0;top:0;width:100%;height:930px;object-fit:cover;object-position:50% 62%;">
+  <div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(26,7,6,.0) 0%,rgba(26,7,6,0) 50%,rgba(26,7,6,.85) 68%,#1a0706 76%)"></div>
+  <div class="frame"></div>
+  <div style="position:absolute;left:76px;right:76px;top:860px;text-align:center;z-index:3">
+    <div class="kicker" style="justify-content:center"><i></i>Nhân Ngày Văn hoá Việt Nam<i></i></div>
+    <h1 class="h1" style="margin-top:20px;font-size:92px">Rủ cả nhà một<br><em>ván cờ cá ngựa</em></h1>
+    <p class="sub" style="margin:18px auto 0;font-size:32px">Free, không quảng cáo, không cài app. Nhập tên là chơi.</p>
+  </div>
+  <div class="foot" style="z-index:3"><img src="logo/co-ca-ngua-mark.svg" alt=""><b>Cờ Cá Ngựa</b><span>3D ONLINE</span></div>
+</section>
+
+<!-- 10. Ngang 16:9: máy tính + điện thoại -->
+<section class="slide dark wide" id="s10">
+  <div class="frame"></div>
+  <div style="position:absolute;left:84px;top:96px;width:560px;z-index:3">
+    <div class="kicker"><i></i>3D · Online · Free<i></i></div>
+    <h1 class="h1" style="font-size:84px;margin-top:22px">Cờ cá ngựa<br><em>đúng luật</em><br>Việt Nam</h1>
+    <p class="sub" style="font-size:29px;margin-top:22px">Máy tính hay điện thoại đều chơi được. Nhập tên là vào.</p>
+  </div>
+  <div class="foot" style="left:84px;right:auto;bottom:70px;justify-content:flex-start;z-index:3"><img src="logo/co-ca-ngua-mark.svg" alt=""><b>Cờ Cá Ngựa</b><span>3D ONLINE</span></div>
+  <div class="browser" style="left: 740px; top: 130px; width: 820px; transform: rotate(-2deg);">
+    <div class="bar"><b style="background:#ff5f57"></b><b style="background:#febc2e"></b><b style="background:#28c840"></b><span>ca-ngua-online.johnny-bui1911.workers.dev</span></div>
+    <img src="raw/desktop-match.png" alt="">
+  </div>
+  <div class="phone" style="--w: 320px; left: 690px; top: 360px; transform: rotate(5deg);"><img src="raw/mobile-match.png" alt=""></div>
+</section>
+
+</body>
+</html>
