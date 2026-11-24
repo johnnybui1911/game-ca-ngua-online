@@ -37,21 +37,24 @@ Chưa có clip thì dùng ảnh trước/sau; em không quay được pha đá v
 
 Link: `https://ca-ngua-online.johnny-bui1911.workers.dev/?utm_source=facebook`
 
-> 🏮 Hôm nay 24/11 là Ngày Văn hoá Việt Nam. Tui xin góp một ván cờ cá ngựa 🐎
+> Hôm qua tui share game lên nhóm chung với mấy anh em hội AI Doanh Nghiệp, được 1 đại ca feedback nâng cấp design con ngựa gỗ, dùng Blender. Đêm qua tui bảo AI triển ngay 🐴
 >
-> Hôm 21/11 tui khoe bản đầu của game, tự chê giao diện lỏ và hứa làm lại. Đêm qua anh em Technical Agent Team cày thêm một đêm, bản mới đây:
+> Có lẽ đây là task phức tạp nhất từ đầu tới giờ: phải nghiên cứu, chọn model phù hợp, review các bản vẽ, căn chỉnh độ bóng. Vẽ con ngựa xong đẹp quá nên làm tới luôn: chỉnh lại animation "đá" cho trông điện ảnh 🎬
 >
 > 🎮 Chơi thử: https://ca-ngua-online.johnny-bui1911.workers.dev/?utm_source=facebook
 >
-> 🐴 **Vẽ lại con ngựa**: không còn là khối nhựa nữa, giờ là quân ngựa gỗ có vân, đặt trên bàn cờ sơn mài. Chuồng đích làm thành từng bậc thang, về tới nơi là lên bậc cuối. Giữa phòng là tượng ngựa chồm mạ vàng "Mã đáo thành công" 🥇
+> 🐴 **Vẽ lại con ngựa**
+> - Không còn là khối nhựa ghép bằng code nữa: giờ là quân ngựa gỗ có vân, chạy Blender dọn model rồi nhuộm màu từng bên
+> - Thử vàng với gỗ, cuối cùng chọn gỗ óc chó cho hợp phòng khách đêm Tết. Bàn cờ thành sơn mài, chuồng đích làm thành từng bậc thang
+> - Giữa phòng là tượng ngựa chồm mạ vàng "Mã đáo thành công". Cái này phải chỉnh độ bóng mấy vòng mới ra được màu vàng thật, không bị vàng bùn 🥇
+>
+> 💥 **Đá ngựa: giờ đúng là một pha điện ảnh**
+> - Ngựa bật cao, đá hậu thẳng vào sườn ngựa kia, camera zoom cận vào pha va
+> - Ngựa bị đá khựng một nhịp, nhấc lên từ từ rồi bị hất bay vòng cung, xoay hai vòng. Camera lùi ra theo, thấy nó rơi về chuồng, có bụi, chớp sáng, tiếng gió vút
+> - Thêm khói hoạt hình, vòng sáng vàng và sao chóng mặt quay quanh con ngựa xấu số 😵‍💫
+> - Máy yếu thì game tự giảm cho mượt; không thích chuyển động nhiều thì chọn "Hoạt cảnh: Giảm"
 >
 > 📱 **Làm lại màn chơi**: thanh điều khiển gọn lại cho điện thoại, ghế người chơi có biểu tượng riêng (chủ phòng có vương miện 👑), thắng thì xem pháo hoa xong mới hiện bảng kết quả 🎆
->
-> 💥 **Đá ngựa: giờ đúng là một pha highlight**
-> - Ngựa bật cao, đá hậu thẳng vào sườn ngựa kia, camera zoom cận vào pha va
-> - Ngựa bị đá bay vòng cung, xoay hai vòng rồi rơi về chuồng, camera lùi theo, có bụi, chớp sáng, tiếng gió vút
-> - Thêm khói hoạt hình, vòng sáng vàng và sao chóng mặt quay quanh con ngựa xấu số 😵‍💫
-> (máy yếu thì game tự giảm cho mượt, không thích chuyển động nhiều thì chọn "Hoạt cảnh: Giảm")
 >
 > 🧧 **Vì sao tui làm game này?**
 > Cờ cá ngựa là trò của tuổi thơ nhiều nhà mình: cả nhà ngồi quanh một tấm bàn, la hét, đá nhau, dỗi nhau, rồi lại chơi tiếp. Ngày Văn hoá hôm nay, tui muốn trò đó còn ở lại: cho nên có đèn lồng, câu đối đỏ, hoa văn trong phòng chơi, và đúng luật cá ngựa Việt Nam (ra chuồng bằng 1 hoặc 6, không nhảy qua ngựa khác, lên chuồng từng bậc).
