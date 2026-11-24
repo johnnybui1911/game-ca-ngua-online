@@ -447,21 +447,25 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
             {room.joinRequests.map((r) => (
               <li
                 key={r.user.id}
-                className="glass join-request"
+                className="join-request"
                 style={{ '--seat-color': COLOR_VARS[r.color] } as CSSProperties}
                 data-testid={`join-request-${r.color}`}
               >
-                <p>
-                  <strong>{r.user.displayName}</strong> xin vào thay {seatName(room.seats.find((s) => s.color === r.color))} (màu {COLOR_NAMES[r.color]})
-                </p>
-                <div className="join-request-actions">
+                <span className="seat-dot" aria-hidden="true">
+                  <Icon name="knight" size="sm" />
+                </span>
+                <span className="join-request-text">
+                  <strong>{r.user.displayName}</strong>
+                  <span>xin vào thay {seatName(room.seats.find((s) => s.color === r.color))}</span>
+                </span>
+                <span className="join-request-actions">
                   <button type="button" className="ui-btn ui-btn--primary" data-testid={`join-approve-${r.color}`} onClick={() => send({ t: 'approveJoin', userId: r.user.id })}>
                     Duyệt
                   </button>
                   <button type="button" className="ui-btn ui-btn--secondary" data-testid={`join-reject-${r.color}`} onClick={() => send({ t: 'rejectJoin', userId: r.user.id })}>
                     Từ chối
                   </button>
-                </div>
+                </span>
               </li>
             ))}
           </ul>

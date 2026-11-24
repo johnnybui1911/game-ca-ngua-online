@@ -47,7 +47,7 @@ export function JoinRequestView({ room, myId, send, actionError, joinNotice }: P
       </p>
       {mine ? (
         <p className="join-wait" role="status" data-testid="join-waiting">
-          Đang chờ chủ phòng duyệt cho bạn vào thay {cpuName(room, mine.color)} (màu {COLOR_NAMES[mine.color]})…
+          Đang chờ chủ phòng duyệt cho bạn vào thay {cpuName(room, mine.color)}…
         </p>
       ) : (
         <p data-testid="join-pick">
