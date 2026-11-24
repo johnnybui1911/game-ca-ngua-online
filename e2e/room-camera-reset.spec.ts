@@ -11,7 +11,11 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 800 
     const reset = host.page.getByRole('button', { name: 'Về góc nhìn mặc định' });
     const badge = host.page.getByTestId('creator-badge');
     await expect(reset).toBeVisible();
-    await expect(reset).toHaveAttribute('title', 'Đặt lại camera');
+    await expect(reset).toHaveAttribute('data-tooltip', 'Reset góc quay');
+    await expect(reset).not.toHaveAttribute('title');
+    await reset.click();
+    await expect(reset).toHaveClass(/is-tooltip-visible/);
+    await expect(reset).not.toHaveClass(/is-tooltip-visible/, { timeout: 5000 });
     const [buttonBox, badgeBox, panelBox] = await Promise.all([
       reset.boundingBox(), badge.boundingBox(), host.page.locator('.hud-bottom').boundingBox(),
     ]);
@@ -22,7 +26,6 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 800 
     expect(buttonBox!.height).toBeCloseTo(badgeBox!.height, 0);
     expect(buttonBox!.y).toBeCloseTo(badgeBox!.y, 0);
     expect(buttonBox!.x - panelBox!.x).toBeCloseTo(panelBox!.x + panelBox!.width - badgeBox!.x - badgeBox!.width, 0);
-    await reset.click();
     await host.page.getByTestId('emote-open').click();
     await expect(host.page.getByRole('group', { name: 'Biểu cảm nhanh' })).toBeVisible();
     await host.context.close();

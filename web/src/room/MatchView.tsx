@@ -285,6 +285,9 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
   const seconds = left === null ? null : Math.min(left, room.settings.turnSeconds);
   const hud = useHudInsets(room.game !== null);
   const cameraReset = useRef<(() => void) | null>(null);
+  const [cameraTipVisible, setCameraTipVisible] = useState(false);
+  const cameraTipTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  useEffect(() => () => clearTimeout(cameraTipTimer.current), []);
 
   const mySeat = room.seats.find((s) => s.occupant?.kind === 'human' && s.occupant.user.id === myId);
   const myColor = mySeat?.color ?? null;
@@ -446,11 +449,16 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
         <CreatorBadge />
         <button
           type="button"
-          className="ui-btn ui-btn--icon camera-reset"
+          className={`ui-btn ui-btn--icon camera-reset${cameraTipVisible ? ' is-tooltip-visible' : ''}`}
           aria-label="Về góc nhìn mặc định"
-          title="Đặt lại camera"
+          data-tooltip="Reset góc quay"
           data-testid="camera-reset"
-          onClick={() => cameraReset.current?.()}
+          onClick={() => {
+            cameraReset.current?.();
+            setCameraTipVisible(true);
+            clearTimeout(cameraTipTimer.current);
+            cameraTipTimer.current = setTimeout(() => setCameraTipVisible(false), 2000);
+          }}
         >
           <Icon name="camera-reset" />
         </button>
