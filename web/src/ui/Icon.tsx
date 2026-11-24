@@ -12,10 +12,12 @@ import {
   LockOpen,
   LogOut,
   Menu,
+  Minus,
   MessageSquareText,
   Pause,
   Pencil,
   Play,
+  Plus,
   Music,
   Settings,
   Share2,
@@ -23,8 +25,6 @@ import {
   Timer,
   Trophy,
   User,
-  UserMinus,
-  UserPlus,
   Vibrate,
   Volume2,
   VolumeX,
@@ -62,8 +62,8 @@ import {
  * | play        | "Tiếp tục" (host)                | Play               |
  * | timer       | turn countdown                   | Timer              |
  * | bot         | CPU player badge                 | Bot                |
- * | user-plus   | "Thêm máy"                      | UserPlus           |
- * | user-minus  | "Bỏ máy"                        | UserMinus          |
+ * | plus        | add CPU badge                    | Plus               |
+ * | minus       | remove CPU badge                 | Minus              |
  * | pencil      | "Đặt tên quân"                   | Pencil             |
  * | wifi-off    | offline player badge             | WifiOff            |
  * | shake       | shake-to-roll                    | Vibrate            |
@@ -95,8 +95,8 @@ const ICONS = {
   play: Play,
   timer: Timer,
   bot: Bot,
-  'user-plus': UserPlus,
-  'user-minus': UserMinus,
+  plus: Plus,
+  minus: Minus,
   pencil: Pencil,
   'wifi-off': WifiOff,
   shake: Vibrate,

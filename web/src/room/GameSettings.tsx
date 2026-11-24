@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { DICE_SHAPING } from '../../../shared/experiments';
-import { CLASSIC_MODE_SUMMARY, QUICK_MODE_SUMMARY, TRIPLE_BONUS_FORFEIT_LABEL, TRIPLE_BONUS_FORFEIT_RULE } from '../../../shared/rules-text';
+import { TRIPLE_BONUS_FORFEIT_LABEL, TRIPLE_BONUS_FORFEIT_RULE } from '../../../shared/rules-text';
 import {
   TURN_SECONDS_OPTIONS,
   GAME_MINUTES_OPTIONS,
@@ -47,8 +47,6 @@ export function GameSettings({ room, isHost, offline, actionError, send }: Props
     send({ t: 'settings', settings: nextSettings(settings, patch) });
   };
 
-  const summary = settings.quick ? QUICK_MODE_SUMMARY : CLASSIC_MODE_SUMMARY;
-
   return (
     <section className="game-settings" aria-labelledby="game-settings-title" data-testid="game-settings">
       <h2 id="game-settings-title" className="ui-eyebrow">
@@ -90,7 +88,7 @@ export function GameSettings({ room, isHost, offline, actionError, send }: Props
         )}
       </div>
 
-      <div className="setting-row">
+      <div className="setting-row turn-time-row">
         <label htmlFor="turn-seconds" className="setting-label">
           <Icon name="timer" size="sm" />
           Thời gian mỗi lượt
@@ -148,12 +146,9 @@ export function GameSettings({ room, isHost, offline, actionError, send }: Props
             </strong>
           </p>
         )}
-        <p className="ui-muted setting-help" data-testid="mode-summary">
-          {summary}{' '}
-          <button type="button" className="link-button" data-testid="mode-rules" onClick={() => setRulesOpen(true)}>
-            Xem luật
-          </button>
-        </p>
+        <button type="button" className="link-button mode-rules" data-testid="mode-rules" onClick={() => setRulesOpen(true)}>
+          Xem luật
+        </button>
       </div>
 
       {/* Hidden while the dice experiment replaces this rule (shared/experiments.ts). */}

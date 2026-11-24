@@ -24,6 +24,9 @@ for (const quick of [false, true]) {
     await host.page.getByTestId('start-button').click();
     if (quick) await dismissQuickIntro(host.page);
     await expect(host.page.getByTestId('game-countdown')).toBeVisible();
+    await expect(host.page.getByTestId('game-countdown')).toHaveClass(/is-low/);
+    await expect(host.page.getByTestId('game-countdown')).toHaveAttribute('aria-label', /Thời gian ván còn lại \d\d:\d\d/);
+    await expect(guest.page.getByTestId('turn-banner')).toHaveText('Lượt của Chủ Đồng Hồ');
     await expect.poll(async () => (await lastRawState(raw))?.status, { timeout: 35_000 }).toBe('finished');
     expect((await lastRawState(raw))?.game?.timeWinReason).toBeDefined();
     await expect(host.page.getByTestId('win-dialog')).toBeVisible({ timeout: 20_000 });
@@ -33,3 +36,20 @@ for (const quick of [false, true]) {
     await guest.context.close();
   });
 }
+
+test('unlimited games do not show a game clock', async ({ browser }) => {
+  const host = await newPlayer(browser, 'Chủ Vô Cực', VIEWPORT);
+  const code = await createRoom(host, { seats: 2 });
+  await host.page.goto(`/r/${code}`);
+  await host.page.getByTestId('game-time-0').click();
+  await host.page.getByTestId('add-cpu-1').click();
+  await host.page.getByTestId('start-button').click();
+  await expect(host.page.getByTestId('hud')).toBeVisible();
+  await expect(host.page.getByTestId('game-countdown')).toHaveCount(0);
+  await expect(host.page.getByTestId('turn-banner').locator('.turn-short')).toBeVisible();
+  await expect(host.page.getByTestId('turn-banner').locator('.turn-full')).toBeHidden();
+  await host.page.setViewportSize({ width: 1280, height: 800 });
+  await expect(host.page.getByTestId('turn-banner').locator('.turn-full')).toHaveText('Lượt của bạn');
+  await expect(host.page.getByTestId('turn-banner').locator('.turn-full')).toBeVisible();
+  await host.context.close();
+});

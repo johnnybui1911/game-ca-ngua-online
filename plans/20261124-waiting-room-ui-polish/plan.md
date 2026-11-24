@@ -7,7 +7,7 @@ status: accepted
 
 ## Outcome
 
-Keep room identity and start controls visible while scrolling, simplify color selection and room creation, and balance settings spacing.
+Keep room identity and start controls visible while scrolling, simplify color selection and room creation, balance settings spacing, and polish the in-game clock and local turn label.
 
 ## Constraints
 
@@ -23,6 +23,8 @@ Game rule changes, migration of existing rooms, deployment or merge.
 - Seated players can select only empty seats, without interfering with adding CPUs.
 - Mobile seat count is concise, takeover control is hidden, and new rooms default to takeover enabled while explicit choices and stored rooms remain unchanged.
 - Settings spacing and mode rules link match the request.
+- A limited-game clock sits above the HUD without colliding with the badge or future camera reset control, is readable and urgent in its final minute, and is absent for unlimited games. Only the local turn label shortens on mobile.
+- CPU add/remove actions use robot icons with plus/minus badges and remain separate from color selection.
 - Unit tests, typecheck, full tests and build pass; update user-visible E2E specs without running them per Johnny's instruction. Measure the requested viewports using a temporary Playwright script and stop its server.
 
 ## Decisions
@@ -30,10 +32,11 @@ Game rule changes, migration of existing rooms, deployment or merge.
 - Default omitted `allowTakeover` to true on the server, preserving explicit false for protocol clients and existing stored rooms.
 - Use a separate button inside an empty seat alongside the CPU button to avoid nested interactive elements.
 - Apply sticky styling at all widths because the shell scrolls the waiting panel on desktop too.
+- Reserve the 40px band above the match panel in board framing and move transient overlays above it. Do not animate clock urgency.
 - Run autonomously and skip E2E execution as explicitly instructed.
 
 ## Phases
 
 | Phase | Status | Detail |
 |---|---|---|
-| 1 | Pending | [Implementation and verification](phase-01-implementation.md) |
+| 1 | Complete | [Implementation and verification](phase-01-implementation.md) |

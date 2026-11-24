@@ -146,8 +146,21 @@
 }
 
 .room-head {
+  position: sticky;
+  top: 0;
+  z-index: 2;
   display: grid;
   gap: var(--space-2);
+  margin: calc(-1 * var(--space-5)) calc(-1 * var(--space-5)) 0;
+  padding: var(--space-3) var(--space-5);
+  background: var(--glass-fill-solid);
+  border-bottom: 1px solid var(--color-border);
+  box-shadow: var(--shadow-sm);
+}
+
+.room-head .ui-eyebrow {
+  display: block;
+  margin: 0;
 }
 
 .room-title {
@@ -165,9 +178,9 @@
 .room-code-chip {
   display: inline-flex;
   align-items: baseline;
-  gap: var(--space-2);
+  gap: var(--space-1);
   min-height: var(--touch);
-  padding: var(--space-2) var(--space-4);
+  padding: var(--space-2) var(--space-2);
   background: rgb(13 8 6 / 45%);
   border: 1px dashed var(--color-border-strong);
   border-radius: var(--radius-pill);
@@ -179,9 +192,13 @@
 
 .room-code {
   font-family: var(--font-mono);
-  font-size: var(--text-lg);
+  font-size: var(--text-md);
   letter-spacing: 0.14em;
   color: var(--color-gold-strong);
+}
+
+.room-head .room-share-action {
+  padding-inline: var(--space-3);
 }
 
 .copy-status {
@@ -189,6 +206,38 @@
   min-height: 1.5em;
   font-size: var(--text-sm);
   overflow-wrap: anywhere;
+}
+
+.copy-status:empty {
+  display: none;
+}
+
+@media (max-width: 899px) {
+  .room-panel {
+    padding-top: calc(var(--touch) + var(--space-2) + var(--space-5));
+  }
+
+  .room-head {
+    top: calc(var(--touch) + var(--space-2));
+  }
+
+  .room-head::before {
+    content: '';
+    position: absolute;
+    inset: calc(-1 * (var(--touch) + var(--space-2))) 0 100%;
+    background: var(--glass-fill-solid);
+  }
+
+  .room-head .room-share-action {
+    width: var(--touch);
+    min-width: var(--touch);
+    border-radius: 50%;
+    padding: 0;
+  }
+
+  .room-share-action span {
+    display: none;
+  }
 }
 
 .room-columns {
@@ -227,6 +276,7 @@
 }
 
 .seat {
+  position: relative;
   display: flex;
   align-items: center;
   gap: var(--space-3);
@@ -237,6 +287,33 @@
   border-left: 4px solid var(--seat-color);
   border-radius: var(--radius-md);
   transition: border-color var(--dur-base) var(--ease-out);
+}
+
+.seat-select {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  background: transparent;
+  border: 0;
+  border-radius: inherit;
+  cursor: pointer;
+}
+
+.seat-select:hover {
+  background: rgb(245 234 210 / 8%);
+}
+
+.seat-select:active {
+  background: rgb(245 234 210 / 16%);
+}
+
+.seat-select:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.seat-select:disabled {
+  cursor: default;
 }
 
 .seat-empty {
@@ -278,9 +355,27 @@
 }
 
 .seat-action {
+  position: relative;
   flex: none;
   padding: 0 var(--space-3);
   font-size: var(--text-sm);
+}
+
+.seat-cpu-icon {
+  position: relative;
+  display: inline-flex;
+  margin-right: var(--space-1);
+}
+
+.seat-cpu-icon .ui-icon:last-child {
+  position: absolute;
+  right: -6px;
+  bottom: -4px;
+  width: 12px;
+  height: 12px;
+  color: var(--color-gold-strong);
+  background: var(--glass-fill-solid);
+  border-radius: 50%;
 }
 
 /* Narrow phones: seat actions show only their icon so the name keeps the row. */
@@ -307,27 +402,6 @@
 .start-row p,
 .await-host {
   margin: 0;
-}
-
-@media (max-width: 899px) {
-  /* The room page scrolls; flatten the player column so the row can stick across the whole panel. */
-  .room-panel:has(.start-row) .room-columns,
-  .room-panel:has(.start-row) .room-col:first-child {
-    display: contents;
-  }
-
-  .room-panel .start-row {
-    position: sticky;
-    z-index: 2;
-    /* Leave the shell's fixed sound control clear, including before scrolling. */
-    top: calc(var(--touch) + var(--space-2));
-    order: -1;
-    margin-top: calc(var(--touch) + var(--space-2) - var(--space-5));
-    padding: var(--space-2);
-    background: var(--glass-fill-solid);
-    border-radius: var(--radius-md);
-    box-shadow: var(--shadow-sm);
-  }
 }
 
 .await-host {
@@ -456,6 +530,15 @@
   justify-content: center;
   padding: 0 var(--space-2);
   white-space: nowrap;
+}
+
+.turn-time-row {
+  margin-top: var(--space-3);
+}
+
+.mode-rules {
+  justify-self: start;
+  margin-top: var(--space-2);
 }
 
 .pace-title {
@@ -719,7 +802,7 @@ html[data-quality='low'] .hud-player {
   position: absolute;
   z-index: 6;
   left: 50%;
-  bottom: calc(100% + var(--space-2));
+  bottom: calc(100% + 40px + 2 * var(--space-2));
   width: max-content;
   max-width: calc(100% - 2 * (40px + var(--space-2)));
   margin: 0;
@@ -769,12 +852,34 @@ html[data-quality='low'] .hud-player {
 }
 
 .game-countdown {
+  position: absolute;
+  bottom: calc(100% + var(--space-2) + 4px);
+  left: 50%;
+  transform: translateX(-50%);
   display: inline-flex;
   align-items: center;
   gap: var(--space-1);
-  font-size: var(--text-xs);
+  max-width: calc(100% - 2 * (40px + 2 * var(--space-2)));
+  min-height: 32px;
+  padding: 0 var(--space-3);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
   font-variant-numeric: tabular-nums;
-  color: var(--color-text-muted);
+  white-space: nowrap;
+  color: var(--color-gold-strong);
+  background: var(--glass-fill-solid);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-pill);
+  box-shadow: var(--shadow-sm);
+}
+
+.game-countdown.is-low {
+  color: var(--color-danger);
+  border-color: var(--color-danger);
+}
+
+.turn-short {
+  display: none;
 }
 
 .turn-banner {
@@ -948,6 +1053,14 @@ html[data-quality='low'] .hud-player {
 }
 
 @media (max-width: 719px) {
+  .turn-full {
+    display: none;
+  }
+
+  .turn-short {
+    display: inline;
+  }
+
   .lock-label {
     position: absolute;
     width: 1px;
@@ -1425,7 +1538,7 @@ html[data-webgl='software'] .hud-player.is-turn .seat-dot {
 .join-requests {
   position: absolute;
   z-index: 7;
-  bottom: calc(100% + var(--space-2));
+  bottom: calc(100% + 40px + 2 * var(--space-2));
   left: 50%;
   transform: translateX(-50%);
   display: grid;
@@ -1510,52 +1623,4 @@ html[data-webgl='software'] .hud-player.is-turn .seat-dot {
   margin: 0;
   padding: 0;
   border: 0;
-}
-
-/* Waiting room: pick another free colour. Wraps on narrow phones; each swatch is a full touch target. */
-.color-picker {
-  display: grid;
-  gap: var(--space-2);
-  margin-top: var(--space-3);
-}
-
-.color-picker-swatches {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-}
-
-.color-swatch {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  min-height: var(--touch);
-  padding: 0 var(--space-3);
-  font: inherit;
-  font-size: var(--text-sm);
-  color: var(--color-text);
-  background: rgb(245 234 210 / 5%);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  cursor: pointer;
-}
-
-.color-swatch::before {
-  content: '';
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  background: var(--swatch-color);
-  box-shadow: inset 0 -3px 0 rgb(0 0 0 / 28%), 0 0 0 2px rgb(255 240 210 / 22%);
-}
-
-.color-swatch-mine {
-  border-color: var(--color-border-strong);
-  background: rgb(230 194 122 / 14%);
-}
-
-.color-swatch:disabled:not(.color-swatch-mine) {
-  opacity: 0.4;
-  cursor: not-allowed;
-  text-decoration: line-through;
 }

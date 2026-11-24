@@ -25,7 +25,6 @@ function CreateRoomForm() {
   const [name, setName] = useState(user ? `Phòng của ${user.displayName}`.slice(0, 40) : '');
   const [visibility, setVisibility] = useState<RoomVisibility>('public');
   const [seats, setSeats] = useState(4);
-  const [allowTakeover, setAllowTakeover] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -38,7 +37,7 @@ function CreateRoomForm() {
     setBusy(true);
     setError(null);
     try {
-      const body: CreateRoomRequest = { name: name.trim(), visibility, seats, allowTakeover };
+      const body: CreateRoomRequest = { name: name.trim(), visibility, seats };
       const res = await api<CreateRoomResponse>('/api/rooms', { method: 'POST', body });
       void navigate(`/r/${res.code}`);
     } catch (err) {
@@ -80,29 +79,16 @@ function CreateRoomForm() {
         </fieldset>
         <div className="field">
           <label htmlFor="create-seats">Số chỗ</label>
-          <select id="create-seats" className="glass-input glass-select" data-testid="create-seats" value={seats} onChange={(e) => setSeats(Number(e.target.value))}>
-            {SEAT_OPTIONS.map((n) => (
-              <option key={n} value={n}>
-                {n} người chơi
-              </option>
-            ))}
-          </select>
+          <div className="seat-count-select">
+            <select id="create-seats" className="glass-input glass-select" data-testid="create-seats" value={seats} onChange={(e) => setSeats(Number(e.target.value))}>
+              {SEAT_OPTIONS.map((n) => (
+                <option key={n} value={n}>{n} người chơi</option>
+              ))}
+            </select>
+            <span aria-hidden="true">{seats}</span>
+          </div>
         </div>
       </div>
-      <label className="create-switch">
-        <span>
-          Cho người vào thay máy giữa ván
-          <small className="muted">Người mới xin vào một ghế máy khi đang chơi, chủ phòng duyệt.</small>
-        </span>
-        <input
-          type="checkbox"
-          role="switch"
-          className="switch-input"
-          data-testid="create-allow-takeover"
-          checked={allowTakeover}
-          onChange={(e) => setAllowTakeover(e.target.checked)}
-        />
-      </label>
       {error && (
         <p className="form-error" role="alert" data-testid="create-error">
           {error}
