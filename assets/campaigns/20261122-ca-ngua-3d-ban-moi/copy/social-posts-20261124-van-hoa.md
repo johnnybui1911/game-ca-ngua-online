@@ -37,32 +37,20 @@ Chưa có clip thì dùng ảnh trước/sau; em không quay được pha đá v
 
 Link: `https://cocangua3d.jblabs.me/?utm_source=facebook`
 
-> Hôm qua tui share game lên nhóm chung với mấy anh em hội AI Doanh Nghiệp, được 1 đại ca feedback nâng cấp design con ngựa gỗ, dùng Blender. Đêm qua tui bảo AI triển ngay 🐴
+> 🎉 Tối nay, nhân Ngày Văn hoá Việt Nam, Cờ Cá Ngựa 3D Online chính thức lên sàn với địa chỉ riêng 🐴
 >
-> Có lẽ đây là task phức tạp nhất từ đầu tới giờ: phải nghiên cứu, chọn model phù hợp, review các bản vẽ, căn chỉnh độ bóng. Vẽ con ngựa xong đẹp quá nên làm tới luôn: chỉnh lại animation "đá" cho trông điện ảnh 🎬
+> Mời cả nhà vào trải nghiệm bản chính thức:
+> 👉 https://cocangua3d.jblabs.me/?utm_source=facebook
 >
-> 🎮 Chơi thử: https://cocangua3d.jblabs.me/?utm_source=facebook
+> Rủ nhau một ván, vui như hồi nhỏ:
+> 🎮 Chơi ngay trên điện thoại, nhập tên là chơi, không cần cài app. Free
+> 🏮 Bàn cờ 3D phòng khách ngày Tết: ngựa gỗ, bàn sơn mài, tượng "Mã đáo thành công"
+> 👨‍👩‍👧 Gửi link vào nhóm Zalo gia đình là cả nhà vào chung một phòng, thiếu người thì có máy chơi cùng
+> ⚡ Ván Nhanh: 1 ngựa lên chuồng là thắng
 >
-> 🐴 **Vẽ lại con ngựa**
-> - Không còn là khối nhựa ghép bằng code nữa: giờ là quân ngựa gỗ có vân, chạy Blender dọn model rồi nhuộm màu từng bên
-> - Thử vàng với gỗ, cuối cùng chọn gỗ óc chó cho hợp phòng khách đêm Tết. Bàn cờ thành sơn mài, chuồng đích làm thành từng bậc thang
-> - Giữa phòng là tượng ngựa chồm mạ vàng "Mã đáo thành công". Cái này phải chỉnh độ bóng mấy vòng mới ra được màu vàng thật, không bị vàng bùn 🥇
+> Thấy chỗ nào chưa ổn thì bấm "Góp ý" trong game, tui sửa liền 🙏
 >
-> 💥 **Đá ngựa: giờ đúng là một pha điện ảnh**
-> - Ngựa bật cao, đá hậu thẳng vào sườn ngựa kia, camera zoom cận vào pha va
-> - Ngựa bị đá khựng một nhịp, nhấc lên từ từ rồi bị hất bay vòng cung, xoay hai vòng. Camera lùi ra theo, thấy nó rơi về chuồng, có bụi, chớp sáng, tiếng gió vút
-> - Thêm khói hoạt hình, vòng sáng vàng và sao chóng mặt quay quanh con ngựa xấu số 😵‍💫
-> - Máy yếu thì game tự giảm cho mượt; không thích chuyển động nhiều thì chọn "Hoạt cảnh: Giảm"
->
-> 📱 **Làm lại màn chơi**: thanh điều khiển gọn lại cho điện thoại, ghế người chơi có biểu tượng riêng (chủ phòng có vương miện 👑), thắng thì xem pháo hoa xong mới hiện bảng kết quả 🎆
->
-> 🧧 Nhân Ngày Văn hoá Việt Nam, hôm nay nhà nào còn cả nhà gần nhau thì bỏ điện thoại xuống chơi một ván cờ cá ngựa thật. Nhà ở xa thì gửi link vào nhóm Zalo gia đình, mỗi người một nơi vẫn đá nhau được. Thiếu người thì thêm máy (Dễ / Thường / Khó).
->
-> ✅ Free. Nhập tên là chơi, không cần đăng ký, không cần cài app.
->
-> Ván nào bị đá ngay trước cửa chuồng thì comment kể cho tui nghe nha 😆 Thấy chỗ nào dở bấm "Góp ý" trong game, tui sửa liền 🙏
->
-> #CoCaNgua #CoCaNguaOnline #NgayVanHoaVietNam #TroChoiTuoiTho #GameViet #Claude #ClaudeCode #Blender #VibeCoding
+> #CoCaNgua #CoCaNguaOnline #NgayVanHoaVietNam #TroChoiTuoiTho #GameViet #Claude #ClaudeCode #VibeCoding
 
 Ảnh: `truoc-sau-1080x1248.jpg` (ảnh đầu) → `ngua-truoc-sau-1600x924.jpg` → clip pha đá (hoặc `da-ngua-2-khung-1600x884.jpg`) → `tet-board-780x1560.jpg`.
 **Sau khi đăng:** bình luận vào bài 21/11: "Bản mới lên rồi nè: [link bài mới]".
