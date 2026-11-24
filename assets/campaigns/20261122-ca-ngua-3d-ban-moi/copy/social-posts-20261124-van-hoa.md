@@ -75,22 +75,24 @@ Link: `https://ca-ngua-online.johnny-bui1911.workers.dev/?utm_source=facebook`
 
 Trước khi đăng: đọc nội quy nhóm (tag `#share`, ngày được đăng link, có cho đăng link trong bài không); mỗi nhóm cách nhau vài giờ và đổi nhẹ câu mở; trả lời bình luận nhanh trong giờ đầu.
 
-> **[Chia sẻ dự án] Cờ cá ngựa 3D chơi ngay trên trình duyệt, làm cùng AI agent 🐴**
+> **[Chia sẻ dự án] Cờ cá ngựa 3D chơi ngay trên trình duyệt, làm cùng đội AI agent 🐴**
 >
-> Chào cả nhà, xin phép admin cho tui chia sẻ một dự án nhỏ ạ. Nhân Ngày Văn hoá Việt Nam 24/11, tui mời mọi người chơi lại trò tuổi thơ: cờ cá ngựa 🧧
+> Chào cả nhà, xin phép admin cho tui chia sẻ một dự án nhỏ ạ.
 >
-> Đêm qua agent vừa làm lại toàn bộ phần nhìn:
-> 🐴 Ngựa gỗ vẽ lại bằng Blender
-> 💥 Pha đá điện ảnh: bật cao, đá hậu, đối thủ bay vòng về chuồng
+> Tui là Johnny. Nhân Ngày Văn hoá Việt Nam 24/11, tui mời mọi người chơi lại trò tuổi thơ rất Việt Nam: cờ cá ngựa 🧧 Mấy ngày nay tui cho một đội AI agent làm bản 3D chạy ngay trên trình duyệt (điện thoại và máy tính): đúng luật cá ngựa Việt Nam, nhiều người chơi chung một phòng, thiếu người thì có máy chơi cùng. Không cài app, không đăng ký, Free.
+>
+> ✨ Đêm qua đội vừa làm lại toàn bộ phần nhìn, nổi bật nhất:
+> 🐴 Ngựa gỗ vẽ lại bằng Blender, bàn cờ sơn mài, tượng ngựa mạ vàng "Mã đáo thành công"
+> 💥 Pha đá điện ảnh: bật cao, đá hậu, đối thủ bay vòng về chuồng, có khói và sao chóng mặt
 > 📊 Bảng đá ngựa: ai đá nhiều nhất nhà
-> 🚪 Đang chơi dở vẫn xin vào, chủ phòng duyệt
+> 🚪 Đang chơi dở vẫn xin vào thay máy, chủ phòng bấm Duyệt
 > ⚡ Ván Nhanh, máy Dễ / Thường / Khó, giới hạn thời gian ván
 >
-> Đúng luật cá ngựa Việt Nam. Không cài app, không đăng ký, Free. Link ở bình luận đầu tiên 👇
+> 🛠️ Cho anh chị em vibe code: tui chốt hướng thiết kế trước, chia việc theo mảng chạy song song, review rồi mới gộp. AI làm rất nhanh, nhưng "đẹp hay chưa" vẫn phải người quyết. Stack: React Three Fiber + Cloudflare, chạy trong gói free.
 >
-> 🛠️ React Three Fiber + Cloudflare, chạy trong gói free.
+> 👉 Link chơi thử tui để ở bình luận đầu tiên ạ.
 >
-> Cả nhà cho tui hỏi: hồi nhỏ nhà mình chơi cờ cá ngựa luật thế nào, ra chuồng bằng 6 hay 1 hoặc 6? 😄 Ai chơi thử cho tui xin góp ý nha 🙏
+> Cả nhà cho tui hỏi: hồi nhỏ nhà mình chơi cờ cá ngựa luật thế nào, ra chuồng bằng 6 hay 1 hoặc 6? 😄 Ai chơi thử cho tui xin góp ý nha (bấm "Góp ý" trong game hoặc comment) 🙏
 >
 > #CoCaNgua #CoCaNguaOnline #NgayVanHoaVietNam #VibeCoding #AIAgent #Claude #ClaudeCode #BuildInPublic #Blender #ThreeJS
 
