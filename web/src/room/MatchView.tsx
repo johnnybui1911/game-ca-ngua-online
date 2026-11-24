@@ -782,9 +782,9 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
           <h2 id="leave-title" className="ui-title dialog-title">
             {t('leave.title')}
           </h2>
-          <p className="ui-muted">{t('leave.body')}</p>
+          <p className="ui-muted">{t(others.length === 0 ? 'leave.bodyLast' : 'leave.body')}</p>
           <div className="dialog-actions">
-            <button type="button" className="ui-btn ui-btn--primary" data-testid="leave-confirm" onClick={leave}>
+            <button type="button" className="ui-btn ui-btn--primary" data-testid="leave-confirm" onClick={others.length === 0 ? closeRoom : leave}>
               <Icon name="leave" />
               {t('hud.leave')}
             </button>
