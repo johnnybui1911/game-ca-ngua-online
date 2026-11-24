@@ -448,7 +448,7 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
           type="button"
           className="ui-btn ui-btn--icon camera-reset"
           aria-label="Về góc nhìn mặc định"
-          title="Về góc nhìn mặc định"
+          title="Đặt lại camera"
           data-testid="camera-reset"
           onClick={() => cameraReset.current?.()}
         >

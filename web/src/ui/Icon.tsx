@@ -7,7 +7,6 @@ import {
   CircleHelp,
   Copy,
   Crown,
-  Crosshair,
   Dices,
   Lock,
   LockOpen,
@@ -17,6 +16,7 @@ import {
   Pause,
   Pencil,
   Play,
+  ScanEye,
   Music,
   Settings,
   Share2,
@@ -103,7 +103,7 @@ const ICONS = {
   shake: Vibrate,
   help: CircleHelp,
   knight: ChessKnight,
-  'camera-reset': Crosshair,
+  'camera-reset': ScanEye,
 } as const satisfies Record<string, LucideIcon>;
 
 export type IconName = keyof typeof ICONS;

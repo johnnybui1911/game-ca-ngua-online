@@ -11,7 +11,7 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 800 
     const reset = host.page.getByRole('button', { name: 'Về góc nhìn mặc định' });
     const badge = host.page.getByTestId('creator-badge');
     await expect(reset).toBeVisible();
-    await expect(reset).toHaveAttribute('title', 'Về góc nhìn mặc định');
+    await expect(reset).toHaveAttribute('title', 'Đặt lại camera');
     const [buttonBox, badgeBox, panelBox] = await Promise.all([
       reset.boundingBox(), badge.boundingBox(), host.page.locator('.hud-bottom').boundingBox(),
     ]);
