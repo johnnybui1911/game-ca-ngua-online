@@ -2,4 +2,4 @@ User-agent: *
 Allow: /
 Disallow: /api/
 
-Sitemap: https://cocangua3d.jblabs.me/sitemap.xml
+Sitemap: https://cocangua.jblabs.me/sitemap.xml
