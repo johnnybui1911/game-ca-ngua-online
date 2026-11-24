@@ -38,6 +38,7 @@ import { useShakeToRoll } from './shake';
 import { reserveInsets, type ReservedInsets } from '../scene/camera';
 import { CELEBRATION_SECONDS } from '../scene/director';
 import { Icon } from '../ui/Icon';
+import { hasLongHudName } from './hud-layout';
 
 /** Seconds left on the local player's action at which the reminder sounds. */
 const REMINDER_SECONDS = 10;
@@ -313,6 +314,8 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
   const lastRolledSeq = [...batches].reverse().find((b) => b.events.some((e) => e.type === 'rolled'))?.room.seq ?? null;
   const shake = useShakeToRoll(canRoll && !dialogOpen, lastRolledSeq, () => send({ t: 'roll' }));
   if (!game) return null;
+  const hudSeats = room.seats.filter((s) => s.occupant !== null && game.colors.includes(s.color));
+  const longHudName = hasLongHudName(hudSeats.map(seatName));
 
   const turnSeat = room.seats.find((s) => s.color === game.turn);
   const isHost = room.hostId === myId;
@@ -382,27 +385,33 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
         </Suspense>
       </div>
 
-      <ul className="hud-players" ref={hud.topRef}>
-        {room.seats
-          .filter((s) => s.occupant !== null && game.colors.includes(s.color))
-          .map((s) => {
+      <ul className={`hud-players${longHudName ? ' has-long-name' : ''}`} ref={hud.topRef}>
+        {hudSeats.map((s) => {
             const occ = s.occupant;
             const home = (game.horses[s.color] ?? []).filter((p) => p > POS_GATE).length;
             const active = !finished && game.turn === s.color;
             const locked = quickGame && isLocked(game, s.color);
+            const disconnected = occ?.kind === 'human' && !occ.connected;
             return (
               <li
                 key={s.color}
-                className={`hud-player${active ? ' is-turn' : ''}${s === mySeat ? ' is-mine' : ''}`}
+                className={`hud-player${active ? ' is-turn' : ''}${s === mySeat ? ' is-mine' : ''}${disconnected ? ' is-offline' : ''}`}
                 style={{ '--seat-color': COLOR_VARS[s.color] } as CSSProperties}
                 data-testid={`hud-player-${s.color}`}
                 data-active={active}
+                aria-current={active ? 'true' : undefined}
               >
                 <span className="seat-dot" title={COLOR_NAMES[s.color]}>
                   <Icon name={occ?.kind === 'cpu' ? 'bot' : occ?.kind === 'human' && occ.user.id === room.hostId ? 'crown' : 'knight'} size="sm" />
+                  {locked && (
+                    <span className="hud-seat-state hud-seat-lock" role="img" aria-label={LOCKED_LABEL}>
+                      <Icon name="lock" size="sm" />
+                    </span>
+                  )}
+                  {disconnected && <span className="hud-seat-state hud-seat-offline" role="img" aria-label="Offline" />}
                 </span>
                 <span className="hud-player-main">
-                  <span className="hud-name">{seatName(s)}</span>
+                  <span className="hud-name" title={seatName(s)}>{seatName(s)}</span>
                   <span className="hud-badges">
                     {occ?.kind === 'cpu' && <span className="badge">Máy · {CPU_LEVEL_LABELS[cpuLevelOf(room)]}</span>}
                     {occ?.kind === 'human' && !occ.connected && (
@@ -424,7 +433,7 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
                     )}
                   </span>
                 </span>
-                <span className="hud-home" title="Quân đã về đích" aria-label={`${home}/${HORSES_PER_COLOR} quân đã về đích`}>
+                <span className="hud-home" title="Quân đã về đích" role="img" aria-label={`${home}/${HORSES_PER_COLOR} quân đã về đích`}>
                   <span className="hud-home-pips" aria-hidden="true">
                     {Array.from({ length: HORSES_PER_COLOR }, (_, i) => (
                       <span key={i} className={i < home ? 'is-home' : undefined} />
