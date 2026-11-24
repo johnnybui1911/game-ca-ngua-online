@@ -56,10 +56,7 @@ Link: `https://ca-ngua-online.johnny-bui1911.workers.dev/?utm_source=facebook`
 >
 > 📱 **Làm lại màn chơi**: thanh điều khiển gọn lại cho điện thoại, ghế người chơi có biểu tượng riêng (chủ phòng có vương miện 👑), thắng thì xem pháo hoa xong mới hiện bảng kết quả 🎆
 >
-> 🧧 **Vì sao tui làm game này?**
-> Cờ cá ngựa là trò của tuổi thơ nhiều nhà mình: cả nhà ngồi quanh một tấm bàn, la hét, đá nhau, dỗi nhau, rồi lại chơi tiếp. Ngày Văn hoá hôm nay, tui muốn trò đó còn ở lại: cho nên có đèn lồng, câu đối đỏ, hoa văn trong phòng chơi, và đúng luật cá ngựa Việt Nam (ra chuồng bằng 1 hoặc 6, không nhảy qua ngựa khác, lên chuồng từng bậc).
->
-> 👨‍👩‍👧 Hôm nay nhà nào còn cả nhà gần nhau thì bỏ điện thoại xuống chơi một ván thật. Nhà ở xa thì gửi link vào nhóm Zalo gia đình, mỗi người một nơi vẫn đá nhau được. Thiếu người thì thêm máy (Dễ / Thường / Khó).
+> 🧧 Hôm nay nhà nào còn cả nhà gần nhau thì bỏ điện thoại xuống chơi một ván thật. Nhà ở xa thì gửi link vào nhóm Zalo gia đình, mỗi người một nơi vẫn đá nhau được. Thiếu người thì thêm máy (Dễ / Thường / Khó).
 >
 > ✅ Free, No Ads. Nhập tên là chơi, không cần đăng ký, không cần cài app.
 >
