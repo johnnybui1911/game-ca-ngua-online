@@ -86,21 +86,14 @@ Trước khi đăng: đọc nội quy nhóm (tag `#share`, ngày được đăng
 >
 > Điểm nổi bật:
 >
-> 🎮 Chơi ngay trên trình duyệt, nhập tên là chơi, không cần cài app, không cần đăng ký. Free ạ.
->
-> 📜 Có bảng luật ngay trong ván, quên luật là bấm xem liền.
->
-> 🏮 Bàn cờ 3D như phòng khách ngày Tết: quân ngựa gỗ, bàn sơn mài, đèn lồng, câu đối, tượng "Mã đáo thành công".
->
+> 🎮 Chơi ngay: trên trình duyệt, nhập tên là chơi, không cài app, không đăng ký. Free.
+> 📜 Bảng luật: xem ngay trong ván, quên luật là bấm.
+> 🏮 Đồ họa 3D: phòng khách ngày Tết với ngựa gỗ, bàn sơn mài, đèn lồng, câu đối, tượng "Mã đáo thành công".
 > 📊 Bảng đá ngựa: xem ai đá nhiều nhất nhà.
->
-> 👨‍👩‍👧 Rủ bạn bằng link, phòng công khai hoặc riêng tư, thiếu người thì có máy chơi cùng (Dễ, Thường, Khó).
->
-> 🚪 Đang chơi dở vẫn xin vào thay máy được, chủ phòng bấm duyệt.
->
-> ⚡ Mode "Ván Nhanh" cho anh em chơi nhanh gọn: 1 ngựa lên chuồng là thắng.
->
-> ⏱️ Tùy chọn thời gian ván: 20, 30, 60 phút hay vô hạn.
+> 👨‍👩‍👧 Rủ bạn chơi: gửi link, phòng công khai hoặc riêng tư, thiếu người có máy chơi cùng (Dễ, Thường, Khó).
+> 🚪 Vào giữa ván: xin vào thay máy, chủ phòng bấm duyệt.
+> ⚡ Ván Nhanh: chơi gọn lẹ, 1 ngựa lên chuồng là thắng.
+> ⏱️ Thời gian ván: chọn 20, 30, 60 phút hay vô hạn.
 >
 > Vì là sản phẩm cá nhân nên chắc chắn còn nhiều điểm cần cải thiện, rất mong các bác chơi thử và góp ý về giao diện, tính năng hoặc chỗ nào chưa hợp lý để em hoàn thiện thêm ạ. Cho em hỏi luôn: hồi nhỏ nhà các bác chơi cờ cá ngựa luật thế nào, ra chuồng bằng 6 hay 1 hoặc 6? 😄
 >
