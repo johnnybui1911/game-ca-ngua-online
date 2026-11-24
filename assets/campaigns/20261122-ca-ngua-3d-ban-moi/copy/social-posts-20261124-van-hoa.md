@@ -75,37 +75,35 @@ Link: `https://ca-ngua-online.johnny-bui1911.workers.dev/?utm_source=facebook`
 
 Trước khi đăng: đọc nội quy nhóm (tag `#share`, ngày được đăng link, có cho đăng link trong bài không); mỗi nhóm cách nhau vài giờ và đổi nhẹ câu mở; trả lời bình luận nhanh trong giờ đầu.
 
-> **[Chia sẻ dự án] Nhân Ngày Văn hoá Việt Nam, tui cho AI agent làm lại cờ cá ngựa thành game 3D. Đêm qua nó vẽ lại con ngựa bằng Blender 🐴**
+> Em vừa vibe code game Cờ Cá Ngựa 3D online, mời các bác vào chơi thử ạ 🐴
 >
-> Chào cả nhà, xin phép admin cho tui chia sẻ một dự án nhỏ ạ.
+> Hôm nay 24/11 là Ngày Văn hoá Việt Nam, em xin mời các bác chơi lại trò tuổi thơ rất Việt Nam này 🧧
 >
-> Hôm nay 24/11 là Ngày Văn hoá Việt Nam, nên tui muốn mời mọi người chơi lại một trò tuổi thơ rất Việt Nam: cờ cá ngựa 🧧
+> Tính năng và điểm nổi bật chính:
 >
-> Tui là Johnny. Mấy ngày nay tui cho một đội AI agent làm game cờ cá ngựa 3D chạy ngay trên trình duyệt (điện thoại và máy tính): đúng luật cá ngựa Việt Nam, nhiều người chơi chung một phòng, thiếu người thì có máy chơi cùng. Không cài app, không đăng ký, Free.
+> - Chơi ngay trên trình duyệt (điện thoại và máy tính), không cài app, không đăng ký, nhập tên là chơi. Free ạ.
 >
-> Đêm qua tui bảo agent làm lại toàn bộ phần nhìn:
-> 🐴 **Con ngựa:** dựng bằng hình khối ghép bằng code thì mãi trông như quân cờ vua nhựa. Giờ là mô hình ngựa gỗ (nguồn CC0 từ Poly Haven), chạy Blender không giao diện bằng script để dọn mesh, nhuộm theo từng màu lên vân gỗ óc chó
-> 💥 **Pha đá ngựa:** ngựa bật cao, đá hậu, camera zoom cận; ngựa bị đá bay vòng cung xoay hai vòng, camera lùi theo tới chuồng, có bụi, chớp sáng, khói hoạt hình, sao chóng mặt (máy yếu tự hạ cho mượt)
-> 🏮 **Phòng chơi như phòng khách ngày Tết:** bàn sơn mài, đèn lồng, câu đối đỏ, tượng ngựa chồm mạ vàng "Mã đáo thành công"
+> - Đúng luật cá ngựa Việt Nam, có bảng luật ngay trong ván.
 >
-> 🛠️ **Cho anh chị em cùng vibe code:** tui chốt hướng thiết kế trước, chia việc theo mảng, mỗi mảng một nhánh chạy song song rồi review mới gộp. AI làm rất nhanh, nhưng "đẹp hay chưa" vẫn phải người quyết (món giữa bàn tui đổi qua mâm ngũ quả → dưa hấu → tượng ngựa vàng). Stack: React Three Fiber + Cloudflare Workers / Durable Objects / D1, đang chạy trong gói miễn phí.
+> - Bàn cờ 3D như phòng khách ngày Tết: ngựa gỗ, bàn sơn mài, đèn lồng, câu đối, tượng "Mã đáo thành công" (con ngựa em cho AI agent vẽ lại bằng Blender, các bác góp ý để em cải thiện ạ).
 >
-> 👉 Link chơi thử tui để ở bình luận đầu tiên ạ.
+> - Pha đá ngựa điện ảnh: ngựa bật cao, đá hậu, đối thủ bay vòng về chuồng. Có Bảng đá ngựa xem ai đá nhiều nhất nhà.
 >
-> Tui xin hỏi cả nhà hai chuyện:
-> 1️⃣ Hồi nhỏ nhà mình chơi cờ cá ngựa luật thế nào? Ra chuồng bằng 6 hay 1 hoặc 6, có được đá ngựa, phải đi đủ vòng mới lên chuồng không? Nghe nói mỗi nhà mỗi luật, tui muốn nghe thử 😄
-> 2️⃣ Ai chơi thử cho tui xin tên máy và trình duyệt, pha đá có mượt không, chỗ nào khó hiểu thì bấm "Góp ý" trong game hoặc bình luận giúp tui.
+> - Rủ bạn bằng link, phòng công khai hoặc riêng tư, thiếu người thì có máy chơi cùng (Dễ, Thường, Khó).
 >
-> Hôm nay Ngày Văn hoá, ai còn cả nhà ở gần nhau thì bỏ điện thoại xuống chơi một ván cờ cá ngựa thật nha. Cảm ơn mọi người đã đọc và chơi thử ạ 🙏
+> - Đang chơi dở vẫn xin vào thay máy được, chủ phòng bấm duyệt.
 >
-> #CoCaNgua #CoCaNguaOnline #NgayVanHoaVietNam #VibeCoding #AIAgent #Claude #ClaudeCode #BuildInPublic #Blender #ThreeJS
+> - Ván Nhanh, chỉnh thời gian cả ván và thời gian mỗi lượt.
+>
+> Các bác chơi thử rồi góp ý nhiệt tình giúp em ạ! Cho em hỏi luôn: hồi nhỏ nhà các bác chơi cờ cá ngựa luật thế nào, ra chuồng bằng 6 hay 1 hoặc 6 ạ? 😄
+>
+> Link em để trong bài viết ạ: https://ca-ngua-online.johnny-bui1911.workers.dev/?utm_source=facebook
+>
+> Cảm ơn BQT đã duyệt 😍
+>
+> #bipvn #buildinpublicvn #buildinpublic #CoCaNgua #NgayVanHoaVietNam #VibeCoding
 
-**Bình luận đầu tiên (anh tự đăng ngay sau khi đăng bài):**
-
-> 🎮 Chơi thử: https://ca-ngua-online.johnny-bui1911.workers.dev/?utm_source=facebook
-> Luật chơi đầy đủ + giới thiệu: https://ca-ngua-online.johnny-bui1911.workers.dev/gioi-thieu?utm_source=facebook
-
-Nếu nhóm cho đăng link trong bài thì dán link vào ngay sau câu "Không cài app, không đăng ký, Free" và bỏ dòng "Link chơi thử tui để ở bình luận đầu tiên ạ".
+Link nằm ngay trong bài (theo bài mẫu của anh). Muốn đưa xuống bình luận đầu tiên thì xoá dòng link và thêm "Link em để ở bình luận đầu tiên ạ".
 
 Ảnh (album, 4 ảnh đầu hiện ra ngoài, nên xếp theo thứ tự):
 1. Có clip pha đá thì clip đầu tiên; chưa có thì `ngua-truoc-sau-1600x924.jpg` (ảnh kể chuyện "trước và sau")
