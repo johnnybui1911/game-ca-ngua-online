@@ -1,6 +1,7 @@
 import { HORSES_PER_COLOR, POS_GATE, type Color, type DiceValue, type HouseRules } from '../../shared/game/types';
 import {
   DEFAULT_ROOM_SETTINGS,
+  GAME_OVER_CODE,
   MAX_HORSE_NAME,
   MAX_HORSE_NAME_WORDS,
   countWords,
@@ -210,6 +211,12 @@ export function levelForOccupant(state: RoomState, occupant: StoredOccupant | nu
 /** A level from a client message, or null when it is not one of the known levels. */
 export function parseCpuLevel(raw: unknown): CpuLevel | null {
   return isCpuLevel(raw) ? raw : null;
+}
+
+/** The error for a roll or move while no match is running: a finished match is distinct from one not yet started. */
+export function notPlayingError(state: RoomState | null | undefined): { code: string; message: string } {
+  if (state?.status === 'finished') return { code: GAME_OVER_CODE, message: 'Ván đấu đã kết thúc.' };
+  return { code: 'bad_state', message: 'Ván đấu chưa bắt đầu.' };
 }
 
 export function isPaused(state: RoomState): boolean {

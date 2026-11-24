@@ -70,6 +70,7 @@ test('one board for the whole visit: matches, the lobby and the waiting room bet
   expect(await mounts()).toBe('1');
 
   // Back to the lobby, through a second waiting room and into a second match: still that canvas.
+  await page.getByTestId('match-menu-button').click();
   await page.getByTestId('leave-room').click();
   await page.getByTestId('leave-confirm').click();
   await expect(page.getByTestId('greeting')).toBeVisible();

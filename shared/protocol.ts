@@ -277,6 +277,9 @@ export type RoomServerMessage =
   /** Relayed emote; `seat` indexes `RoomSnapshot.seats`. Never part of a snapshot and never replayed on reconnect. */
   | { t: 'emote'; seat: number; id: EmoteId };
 
+/** Error code for a roll or move that arrives after the match has finished; the client shows no toast for it. */
+export const GAME_OVER_CODE = 'game_over';
+
 // ------------------------------------------------------ session end
 
 /** Close code, error code and text for a socket whose login session has ended (signed out, expired, or its user deleted). */

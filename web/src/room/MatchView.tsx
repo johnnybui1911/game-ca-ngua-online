@@ -11,7 +11,6 @@ import { LangSwitch } from '../i18n/LangSwitch';
 import { useSession } from '../auth/session-context';
 import type { RoomClientMessage, RoomSnapshot } from '../../../shared/protocol';
 import { sound } from '../audio/sound';
-import { CreatorBadge } from '../chrome/CreatorBadge';
 import { FeedbackModal } from '../chrome/FeedbackModal';
 import { SoundSwitches, useMusic } from '../audio/SoundControls';
 import { useLobby } from '../lobby/LobbyProvider';
@@ -257,7 +256,6 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
   const [renaming, setRenaming] = useState(false);
   const [rulesOpen, setRulesOpen] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
-  const [confirmClose, setConfirmClose] = useState(false);
   // Decided once per mount: the first quick match on a device explains itself, later ones do not.
   const [introOpen, setIntroOpen] = useState(
     () => room.settings.quick && room.game !== null && room.game.phase !== 'finished' && quickIntro.shouldShow(),
@@ -308,7 +306,7 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
   const canRoll = myTurn && !paused && game?.phase === 'roll' && !board.held;
   useMusic('game');
   useGameSounds(batches, myTurn && !paused && !board.held, seconds, room.turnDeadline);
-  const dialogOpen = menuOpen || statsOpen || renaming || rulesOpen || confirmLeave || hostLeave || confirmClose || (introOpen && !finished);
+  const dialogOpen = menuOpen || statsOpen || renaming || rulesOpen || confirmLeave || hostLeave || (introOpen && !finished);
   // Changes with every roll the server reports, so each roll chance allows one shake-roll.
   const lastRolledSeq = [...batches].reverse().find((b) => b.events.some((e) => e.type === 'rolled'))?.room.seq ?? null;
   const shake = useShakeToRoll(canRoll && !dialogOpen, lastRolledSeq, () => send({ t: 'roll' }));
@@ -451,7 +449,7 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
       <EmoteLive emotes={emotes} mySeat={mySeat ? room.seats.indexOf(mySeat) : -1} nameOf={(i) => seatName(t, room.seats[i])} />
 
       <section className={`glass hud-bottom${myTurn && !paused ? ' is-my-turn' : ''}`} aria-label={t('hud.controls')} ref={hud.bottomRef}>
-        <CreatorBadge />
+        <EmotePicker send={send} offline={offline} />
         {!finished && gameSeconds !== null && (
           <span
             className={`game-countdown${gameSeconds <= 60 ? ' is-low' : ''}`}
@@ -508,11 +506,6 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
         <div className="hud-line">
           <DieFace value={board.rolling ? null : (lastRoll?.dice ?? null)} seatColor={dieColor === undefined ? undefined : COLOR_VARS[dieColor]} />
           <div className="turn-info">
-            {room.settings.quick && (
-              <span className="badge badge-quick" data-testid="quick-tag">
-                {t('hud.quick')}
-              </span>
-            )}
             <p
               className="turn-banner"
               data-testid="turn-banner"
@@ -586,12 +579,8 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
               </button>
             ))}
           <span className="hud-tools">
-            <EmotePicker send={send} offline={offline} />
             <button type="button" className="ui-btn ui-btn--icon" aria-label={t('hud.menu')} data-testid="match-menu-button" onClick={() => setMenuOpen(true)}>
               <Icon name="menu" />
-            </button>
-            <button type="button" className="ui-btn ui-btn--icon btn-leave" aria-label={t('hud.leave')} data-testid="leave-room" onClick={startLeave}>
-              <Icon name="leave" />
             </button>
           </span>
         </div>
@@ -710,20 +699,18 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
                 {paused ? t('menu.resumeGame') : t('menu.pauseGame')}
               </button>
             )}
-            {isHost && !finished && (
-              <button
-                type="button"
-                className="ui-btn ui-btn--danger"
-                data-testid="close-room"
-                onClick={() => {
-                  setMenuOpen(false);
-                  setConfirmClose(true);
-                }}
-              >
-                <Icon name="close" />
-                {t('menu.closeRoom')}
-              </button>
-            )}
+            <button
+              type="button"
+              className="ui-btn ui-btn--secondary"
+              data-testid="leave-room"
+              onClick={() => {
+                setMenuOpen(false);
+                startLeave();
+              }}
+            >
+              <Icon name="leave" />
+              {t('hud.leave')}
+            </button>
             <button type="button" className="ui-btn ui-btn--primary" data-testid="menu-close" data-autofocus onClick={() => setMenuOpen(false)}>
               {t('menu.close')}
             </button>
@@ -780,24 +767,6 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
         <HorseNamesDialog color={mySeat.color} names={mySeat.horseNames} send={send} onClose={() => setRenaming(false)} />
       )}
 
-      {confirmClose && !finished && (
-        <Modal labelledBy="close-title" testId="close-dialog" onClose={() => setConfirmClose(false)}>
-          <h2 id="close-title" className="ui-title dialog-title">
-            {t('close.title')}
-          </h2>
-          <p className="ui-muted">{t('close.body')}</p>
-          <div className="dialog-actions">
-            <button type="button" className="ui-btn ui-btn--danger" data-testid="close-confirm" onClick={closeRoom}>
-              <Icon name="close" />
-              {t('menu.closeRoom')}
-            </button>
-            <button type="button" className="ui-btn ui-btn--secondary" data-testid="close-cancel" data-autofocus onClick={() => setConfirmClose(false)}>
-              {t('close.cancel')}
-            </button>
-          </div>
-        </Modal>
-      )}
-
       {hostLeave && !finished && (
         <HostLeaveDialog
           others={others}
@@ -813,9 +782,9 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
           <h2 id="leave-title" className="ui-title dialog-title">
             {t('leave.title')}
           </h2>
-          <p className="ui-muted">{t('leave.body')}</p>
+          <p className="ui-muted">{t(others.length === 0 ? 'leave.bodyLast' : 'leave.body')}</p>
           <div className="dialog-actions">
-            <button type="button" className="ui-btn ui-btn--primary" data-testid="leave-confirm" onClick={leave}>
+            <button type="button" className="ui-btn ui-btn--primary" data-testid="leave-confirm" onClick={others.length === 0 ? closeRoom : leave}>
               <Icon name="leave" />
               {t('hud.leave')}
             </button>

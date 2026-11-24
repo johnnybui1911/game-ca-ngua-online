@@ -89,6 +89,7 @@ test('a seat vacated mid-game is taken over by a CPU at the room level', async (
     await expect(pa.page.getByTestId('cpu-level-hard')).toHaveAttribute('aria-checked', 'true');
   });
   await startAutoPlayer(a.page);
+  await b.page.getByTestId('match-menu-button').click();
   await b.page.getByTestId('leave-room').click();
   await b.page.getByTestId('leave-confirm').click();
   await expect(b.page).toHaveURL('/');

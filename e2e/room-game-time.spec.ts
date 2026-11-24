@@ -26,7 +26,7 @@ for (const quick of [false, true]) {
     await expect(host.page.getByTestId('game-countdown')).toBeVisible();
     await expect(host.page.getByTestId('game-countdown')).toHaveClass(/is-low/);
     await expect(host.page.getByTestId('game-countdown')).toHaveAttribute('aria-label', /Thời gian ván còn lại \d\d:\d\d/);
-    await expect(guest.page.getByTestId('turn-banner')).toHaveText('Lượt của Chủ Đồng Hồ');
+    await expect(guest.page.getByTestId('turn-banner')).toHaveText('Lượt Chủ Đồng Hồ');
     await expect.poll(async () => (await lastRawState(raw))?.status, { timeout: 35_000 }).toBe('finished');
     expect((await lastRawState(raw))?.game?.timeWinReason).toBeDefined();
     await expect(host.page.getByTestId('win-dialog')).toBeVisible({ timeout: 20_000 });

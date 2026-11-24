@@ -91,8 +91,8 @@ test('the host closes a running room and everyone is sent out', async ({ browser
   expect(await errorAfter(raw[0] as Page, { t: 'closeRoom' })).toMatchObject({ code: 'not_host' });
 
   await a.page.getByTestId('match-menu-button').click();
-  await a.page.getByTestId('close-room').click();
-  await a.page.getByTestId('close-confirm').click();
+  await a.page.getByTestId('leave-room').click();
+  await a.page.getByTestId('host-leave-close').click();
   await expect(a.page).toHaveURL(`${ORIGIN}/`);
   await expect(b.page.getByTestId('room-error')).toHaveAttribute('data-code', 'closed_by_host');
   await expect(b.page.getByTestId('room-error')).toHaveText('Chủ phòng đã đóng phòng.');

@@ -60,12 +60,6 @@
   border-color: rgb(240 122 104 / 40%);
 }
 
-.badge-quick {
-  color: var(--color-text-on-accent);
-  background: var(--color-accent);
-  border-color: var(--color-gold);
-}
-
 .lock-badge {
   color: var(--color-success);
 }
@@ -910,9 +904,9 @@ html[data-quality='low'] .hud-player {
   position: absolute;
   z-index: 6;
   left: 50%;
-  bottom: calc(100% + 40px + 2 * var(--space-2));
+  bottom: calc(100% + 44px + 2 * var(--space-2));
   width: max-content;
-  max-width: calc(100% - 2 * (40px + var(--space-2)));
+  max-width: calc(100% - 2 * (44px + var(--space-2)));
   margin: 0;
   padding: var(--space-2) var(--space-4);
   text-align: center;
@@ -967,7 +961,7 @@ html[data-quality='low'] .hud-player {
   display: inline-flex;
   align-items: center;
   gap: var(--space-1);
-  max-width: calc(100% - 2 * (40px + 2 * var(--space-2)));
+  max-width: calc(100% - 2 * (44px + 2 * var(--space-2)));
   min-height: 32px;
   padding: 0 var(--space-3);
   font-size: var(--text-sm);
@@ -1292,6 +1286,7 @@ html[data-quality='low'] .hud-player {
 .hud-bottom .emote-grid {
   left: 0;
   right: 0;
+  bottom: calc(100% + 44px + 2 * var(--space-2));
   width: auto;
 }
 
@@ -1348,13 +1343,23 @@ html[data-quality='low'] .hud-player {
   font-weight: var(--weight-medium);
 }
 
-/* In the match the emote button is icon-only so the turn actions stay on one line. */
-.hud-tools .emote-open {
-  width: var(--touch);
+/* In the match the emote button takes the corner the creator's badge holds elsewhere: a round 44px button on the bar's top right edge. */
+.hud-bottom .emote-open {
+  position: absolute;
+  right: var(--space-1);
+  bottom: calc(100% + var(--space-2));
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
   padding: 0;
+  border-radius: 50%;
+  color: var(--color-gold);
+  background: var(--glass-fill-solid);
+  box-shadow: var(--glass-specular), var(--shadow-sm);
 }
 
-.hud-tools .emote-open-label {
+.hud-bottom .emote-open-label {
   display: none;
 }
 
@@ -1646,7 +1651,7 @@ html[data-webgl='software'] .hud-player.is-turn .seat-dot {
 .join-requests {
   position: absolute;
   z-index: 7;
-  bottom: calc(100% + 40px + 2 * var(--space-2));
+  bottom: calc(100% + 44px + 2 * var(--space-2));
   left: 50%;
   transform: translateX(-50%);
   display: grid;

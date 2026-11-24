@@ -1,6 +1,7 @@
 /*
- * Corner chrome: the creator's badge (bottom left; in a match it sits above the control bar) and the feedback pill
- * (bottom right), plus the feedback dialog. The app shell positions the slots; these rules size what goes in them.
+ * Corner chrome: the creator's badge (bottom left) and the feedback pill (bottom right), plus the feedback dialog.
+ * The app shell positions the slots; these rules size what goes in them. A match shows neither: its menu carries
+ * "Góp ý" and its emote button takes the badge's corner.
  */
 
 /* Creator badge */
@@ -35,23 +36,15 @@
   }
 }
 
-/* In a match the badge belongs to the control bar: it rides on the bar's top right edge, whatever the bar's height. */
-.hud-bottom .creator-badge {
-  position: absolute;
-  right: var(--space-1);
-  bottom: calc(100% + var(--space-2));
-  width: 40px;
-  height: 40px;
-}
-
+/* The camera-reset button rides on the control bar's top left edge, whatever the bar's height; the emote button mirrors it on the right. */
 .hud-bottom .camera-reset {
   position: absolute;
   left: var(--space-1);
   bottom: calc(100% + var(--space-2));
-  width: 40px;
-  height: 40px;
-  min-width: 40px;
-  min-height: 40px;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
   color: var(--color-gold);
   background: var(--glass-fill-solid);
   box-shadow: var(--glass-specular), var(--shadow-sm);

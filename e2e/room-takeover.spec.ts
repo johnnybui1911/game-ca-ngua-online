@@ -87,6 +87,7 @@ test('the lobby lists a game that lets people in as joinable; one without the op
 
 test('a host leaving mid-game can end the room for everyone', async ({ browser }) => {
   const { a, b } = await startTwoPlayerGame(browser, ['Chủ Kết Thúc', 'Người Ở Lại']);
+  await a.page.getByTestId('match-menu-button').click();
   await a.page.getByTestId('leave-room').click();
   await expect(a.page.getByTestId('host-leave-dialog')).toBeVisible();
   await expect(a.page.getByTestId(`host-leave-heir-${b.id}`)).toBeChecked();
@@ -98,6 +99,7 @@ test('a host leaving mid-game can end the room for everyone', async ({ browser }
 
 test('a host leaving mid-game hands the room to the person they choose', async ({ browser }) => {
   const { a, b } = await startTwoPlayerGame(browser, ['Chủ Giao Phòng', 'Chủ Được Giao']);
+  await a.page.getByTestId('match-menu-button').click();
   await a.page.getByTestId('leave-room').click();
   await a.page.getByTestId('host-leave-handover').click();
   await expect(a.page).toHaveURL('/');

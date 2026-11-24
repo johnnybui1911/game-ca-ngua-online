@@ -113,6 +113,7 @@ test('accounts, a shared room and a live two-player match work on the deployed s
 
   // Leaving frees the room.
   for (const page of [a, b]) {
+    await page.getByTestId('match-menu-button').click();
     await page.getByTestId('leave-room').click();
     await page.getByTestId('leave-confirm').click();
     await expect(page).toHaveURL(/\/$/);
@@ -153,6 +154,7 @@ test('a CPU seat takes its turns on the deployed site', async ({ browser }) => {
   }
   expect(cpuTurns).toBeGreaterThanOrEqual(2);
 
+  await page.getByTestId('match-menu-button').click();
   await page.getByTestId('leave-room').click();
   await page.getByTestId('leave-confirm').click();
   await expect(page).toHaveURL(/\/$/);
