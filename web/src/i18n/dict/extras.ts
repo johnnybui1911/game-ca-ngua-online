@@ -112,7 +112,7 @@ export const extras = defineArea(
     'camera.reset': 'Reset to the default view',
     'camera.tooltip': 'Reset view',
     'hud.you': 'You',
-    'wait.waitingChange': 'Waiting for a player · Switch colour',
+    'wait.waitingChange': 'Open seat · Switch colour',
     'win.timeUp': 'Time is up.',
     'win.reason.home-count': 'Has the most horses in the home column.',
     'win.reason.home-steps': 'Has the highest total of home-column steps.',
