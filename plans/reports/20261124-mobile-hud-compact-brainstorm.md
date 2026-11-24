@@ -2,6 +2,20 @@
 
 Date: 2026-11-24. Status: exploration only; awaiting Johnny's choice.
 
+## Revision After Johnny's Feedback
+
+Johnny rejected the expand/collapse button beside the cards and requested an option in Menu to hide the player bar instead. The revised mobile-only prototype has four balanced cards in one row: centered avatar and text/dot group, aligned name and four progress dots, and no HUD-side button. A **Hiện người chơi** switch in Menu hides and restores the bar; the switch was exercised both ways in the prototype. The following screenshots are local and gitignored:
+
+- [360 px game](mobile-hud-compact/360x740-classic-menu-prototype.png) and [Menu](mobile-hud-compact/360x740-classic-menu-prototype-menu.png)
+- [390 px quick game](mobile-hud-compact/390x844-quick-menu-prototype.png) and [hidden bar](mobile-hud-compact/390x844-quick-menu-prototype-hidden.png)
+- [320 px game](mobile-hud-compact/320x740-classic-menu-prototype.png)
+
+The strip is 52 px including top padding (7.0% at 360×740; 6.2% at 390×844); cards are 44 px tall. At 360 px the host's avatar and name/dot group have approximately equal 13.5 px left and right spacing, and 11 px top and bottom around the avatar. The prototype used a small-screen adjustment at 320 px. Long names can still truncate and need an accessible full-name alternative. At 320 px the existing unchanged bottom turn label wraps awkwardly; fixing that is outside this HUD prototype.
+
+This is browser-injected CSS and DOM, not production code. The switch changes visibility but does **not** reset the camera's retained maximum inset; the hidden screenshot therefore does not prove the board will enlarge. Implementing that behavior still requires an explicit camera policy. When hidden, the existing bottom panel shows the turn, and progress becomes discoverable again by turning the strip back on. CPU level, lock, offline and auto badges are not present in this revised compact view; the current app has no alternative live per-player details view. Screen-reader behavior, long names, visual contrast, real iOS/Android safe areas and touch interaction require validation. The switch label requires translation alongside i18n PR #72. Desktop CSS is outside the prototype's mobile media query.
+
+The option-3 recommendation and right-side control discussed below describe the **earlier exploration**, not Johnny's revised direction. The current direction is the compact strip plus Menu switch; no right-side expand/collapse control.
+
 ## Contract
 
 - Outcome: expose more of the board on mobile without losing turn awareness or a way to inspect each player's finished-horse progress.
@@ -67,7 +81,7 @@ Captures: [`mobile-hud-compact/`](mobile-hud-compact/) contains `360x740-{classi
 - PR #72: the existing badge strings can be reused. The toggle needs localized accessible expand/collapse wording; coordinate the small `MatchView.tsx` change with PR #72, and test VI/EN and long names.
 - Assumption/failure: assumes one tap to inspect details is acceptable; fails if important lock/offline changes need to be visible immediately, or if the overlay blocks an urgent action.
 
-## Comparison and recommendation
+## Earlier Comparison
 
 | Choice | Space when at rest | Live progress and turn | Other status | Main risk |
 | --- | --- | --- | --- | --- |
@@ -76,7 +90,7 @@ Captures: [`mobile-hud-compact/`](mobile-hud-compact/) contains `360x740-{classi
 | 2 | Maximum, if camera is fixed | Turn only | Hidden until restored | Discoverability and camera inset |
 | 3 | Large saving | Visible as dots | One tap away | Tiny names/pips; expanded overlay and camera |
 
-Recommend **option 3**, refined per Johnny's feedback: mobile-only four-player strip with aligned avatar/name/four dots and a small-looking, 44 px-hit-area chevron at the right. Expand for the existing detail cards, and keep the compact inset stable while details temporarily overlay the board. Keep the bottom panel and desktop unchanged. This is better than a bare strip because live lock, offline and auto state remain discoverable, without requiring a separate menu journey. It costs an additional control and camera/overlay handling; validate with real iOS and Android devices before shipping.
+The earlier recommendation was option 3 with an expandable strip. Johnny subsequently rejected its visible chevron; the revision at the top supersedes it.
 
 Do not auto-collapse during animations: it can hide information or move a control while the player is using it. Board-corner placement was not prototyped; moving labels near a rotating 3D board risks overlap and weakens stable turn/progress scanning.
 
@@ -86,8 +100,7 @@ Do not auto-collapse during animations: it can hide information or move a contro
 - `npm test`: first run timed out in two CPU simulations under concurrent build/browser load; a subsequent default run timed out in `shared/game/cpu.test.ts` at its existing 5-second limit. The two affected files passed in isolation (89 tests), and `npm test -- --maxWorkers=2` passed (747 passed, 3 skipped). No production code was changed.
 - E2E was not run, per Johnny's update. No PR was opened. The temporary Vite server was stopped.
 
-## Questions for Johnny
+## Remaining Decisions
 
-1. Accept option 3 and its temporary board overlay when expanded, or prefer the simpler always-visible two-column option?
-2. Should quick-mode lock or offline/auto status remain immediately visible while collapsed, even if this makes the strip denser?
-3. Should the strip remember the expanded state across reloads, or always start compact? Recommended: always start compact.
+1. Should quick-mode lock or offline/auto status be available elsewhere during a match? The revised prototype omits those badges.
+2. Should the Menu switch remember its setting across reloads? Recommended: remember it on the device.
