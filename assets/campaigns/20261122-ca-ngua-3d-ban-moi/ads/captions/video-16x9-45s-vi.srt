@@ -1,0 +1,44 @@
+1
+00:00:00,800 --> 00:00:04,800
+Chào mừng đến Cờ Cá Ngựa 3D Online, nơi cả nhà rủ nhau chơi một ván.
+
+2
+00:00:05,200 --> 00:00:09,600
+Chơi ngay trên trình duyệt, nhập tên là chơi, không cần cài app.
+
+3
+00:00:10,200 --> 00:00:14,300
+Tạo phòng, gửi link cho bạn bè, thiếu người thì có máy chơi cùng.
+
+4
+00:00:14,600 --> 00:00:17,900
+Chỉnh độ khó máy, thời gian ván, hay chọn Ván Nhanh.
+
+5
+00:00:18,400 --> 00:00:21,000
+Tới lượt rồi, chuẩn bị đá!
+
+6
+00:00:21,400 --> 00:00:24,400
+Ngựa bật cao, hất bay đối thủ về chuồng!
+
+7
+00:00:24,900 --> 00:00:30,400
+Ván Nhanh chỉ cần một ngựa lên chuồng là thắng. Pháo hoa nổ!
+
+8
+00:00:30,800 --> 00:00:32,900
+Chúc mừng Johnny thắng ván!
+
+9
+00:00:33,300 --> 00:00:35,800
+Bảng đá ngựa cho biết ai đá nhiều nhất nhà.
+
+10
+00:00:36,300 --> 00:00:41,200
+Đang chơi dở vẫn xin vào thay máy, chủ phòng bấm duyệt là vào.
+
+11
+00:00:41,700 --> 00:00:45,000
+Rủ cả nhà một ván cờ cá ngựa nhé!
+
