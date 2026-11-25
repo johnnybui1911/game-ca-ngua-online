@@ -184,6 +184,9 @@ function parseClientMessage(text: string, fastTimers: boolean): RoomClientMessag
       if (!settings) throw new RoomError('bad_message', 'Tin nhắn không hợp lệ.');
       return { t: 'settings', settings };
     }
+    case 'allowTakeover':
+      if (typeof msg.allow !== 'boolean') throw new RoomError('bad_message', 'Tin nhắn không hợp lệ.');
+      return { t: 'allowTakeover', allow: msg.allow };
     case 'emote':
       if (!isEmoteId(msg.id)) throw new RoomError('bad_emote', 'Biểu cảm không hợp lệ.');
       return { t: 'emote', id: msg.id };
@@ -503,6 +506,18 @@ export class RoomDO extends DurableObject<Env> {
           pace: msg.settings.pace ?? current.pace,
           rules: msg.settings.rules ?? current.rules,
         };
+        await this.commit([]);
+        return;
+      }
+      case 'allowTakeover': {
+        needHostBudget();
+        if (room.status === 'finished') throw new RoomError('bad_state', 'Ván đấu đã kết thúc.');
+        if ((room.allowTakeover === true) === msg.allow) return;
+        if (msg.allow) room.allowTakeover = true;
+        else {
+          delete room.allowTakeover;
+          delete room.joinRequests;
+        }
         await this.commit([]);
         return;
       }
@@ -876,12 +891,13 @@ export class RoomDO extends DurableObject<Env> {
     const room = this.room;
     if (!room) return;
     const summary = toSummary(room);
-    const key = JSON.stringify([summary, room.visibility, room.hostId]);
+    const playerIds = room.status === 'playing' ? humanUsers(room).map((u) => u.id) : [];
+    const key = JSON.stringify([summary, room.visibility, room.hostId, playerIds]);
     if (key === this.lastPushed) return;
     this.lastPushed = key;
     this.ctx.waitUntil(
       this.env.LOBBY.getByName('lobby')
-        .upsertRoom(summary, room.visibility, room.hostId, created)
+        .upsertRoom(summary, room.visibility, room.hostId, created, playerIds)
         .catch((err: unknown) => {
           this.lastPushed = '';
           console.error('lobby upsertRoom failed', err);

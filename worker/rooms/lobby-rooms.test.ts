@@ -5,6 +5,7 @@ import {
   listRoom,
   mergeLegacyRooms,
   openRoomCount,
+  playingElsewhere,
   publicRoomList,
   reserveCreate,
   type PendingCreates,
@@ -153,6 +154,16 @@ describe('listRoom', () => {
       expect(changed).toBe(true);
       expect(entry.at).toBe(3);
     }
+  });
+
+  it('records who plays a running game, and reports a changed player list', () => {
+    const rooms: Record<string, StoredRoom> = {};
+    listRoom(rooms, new Map(), { ...listing('A', 'u1', false), playerIds: ['u1', 'u2'] }, 5);
+    expect(playingElsewhere(rooms, 'u2')).toBe(true);
+    expect(playingElsewhere(rooms, 'u3')).toBe(false);
+    expect(listRoom(rooms, new Map(), { ...listing('A', 'u1', false), playerIds: ['u1', 'u2'] }, 6).changed).toBe(false);
+    expect(listRoom(rooms, new Map(), listing('A', 'u1', false), 7).changed).toBe(true);
+    expect(playingElsewhere(rooms, 'u2')).toBe(false);
   });
 
   it('treats a real host arriving on a legacy entry without one as a change', () => {

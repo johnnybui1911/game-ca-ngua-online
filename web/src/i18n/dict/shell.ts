@@ -3,6 +3,8 @@ import { defineArea } from '../translate';
 /** The home page, the loading card, the not-found page and the corner controls. */
 export const shell = defineArea(
   {
+    'brand.name': 'Cờ Cá Ngựa 3D',
+    'brand.short': 'Cờ Cá Ngựa',
     'home.eyebrow': '3D Online · Chơi cùng bạn bè',
     'home.close': 'Đóng',
     'home.play': 'Chơi ngay',
@@ -23,6 +25,8 @@ export const shell = defineArea(
     'lang.en': 'English',
   },
   {
+    'brand.name': 'Ludo 3D',
+    'brand.short': 'Ludo',
     'home.eyebrow': '3D Online · Play with friends',
     'home.close': 'Close',
     'home.play': 'Play now',

@@ -10,6 +10,15 @@ export function cpuDisplayName(t: TFunction, name: string): string {
   return n ? t('cpu.name', { n }) : name;
 }
 
+/**
+ * A room's name as the server stores it, shown in the player's language: the default name a Vietnamese client
+ * gives ("Phòng của An") reads "Room of An" in English. A name a person typed is never touched.
+ */
+export function roomDisplayName(t: TFunction, name: string): string {
+  const owner = /^Phòng của (.+)$/.exec(name)?.[1];
+  return owner ? t('lobby.defaultRoomName', { name: owner }) : name;
+}
+
 /** Who sits in `seat`, as shown on screen. */
 export function seatName(t: TFunction, seat: Seat | undefined): string {
   const occ = seat?.occupant;

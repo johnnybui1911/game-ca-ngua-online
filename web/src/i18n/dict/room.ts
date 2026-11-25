@@ -173,7 +173,7 @@ export const room = defineArea(
     'wait.code': 'Room code',
     'wait.copyLink': 'Copy link',
     'wait.share': 'Share',
-    'wait.shareText': 'Join room {name} and play cờ cá ngựa with me!',
+    'wait.shareText': 'Join room {name} and play Ludo with me!',
     'wait.copied': 'Room link copied.',
     'wait.copyFailed': 'Could not copy, please copy the link by hand: {link}',
     'wait.players': 'Players · {taken}/{total}',
@@ -213,7 +213,7 @@ export const room = defineArea(
     'rules.title': 'How to play',
     'rules.secondsLeft': '{n} s left',
     'rules.close': 'Close',
-    'rules.classicHeading': 'Cờ cá ngựa rules',
+    'rules.classicHeading': 'Ludo rules',
     'rules.quickHeading': 'How a quick match differs',
     'rules.houseHeading': 'Extra rules of this room',
     'rules.classic.0':
@@ -235,7 +235,7 @@ export const room = defineArea(
     'rules.tripleForfeitLabel': 'Rolling a 1 or 6 three times in a row loses the turn',
     'rules.quickSummary':
       'Each colour starts with 1 horse out of the stable, the home column opens only after a kick, and the first horse home wins. A lone move plays itself.',
-    'rules.classicSummary': 'Classic cờ cá ngựa: bring all 4 horses into the home column to win.',
+    'rules.classicSummary': 'Classic Ludo: bring all 4 horses into the home column to win.',
     'rules.intro.0': 'Each colour starts with 1 horse out of the stable.',
     'rules.intro.1': 'Kick 1 opponent horse to unlock your home column and climb.',
     'rules.intro.2': 'The first horse to climb home wins at once.',

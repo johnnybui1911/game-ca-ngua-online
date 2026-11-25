@@ -182,7 +182,7 @@ export interface RoomSnapshot {
   cpuLevel: CpuLevel;
   /** Host-chosen settings (turn time, quick match, auto-roll). */
   settings: RoomSettings;
-  /** Chosen at creation: people with no seat may ask to take over a CPU seat while a game runs. */
+  /** Host-chosen (at creation, and in the game menu): people with no seat may ask to take over a CPU seat while a game runs. */
   allowTakeover: boolean;
   /** Pending requests to take over a CPU seat, oldest first; at most one per colour. Empty outside a running game. */
   joinRequests: JoinRequest[];
@@ -261,6 +261,8 @@ export type RoomClientMessage =
   | { t: 'resume' }
   /** Host only: close the room for everyone and cancel the game. */
   | { t: 'closeRoom' }
+  /** Host only, until the game ends: let people with no seat ask to take over a CPU seat (on) or stop them (off). */
+  | { t: 'allowTakeover'; allow: boolean }
   /** The sender ends their own autopilot and plays again. */
   | { t: 'back' }
   /** Any seated player, any room status: show a preset emote to everyone in the room. Not stored. */
@@ -295,6 +297,7 @@ export type LobbyClientMessage =
 
 export type LobbyServerMessage =
   /** Sent on connect and whenever the public room list or the online list changes. */
-  | { t: 'lobby'; rooms: RoomSummary[]; online: PublicUser[] }
+  /** `inGame`: ids of online people seated in a running game; nobody can invite them elsewhere. */
+  | { t: 'lobby'; rooms: RoomSummary[]; online: PublicUser[]; inGame?: string[] }
   | { t: 'invited'; from: PublicUser; code: string; roomName: string }
   | { t: 'error'; code: string; message: string };

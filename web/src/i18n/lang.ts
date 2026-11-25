@@ -61,7 +61,10 @@ function browserStorage(): StorageLike | null {
 }
 
 function applyHtmlLang(lang: Lang): void {
-  if (typeof document !== 'undefined') document.documentElement.lang = lang;
+  if (typeof document !== 'undefined') {
+    document.documentElement.lang = lang;
+    document.title = lang === 'en' ? 'Ludo 3D Online' : 'Cờ Cá Ngựa 3D Online';
+  }
 }
 
 /** The language a link asks for (`?lang=en`, `?lang=vi`); anything else, including a missing parameter, is null. */

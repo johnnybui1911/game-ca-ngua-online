@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { Link, Navigate, useSearchParams } from 'react-router';
 import type { RoomSummary } from '../../../shared/protocol';
 import { api, ApiRequestError } from '../api';
+import { roomDisplayName } from '../room/names';
 import { useT } from '../i18n';
 import { errorText } from '../i18n/error-text';
 import { useMusic } from '../audio/SoundControls';
@@ -114,7 +115,7 @@ export function GuestEntryPage() {
       <GlassPanel title={entering ? t('guest.titleEntering') : t('guest.titlePlay')} className="entry-panel">
         {room.kind === 'found' && (
           <p className="entry-room" data-testid="entry-room">
-            {t('guest.enterRoomPre')}<strong data-testid="entry-room-name">{room.room.name}</strong>{t('guest.enterRoomMid')}
+            {t('guest.enterRoomPre')}<strong data-testid="entry-room-name">{roomDisplayName(t, room.room.name)}</strong>{t('guest.enterRoomMid')}
             <strong data-testid="entry-room-host">{room.room.hostName}</strong>
           </p>
         )}

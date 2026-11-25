@@ -620,6 +620,20 @@ export function MatchView({ room, batches, clockOffset, myId, send, actionError,
                 />
               </label>
             )}
+            {isHost && !finished && (
+              <label className="sound-switch">
+                <Icon name="share" />
+                <span>{t('menu.allowTakeover')}</span>
+                <input
+                  type="checkbox"
+                  role="switch"
+                  className="switch-input"
+                  data-testid="takeover-toggle"
+                  checked={room.allowTakeover}
+                  onChange={(e) => send({ t: 'allowTakeover', allow: e.target.checked })}
+                />
+              </label>
+            )}
             <MotionLevelControl variant="menu" />
             <LangSwitch className="lang-switch--menu" />
           </div>

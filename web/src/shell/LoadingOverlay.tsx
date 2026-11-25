@@ -25,7 +25,7 @@ export function LoadingOverlay({ load, progress }: { load: SceneLoad; progress: 
             <span className="pawn pawn-yellow" />
             <span className="pawn pawn-green" />
           </span>
-          <strong className="shell-poster-name">Cờ Cá Ngựa 3D</strong>
+          <strong className="shell-poster-name">{t('brand.name')}</strong>
           <span className="shell-poster-progress" data-testid="scene-progress">
             {progressText(t, load, progress)}
           </span>

@@ -16,6 +16,7 @@ import { useMusic } from '../audio/SoundControls';
 import { entered } from '../shell/entered';
 import { PanelHost } from '../shell/PanelHost';
 import { Icon } from '../ui/Icon';
+import { roomDisplayName } from '../room/names';
 import { useLobby } from './LobbyProvider';
 import { parseRoomCode } from './room-code';
 
@@ -192,7 +193,7 @@ function RoomList() {
             return (
               <li className="room-item" key={r.code} data-testid={`room-item-${r.code}`}>
                 <div className="room-item-info">
-                  <strong>{r.name}</strong>
+                  <strong>{roomDisplayName(t, r.name)}</strong>
                   <span className="muted">
                     {t('lobby.roomMeta', { host: r.hostName, taken: r.seatsTaken, total: r.seatsTotal, status: takeover ? t('lobby.playingTakeover') : playing ? t('lobby.playing') : t('lobby.waiting') })}
                   </span>

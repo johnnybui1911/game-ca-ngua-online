@@ -32,6 +32,7 @@ import {
   ROOM_KEY_PREFIX,
   listRoom,
   mergeLegacyRooms,
+  playingElsewhere,
   publicRoomList,
   reserveCreate,
   roomKey,
@@ -117,8 +118,8 @@ export class LobbyDO extends DurableObject<Env> {
   }
 
   /** `created` marks the room's first listing after its creation, which is what ends the creator's reservation. */
-  async upsertRoom(summary: RoomSummary, visibility: RoomVisibility, hostId: string, created = false): Promise<void> {
-    const { entry, changed } = listRoom(this.rooms, this.pendingCreates, { summary, visibility, hostId, created }, Date.now());
+  async upsertRoom(summary: RoomSummary, visibility: RoomVisibility, hostId: string, created = false, playerIds: string[] = []): Promise<void> {
+    const { entry, changed } = listRoom(this.rooms, this.pendingCreates, { summary, visibility, hostId, created, playerIds }, Date.now());
     // Bumped on every listing, stored or not: the sweep discards a room answer that predates one.
     this.rooms[summary.code] = { ...entry, rev: ++this.revCounter };
     if (changed) {
@@ -258,6 +259,7 @@ export class LobbyDO extends DurableObject<Env> {
     if (!isRoomCode(code)) return fail('invalid_invite', 'Mã phòng không hợp lệ.');
     const targets = this.socketsOf(toUserId);
     if (targets.length === 0) return fail('not_online', 'Người này không còn online.');
+    if (playingElsewhere(this.rooms, toUserId)) return fail('in_game', 'Người này đang trong một ván khác.');
     const now = Date.now();
     const key = `${sender.id}|${toUserId}`;
     const last = this.invites.get(key);
@@ -379,6 +381,7 @@ export class LobbyDO extends DurableObject<Env> {
   private lobbyMessage(): LobbyServerMessage {
     const rooms = publicRoomList(this.rooms, MAX_LOBBY_LIST);
     const online = onlineUsers(this.openSockets().map((ws) => ws.deserializeAttachment() as LobbySocketUser | null));
-    return { t: 'lobby', rooms, online };
+    const inGame = online.filter((u) => playingElsewhere(this.rooms, u.id)).map((u) => u.id);
+    return { t: 'lobby', rooms, online, inGame };
   }
 }

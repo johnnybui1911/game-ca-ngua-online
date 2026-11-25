@@ -29,8 +29,7 @@ describe('dictionary', () => {
     for (const key of keys) {
       if (allowed.has(key)) continue;
       expect(dictionaries.en[key].trim(), key).not.toBe('');
-      // Words that are the game's own name stay (cờ cá ngựa); everything else must be English.
-      expect(dictionaries.en[key].replace(/cờ cá ngựa/gi, ''), key).not.toMatch(/[À-ỹ]/);
+      expect(dictionaries.en[key], key).not.toMatch(/[À-ỹ]/);
     }
   });
 
@@ -50,7 +49,7 @@ describe('dictionary', () => {
   it('translates the rules sheet', () => {
     const sections = rulesForT(en, { quick: true, rules: { tripleBonusForfeit: true } });
     expect(sections.map((s) => s.items.length)).toEqual([4, 7, 1]);
-    expect(sections[1]!.heading).toBe('Cờ cá ngựa rules');
+    expect(sections[1]!.heading).toBe('Ludo rules');
   });
 });
 

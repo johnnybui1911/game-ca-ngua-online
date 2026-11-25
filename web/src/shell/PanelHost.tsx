@@ -1,6 +1,7 @@
 import { useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
 import type { ReactNode } from 'react';
 import { useLocation } from 'react-router';
+import { useT } from '../i18n';
 import { useSceneStage } from './scene-host';
 
 /** From this width the panel stands beside the board; below it, it slides up over the lower part. */
@@ -109,9 +110,10 @@ export function PanelHost({ children, wide = false }: { children: ReactNode; /**
 
 /** The usual surface inside a panel: a glass card with the game's name above its title. */
 export function GlassPanel({ title, children, className }: { title: ReactNode; children: ReactNode; className?: string }) {
+  const t = useT();
   return (
     <main className={`glass shell-glass${className ? ` ${className}` : ''}`}>
-      <p className="ui-eyebrow">Cờ Cá Ngựa 3D</p>
+      <p className="ui-eyebrow">{t('brand.name')}</p>
       <h1 className="ui-title shell-glass-title">{title}</h1>
       {children}
     </main>
