@@ -38,7 +38,7 @@ export const lobby = defineArea(
     'lobby.dismiss': 'Bỏ qua',
   },
   {
-    'lobby.defaultRoomName': "{name}'s room",
+    'lobby.defaultRoomName': 'Room of {name}',
     'lobby.nameRequired': 'Please name the room.',
     'lobby.createFailed': 'Could not create the room.',
     'lobby.createTitle': 'Create a room',

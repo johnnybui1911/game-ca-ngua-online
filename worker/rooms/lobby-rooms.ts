@@ -6,6 +6,8 @@ export interface StoredRoom {
   visibility: RoomVisibility;
   /** The room's current host; null for rooms listed before the lobby recorded it. */
   hostId: string | null;
+  /** People seated in the room while its game runs; empty otherwise. Never sent to clients. */
+  playerIds?: string[];
   /** Insertion order for newest-first listing. */
   at: number;
 }
@@ -72,9 +74,10 @@ export function reserveCreate(
 /** Whether a stored entry already says what the listing would record. A null legacy host differs from any real one. */
 export function sameListing(
   entry: StoredRoom,
-  listing: { summary: RoomSummary; visibility: RoomVisibility; hostId: string },
+  listing: { summary: RoomSummary; visibility: RoomVisibility; hostId: string; playerIds?: string[] },
 ): boolean {
   return (
+    JSON.stringify(entry.playerIds ?? []) === JSON.stringify(listing.playerIds ?? []) &&
     entry.hostId === listing.hostId &&
     entry.visibility === listing.visibility &&
     JSON.stringify(entry.summary) === JSON.stringify(listing.summary)
@@ -89,7 +92,7 @@ export function sameListing(
 export function listRoom(
   rooms: Record<string, StoredRoom>,
   pending: PendingCreates,
-  listing: { summary: RoomSummary; visibility: RoomVisibility; hostId: string; created: boolean },
+  listing: { summary: RoomSummary; visibility: RoomVisibility; hostId: string; created: boolean; playerIds?: string[] },
   now: number,
 ): { entry: StoredRoom; changed: boolean } {
   if (listing.created) consumeReservation(pending, listing.hostId, now);
@@ -99,10 +102,16 @@ export function listRoom(
     summary: listing.summary,
     visibility: listing.visibility,
     hostId: listing.hostId,
+    ...(listing.playerIds?.length ? { playerIds: listing.playerIds } : {}),
     at: existing?.at ?? now,
   };
   rooms[listing.summary.code] = entry;
   return { entry, changed: true };
+}
+
+/** Whether the user is seated in a game that is running in any listed room. */
+export function playingElsewhere(rooms: Record<string, StoredRoom>, userId: string): boolean {
+  return Object.values(rooms).some((r) => r.playerIds?.includes(userId));
 }
 
 /** A room was listed for the first time: its creation no longer needs a reservation. */

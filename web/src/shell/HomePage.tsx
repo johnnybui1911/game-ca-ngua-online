@@ -66,7 +66,7 @@ function Hero() {
     <main className="home" data-testid="home" ref={homeRef}>
       <header className="home-title" ref={titleRef}>
         <p className="ui-eyebrow">{t('home.eyebrow')}</p>
-        <h1 className="ui-title">Cờ Cá Ngựa</h1>
+        <h1 className="ui-title">{t('brand.short')}</h1>
       </header>
       <div className="home-band" ref={bandRef}>
         {joining ? (

@@ -10,6 +10,7 @@ import {
 } from '../../../shared/protocol';
 import { useSession } from '../auth/session-context';
 import { useT } from '../i18n';
+import { roomDisplayName } from '../room/names';
 import { errorText } from '../i18n/error-text';
 import { openReconnectingSocket, type ReconnectingSocket } from './reconnecting-socket';
 import './lobby.css';
@@ -17,6 +18,8 @@ import './lobby.css';
 interface LobbyValue {
   rooms: RoomSummary[];
   online: PublicUser[];
+  /** Ids of online people in a running game: they cannot be invited. */
+  inGame: ReadonlySet<string>;
   invite: (toUserId: string, code: string) => void;
   /** Shows a short notice in the toast stack, on whatever page is open. */
   notify: (text: string) => void;
@@ -41,6 +44,7 @@ export function LobbyProvider({ children }: { children: ReactNode }) {
   const tr = useT();
   const [rooms, setRooms] = useState<RoomSummary[]>([]);
   const [online, setOnline] = useState<PublicUser[]>([]);
+  const [inGame, setInGame] = useState<ReadonlySet<string>>(new Set());
   const [toasts, setToasts] = useState<Toast[]>([]);
   const socket = useRef<ReconnectingSocket | null>(null);
   const nextId = useRef(1);
@@ -76,6 +80,7 @@ export function LobbyProvider({ children }: { children: ReactNode }) {
         if (msg.t === 'lobby') {
           setRooms(msg.rooms);
           setOnline(msg.online);
+          setInGame(new Set(msg.inGame ?? []));
         } else if (msg.t === 'invited') {
           push({ kind: 'invite', from: msg.from, code: msg.code, roomName: msg.roomName }, INVITE_MS);
         } else if (msg.code !== SIGNED_OUT_CODE) {
@@ -100,7 +105,7 @@ export function LobbyProvider({ children }: { children: ReactNode }) {
 
   const notify = useCallback((text: string) => push({ kind: 'notice', text }, NOTICE_MS), [push]);
 
-  const value = useMemo(() => ({ rooms, online, invite, notify }), [rooms, online, invite, notify]);
+  const value = useMemo(() => ({ rooms, online, inGame, invite, notify }), [rooms, online, inGame, invite, notify]);
 
   return (
     <LobbyContext value={value}>
@@ -110,7 +115,7 @@ export function LobbyProvider({ children }: { children: ReactNode }) {
           t.kind === 'invite' ? (
             <div className="glass toast" role="alert" data-testid="invite-toast" key={t.id}>
               <p>
-                {tr('lobby.invited', { name: t.from.displayName, room: t.roomName })}
+                {tr('lobby.invited', { name: t.from.displayName, room: roomDisplayName(tr, t.roomName) })}
               </p>
               <div className="toast-actions">
                 <button

@@ -15,7 +15,7 @@ import type { EmoteBySeat } from './emote-feed';
 import { GameSettings } from './GameSettings';
 import { HorseNamesDialog } from './HorseNamesDialog';
 import { HostLeaveDialog } from './HostLeaveDialog';
-import { cpuDisplayName, seatName as seatLabel } from './names';
+import { cpuDisplayName, roomDisplayName, seatName as seatLabel } from './names';
 import { RulesSheet } from './RulesSheet';
 
 const INVITE_SENT_MS = 10_000;
@@ -33,7 +33,7 @@ interface Props {
 export function WaitingView({ room, myId, send, actionError, emotes, offline }: Props) {
   const t = useT();
   const navigate = useNavigate();
-  const { online, invite } = useLobby();
+  const { online, inGame, invite } = useLobby();
   const [copied, setCopied] = useState<'idle' | 'done' | 'failed'>('idle');
   const [sent, setSent] = useState<Set<string>>(new Set());
   const [renaming, setRenaming] = useState(false);
@@ -48,7 +48,7 @@ export function WaitingView({ room, myId, send, actionError, emotes, offline }: 
   const seatedIds = new Set(
     room.seats.flatMap((s) => (s.occupant?.kind === 'human' ? [s.occupant.user.id] : [])),
   );
-  const invitable = online.filter((u) => !seatedIds.has(u.id));
+  const invitable = online.filter((u) => !seatedIds.has(u.id) && !inGame.has(u.id));
   const canShare = typeof navigator.share === 'function';
 
   const copy = async () => {
@@ -63,7 +63,7 @@ export function WaitingView({ room, myId, send, actionError, emotes, offline }: 
 
   const share = async () => {
     try {
-      await navigator.share({ title: room.name, text: t('wait.shareText', { name: room.name }), url: link });
+      await navigator.share({ title: roomDisplayName(t, room.name), text: t('wait.shareText', { name: roomDisplayName(t, room.name) }), url: link });
       reportInviteShared();
     } catch {
       // dismissed by the user
@@ -111,7 +111,7 @@ export function WaitingView({ room, myId, send, actionError, emotes, offline }: 
             {room.allowTakeover && <span data-testid="allow-takeover-tag">{t('wait.takeoverTag')}</span>}
           </p>
           <h1 id="room-name" className="ui-title room-title" data-testid="room-name">
-            {room.name}
+            {roomDisplayName(t, room.name)}
           </h1>
           <div className="room-code-row">
             <span className="room-code-chip">

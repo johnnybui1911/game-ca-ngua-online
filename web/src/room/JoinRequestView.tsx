@@ -6,7 +6,7 @@ import { useT, type TFunction } from '../i18n';
 import { errorText } from '../i18n/error-text';
 import { GlassPanel } from '../shell/PanelHost';
 import { COLOR_VARS, colorName } from './colors';
-import { cpuDisplayName } from './names';
+import { cpuDisplayName, roomDisplayName } from './names';
 
 interface Props {
   room: RoomSnapshot;
@@ -45,7 +45,7 @@ export function JoinRequestView({ room, myId, send, actionError, joinNotice }: P
   }
 
   return (
-    <GlassPanel title={<span data-testid="join-title">{room.name}</span>}>
+    <GlassPanel title={<span data-testid="join-title">{roomDisplayName(t, room.name)}</span>}>
       <p className="ui-muted" data-testid="join-players">
         {t('join.players', { players: players.join(', ') })}
       </p>
