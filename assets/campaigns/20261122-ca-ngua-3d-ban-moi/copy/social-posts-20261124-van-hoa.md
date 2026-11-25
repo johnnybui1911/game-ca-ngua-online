@@ -35,12 +35,12 @@ Chưa có clip thì dùng ảnh trước/sau; em không quay được pha đá v
 
 ## 1. Facebook cá nhân
 
-Link: `https://cocangua3d.jblabs.me/?utm_source=facebook`
+Link: `https://cocangua.jblabs.me/?utm_source=facebook`
 
 > 🎉 Tối nay, nhân Ngày Văn hoá Việt Nam, Cờ Cá Ngựa 3D Online chính thức lên sàn với địa chỉ riêng 🐴
 >
 > Mời cả nhà vào trải nghiệm bản chính thức:
-> 👉 https://cocangua3d.jblabs.me/?utm_source=facebook
+> 👉 https://cocangua.jblabs.me/?utm_source=facebook
 >
 > Rủ nhau một ván, vui như hồi nhỏ:
 > 🎮 Chơi ngay trên điện thoại, nhập tên là chơi, không cần cài app. Free
@@ -59,14 +59,14 @@ Link: `https://cocangua3d.jblabs.me/?utm_source=facebook`
 
 ## 2. Nhóm code (Vibe Code Kiếm Cơm, Build in Public…)
 
-Link: `https://cocangua3d.jblabs.me/?utm_source=facebook`
+Link: `https://cocangua.jblabs.me/?utm_source=facebook`
 
 Trước khi đăng: đọc nội quy nhóm (tag `#share`, ngày được đăng link, có cho đăng link trong bài không); mỗi nhóm cách nhau vài giờ và đổi nhẹ câu mở; trả lời bình luận nhanh trong giờ đầu.
 
 > 👋 Chào mọi người, em là Johnny ạ
 >
 > 🐴 Cờ Cá Ngựa 3D Online: rủ nhau một ván, vui như hồi nhỏ
-> 👉 Chơi thử ngay: https://cocangua3d.jblabs.me/?utm_source=facebook
+> 👉 Chơi thử ngay: https://cocangua.jblabs.me/?utm_source=facebook
 >
 > Nhân Ngày Văn hoá Việt Nam hôm nay, em xin giới thiệu game em vibe code cùng AI agent, để mình cùng chơi lại một trò tuổi thơ rất Việt Nam 🧧
 >
@@ -91,8 +91,8 @@ Trước khi đăng: đọc nội quy nhóm (tag `#share`, ngày được đăng
 
 **Bình luận đầu tiên (anh tự đăng ngay sau khi đăng bài):**
 
-> 🎮 Chơi thử: https://cocangua3d.jblabs.me/?utm_source=facebook
-> Luật chơi đầy đủ + giới thiệu: https://cocangua3d.jblabs.me/gioi-thieu?utm_source=facebook
+> 🎮 Chơi thử: https://cocangua.jblabs.me/?utm_source=facebook
+> Luật chơi đầy đủ + giới thiệu: https://cocangua.jblabs.me/gioi-thieu?utm_source=facebook
 
 Link nằm ở đầu bài (hiện trước chữ "Xem thêm"), và lặp lại ở bình luận đầu tiên phòng khi nhóm ẩn link hoặc bài bị chìm. Nếu nhóm cấm link trong bài: xoá dòng 👉 và thêm "Link game em để ở bình luận đầu tiên ạ".
 
