@@ -1118,6 +1118,8 @@ html[data-quality='low'] .hud-player {
   display: flex;
   gap: var(--space-2);
   margin-left: auto;
+  /* Same height as the roll button beside it. */
+  align-self: stretch;
 }
 
 .btn-roll {
@@ -1128,8 +1130,9 @@ html[data-quality='low'] .hud-player {
   line-height: var(--leading-tight);
 }
 
+/* Two move buttons and the menu button share a row; the menu button never wraps onto a row of its own. */
 .hud-actions .btn-move {
-  flex: 1 1 calc(50% - var(--space-2));
+  flex: 1 1 calc(50% - var(--touch) / 2 - var(--space-2));
   min-width: 0;
   padding: var(--space-2) var(--space-3);
   font-size: var(--text-sm);
@@ -1139,12 +1142,8 @@ html[data-quality='low'] .hud-player {
   text-align: center;
 }
 
-/* Phones: the roll button takes its own row; compact player cards keep only the lock icon. */
+/* Phones: compact player cards keep only the lock icon. */
 @media (max-width: 480px) {
-  .btn-roll {
-    flex-basis: 100%;
-  }
-
   .turn-banner {
     font-size: var(--text-md);
   }
